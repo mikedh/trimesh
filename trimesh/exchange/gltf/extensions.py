@@ -7,6 +7,7 @@ Each scope has a TypedDict defining the context passed to handlers.
 """
 
 from collections.abc import Callable, Iterable
+from functools import partial
 from typing import Any, Literal, TypeAlias, TypedDict
 
 import numpy as np
@@ -283,20 +284,50 @@ def _specular_glossiness(context: MaterialContext) -> dict[str, Any] | None:
     return specular_to_pbr(**context["parse_textures"](data=context["data"]))
 
 
-# material extensions which only set PBRMaterial fields: clear glass, light
-# scattered out of the other side of a thin surface (with its textures),
-# and an empty object marking a base color as the final color
-for _name, _fields in {
-    "KHR_materials_transmission": lambda context: {
-        "transmissionFactor": context["data"].get("transmissionFactor", 0.0)
-    },
-    "KHR_materials_diffuse_transmission": lambda context: {
-        "diffuseTransmissionFactor": 0.0,
-        **context["parse_textures"](data=context["data"]),
-    },
-    "KHR_materials_unlit": lambda context: {"unlit": True},
-}.items():
-    register_handler(_name, scope="material")(_fields)
+# material extensions which only hold `PBRMaterial` fields of the same
+# name, which import and export both read: clear glass, light scattered
+# out of the other side of a thin surface, and an empty object making
+# the base color the final color, which is `PBRMaterial.unlit`
+MATERIAL_EXTENSIONS = {
+    "KHR_materials_transmission": ("transmissionFactor", "transmissionTexture"),
+    "KHR_materials_diffuse_transmission": (
+        "diffuseTransmissionFactor",
+        "diffuseTransmissionTexture",
+        "diffuseTransmissionColorFactor",
+        "diffuseTransmissionColorTexture",
+    ),
+    "KHR_materials_unlit": (),
+}
+
+
+def material_fields(name: str, context: MaterialContext) -> dict[str, Any]:
+    """
+    The `PBRMaterial` fields a material extension of `MATERIAL_EXTENSIONS`
+    stores, with its textures resolved to images.
+
+    Parameters
+    ----------
+    name
+      The extension, a key of `MATERIAL_EXTENSIONS`.
+    context
+      MaterialContext with the extension's data.
+
+    Returns
+    -------
+    fields
+      Keyword arguments of `PBRMaterial`.
+    """
+    parsed = context["parse_textures"](data=context["data"])
+    fields = {key: parsed[key] for key in MATERIAL_EXTENSIONS[name] if key in parsed}
+    if name == "KHR_materials_unlit":
+        fields["unlit"] = True
+    return fields
+
+
+for extension_name in MATERIAL_EXTENSIONS:
+    register_handler(extension_name, scope="material")(
+        partial(material_fields, extension_name)
+    )
 
 
 @register_handler("EXT_texture_webp", scope="texture_source")

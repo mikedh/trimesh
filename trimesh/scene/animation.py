@@ -2,21 +2,20 @@
 animation.py
 --------------
 
-Keyframed animation of a scene graph as homogeneous matrices, and the
+Keyframed animation of scene graph nodes as stacked matrices, and the
 skins which let scene graph nodes move the vertices of a mesh.
 """
+
+from enum import Enum
 
 import numpy as np
 
 from .. import caching
-from ..transformations import (
-    sample_channel,
-    skin_points,
-    trs_from_matrix,
-    trs_matrix,
-)
+from ..constants import log
+from ..transformations import sample_channel, skin_points, trs_from_matrix, trs_matrix
 from ..typed import (
     ArrayLike,
+    Callable,
     Floating,
     Iterable,
     NDArray1D,
@@ -26,56 +25,70 @@ from ..typed import (
     float64,
 )
 
-# how a transform between keyframes is found
-INTERPOLATIONS = ("linear", "step")
+
+class Interpolation(str, Enum):
+    """
+    How an animation is sampled between keyframes: blending the
+    translation, rotation, and scale linearly, holding each keyframe,
+    or along a cubic spline through every keyframe. A `str` mixin as
+    `StrEnum` needs Python 3.11 and trimesh supports 3.10.
+    """
+
+    LINEAR = "linear"
+    STEP = "step"
+    CUBIC = "cubic"
 
 
 class Animation:
     """
-    Rigid motion of scene graph edges on one timeline, stored as the
-    `frame_from -> frame_to` matrix of every edge at every keyframe.
+    Motion of scene graph nodes on one timeline, stored as the transform
+    of every node from its parent at every keyframe and sampled between
+    them by its `Interpolation`.
     """
 
     def __init__(
         self,
-        edges: Iterable,
+        name: str,
+        nodes: Iterable,
         times: ArrayLike,
         matrices: ArrayLike,
-        name: str = "animation",
-        interpolation: str = "linear",
+        interpolation: Interpolation | str = Interpolation.LINEAR,
     ):
         """
-        Create an animation of scene graph edges.
+        Create an animation of scene graph nodes.
 
         Parameters
         ------------
-        edges : (e,) sequence of (frame_from, frame_to)
-          The scene graph edges this drives, where a `frame_from`
-          of None is the base frame.
-        times : (k,) float
-          Increasing keyframe times in seconds.
-        matrices : (k, e, 4, 4) float
-          The transform of every edge at every keyframe, which
-          may be (k, 4, 4) for a single edge.
         name : str
           Animations sharing a name export as one glTF animation.
-        interpolation : str
-          "linear" blends between keyframes and "step" holds each one.
+        nodes : (n,) sequence of hashable
+          The scene graph nodes this moves relative to their parents.
+        times : (k,) float
+          Increasing keyframe times in seconds.
+        matrices : (k, n, 4, 4) float
+          Homogeneous transform of every node from its parent at every
+          keyframe, which may be (k, 4, 4) for a single node.
+        interpolation : Interpolation or str
+          How to sample between keyframes, where a value which isn't
+          one raises a ValueError.
         """
+        self.interpolation = Interpolation(interpolation)
+        times = caching.tracked_array(times, dtype=np.float64).reshape(-1)
+        if len(times) == 0 or (np.diff(times) < 0.0).any():
+            raise ValueError("times must be increasing and not empty!")
+        self.name = name
+        self.nodes = list(nodes)
         self._data = caching.DataStore()
         self._cache = caching.Cache(id_function=self._data.__hash__)
-        self.edges = [tuple(edge) for edge in edges]
-        self.times = times
-        self.matrices = np.reshape(matrices, (len(self.times), len(self.edges), 4, 4))
-        self.name = name
-        if interpolation not in INTERPOLATIONS:
-            raise ValueError(f"interpolation must be one of {INTERPOLATIONS}")
-        self.interpolation = interpolation
+        self._data["times"] = times
+        # raises a ValueError if there isn't a matrix per node per keyframe
+        shape = (len(times), len(self.nodes), 4, 4)
+        self._data["matrices"] = np.asarray(matrices, dtype=np.float64).reshape(shape)
 
     @property
     def times(self) -> NDArray1D[float64]:
         """
-        When each keyframe occurs.
+        When each keyframe occurs, which may be edited in place.
 
         Returns
         ------------
@@ -84,50 +97,18 @@ class Animation:
         """
         return self._data["times"]
 
-    @times.setter
-    def times(self, values: ArrayLike) -> None:
-        """
-        Set the keyframe times.
-
-        Parameters
-        ------------
-        values : (k,) float
-          Increasing keyframe times in seconds.
-        """
-        values = caching.tracked_array(values, dtype=np.float64).reshape(-1)
-        if len(values) == 0 or (np.diff(values) < 0.0).any():
-            raise ValueError("times must be increasing and not empty!")
-        self._data["times"] = values
-
     @property
     def matrices(self) -> NDArray4D[float64]:
         """
-        The transform of every edge at every keyframe, which may be
+        The transform of every node at every keyframe, which may be
         edited in place.
 
         Returns
         ------------
-        matrices : (k, e, 4, 4) float
-          Homogeneous `frame_from -> frame_to` transforms.
+        matrices : (k, n, 4, 4) float
+          Homogeneous transform of every node from its parent.
         """
         return self._data["matrices"]
-
-    @matrices.setter
-    def matrices(self, values: ArrayLike) -> None:
-        """
-        Set the transform of every edge at every keyframe.
-
-        Parameters
-        ------------
-        values : (k, e, 4, 4) float
-          Homogeneous `frame_from -> frame_to` transforms.
-        """
-        values = caching.tracked_array(values, dtype=np.float64)
-        if values.shape != (len(self.times), len(self.edges), 4, 4):
-            raise ValueError(
-                f"matrices must be (keyframes, edges, 4, 4) not {values.shape}"
-            )
-        self._data["matrices"] = values
 
     @caching.cache_decorator
     def trs(self) -> tuple[NDArray3D[float64], NDArray3D[float64], NDArray3D[float64]]:
@@ -137,23 +118,45 @@ class Animation:
 
         Returns
         ------------
-        translation : (k, e, 3) float
-          Translation of every edge at every keyframe.
-        quaternion : (k, e, 4) float
+        translation : (k, n, 3) float
+          Translation of every node at every keyframe.
+        quaternion : (k, n, 4) float
           Rotation ordered `w, x, y, z`, with neighboring keyframes in
           the same hemisphere so a blend takes the shorter way around.
-        scale : (k, e, 3) float
-          Scale of every edge at every keyframe.
+        scale : (k, n, 3) float
+          Scale of every node at every keyframe.
         """
-        shape = self.matrices.shape[:2]
-        translation, quaternion, scale = trs_from_matrix(
-            self.matrices.reshape((-1, 4, 4))
+        # plain arrays as every operation on a tracked one is tracked
+        matrices = np.asarray(self.matrices)
+        translation, quaternion, scale = (
+            part.reshape((*matrices.shape[:2], -1))
+            for part in trs_from_matrix(matrices.reshape((-1, 4, 4)))
         )
-        quaternion = quaternion.reshape((*shape, 4))
         # a quaternion and its negation are the same rotation
         flips = (quaternion[1:] * quaternion[:-1]).sum(axis=2) < 0.0
         quaternion[1:] *= np.cumprod(np.where(flips, -1.0, 1.0), axis=0)[..., None]
-        return translation.reshape((*shape, 3)), quaternion, scale.reshape((*shape, 3))
+        return translation, quaternion, scale
+
+    @caching.cache_decorator
+    def spline(self) -> Callable | None:
+        """
+        A cubic spline through every keyframe of `trs`, which is what a
+        CUBIC animation samples and exports the derivative of.
+
+        Returns
+        ------------
+        spline : None or scipy.interpolate.CubicSpline
+          Of the translation, quaternion, and scale stacked into (k, n, 10),
+          or None with one keyframe or if scipy isn't installed.
+        """
+        if len(self.times) < 2:
+            return None
+        try:
+            from scipy.interpolate import CubicSpline
+        except ImportError:
+            log.warning(f"`{self.name}` is sampled linearly without scipy")
+            return None
+        return CubicSpline(np.asarray(self.times), np.concatenate(self.trs, axis=2))
 
     @property
     def duration(self) -> float:
@@ -167,71 +170,39 @@ class Animation:
         """
         return float(self.times[-1])
 
-    def at(self, time: Floating | ArrayLike) -> NDArray3D[float64] | NDArray4D[float64]:
+    def at(self, time: Floating) -> NDArray3D[float64]:
         """
-        The transform of every edge at one or more times, holding the
-        first and last keyframe outside of the animation.
+        The transform of every node from its parent at a time, holding
+        the first and last keyframe outside of the animation.
 
         Parameters
         ------------
-        time : float or (m,) float
+        time : float
           Seconds.
 
         Returns
         ------------
-        matrices : (e, 4, 4) or (m, e, 4, 4) float
-          Transform of every edge at each time.
+        matrices : (n, 4, 4) float
+          Homogeneous transform of every node in `nodes` order.
         """
-        query = np.asanyarray(time, dtype=np.float64)
-        shared = {"times": self.times, "query": query.reshape(-1)}
-        if self.interpolation == "step":
-            # hold each keyframe until the next one is reached
-            sampled = sample_channel(
-                values=self.matrices,
-                tangent_in=None,
-                tangent_out=None,
-                mode="step",
-                rotation=False,
-                **shared,
-            )
-        else:
-            translation, quaternion, scale = (
+        times = np.asarray(self.times)
+        if self.interpolation == Interpolation.CUBIC and self.spline is not None:
+            # where `trs_matrix` normalizes quaternions as glTF specifies
+            sampled = self.spline(np.clip(time, times[0], times[-1]))
+            return trs_matrix(sampled[:, :3], sampled[:, 3:7], sampled[:, 7:])
+        # the keyframes on either side of the time are all it reads
+        bracket = np.clip(np.searchsorted(times, time) + [-1, 0], 0, len(times) - 1)
+        # held or blended between them, without cubic tangents
+        mode, query = Interpolation.LINEAR, [time]
+        if self.interpolation == Interpolation.STEP:
+            mode = Interpolation.STEP
+        return trs_matrix(
+            *(
                 sample_channel(
-                    values=values,
-                    tangent_in=None,
-                    tangent_out=None,
-                    mode="linear",
-                    rotation=rotation,
-                    **shared,
-                )
-                for values, rotation in zip(self.trs, (False, True, False))
+                    times[bracket], part[bracket], None, None, mode, query, rotation
+                )[0]
+                for part, rotation in zip(self.trs, (False, True, False))
             )
-            count = len(self.edges)
-            sampled = trs_matrix(
-                translation.reshape((-1, 3)),
-                quaternion.reshape((-1, 4)),
-                scale.reshape((-1, 3)),
-            ).reshape((-1, count, 4, 4))
-
-        if query.ndim == 0:
-            return sampled[0]
-        return sampled
-
-    def copy(self) -> "Animation":
-        """
-        A copy of this animation which shares no data with it.
-
-        Returns
-        ------------
-        copied : Animation
-          The same edges, times, and matrices.
-        """
-        return Animation(
-            edges=list(self.edges),
-            times=np.array(self.times),
-            matrices=np.array(self.matrices),
-            name=self.name,
-            interpolation=self.interpolation,
         )
 
 
@@ -254,41 +225,12 @@ class Skin:
           The inverse of each joint's world transform when the mesh
           was attached to it, which is the identity if not passed.
         """
-        self._data = caching.DataStore()
         self.joints = list(joints)
         if inverse_bind_matrices is None:
             inverse_bind_matrices = np.tile(np.eye(4), (len(self.joints), 1, 1))
-        self.inverse_bind_matrices = inverse_bind_matrices
-
-    @property
-    def inverse_bind_matrices(self) -> NDArray3D[float64]:
-        """
-        The inverse of each joint's world transform when the mesh was
-        attached to it, which may be edited in place.
-
-        Returns
-        ------------
-        inverse_bind_matrices : (j, 4, 4) float
-          One homogeneous transform per joint.
-        """
-        return self._data["inverse_bind_matrices"]
-
-    @inverse_bind_matrices.setter
-    def inverse_bind_matrices(self, values: ArrayLike) -> None:
-        """
-        Set the inverse bind matrix of every joint.
-
-        Parameters
-        ------------
-        values : (j, 4, 4) float
-          One homogeneous transform per joint.
-        """
-        values = caching.tracked_array(values, dtype=np.float64)
-        if values.shape != (len(self.joints), 4, 4):
-            raise ValueError(
-                f"inverse bind matrices must be (joints, 4, 4) not {values.shape}"
-            )
-        self._data["inverse_bind_matrices"] = values
+        self.inverse_bind_matrices = np.array(
+            inverse_bind_matrices, dtype=np.float64
+        ).reshape((len(self.joints), 4, 4))
 
     def deform(self, mesh, graph) -> NDArray2D[float64]:
         """
@@ -317,20 +259,6 @@ class Skin:
             np.matmul(world, self.inverse_bind_matrices),
         )
 
-    def copy(self) -> "Skin":
-        """
-        A copy of this skin which shares no data with it.
-
-        Returns
-        ------------
-        copied : Skin
-          The same joints and inverse bind matrices.
-        """
-        return Skin(
-            joints=list(self.joints),
-            inverse_bind_matrices=np.array(self.inverse_bind_matrices),
-        )
-
     def __hash__(self) -> int:
         """
         A hash which changes when the joints or matrices do.
@@ -340,4 +268,5 @@ class Skin:
         hashed : int
           Hash of the joints and inverse bind matrices.
         """
-        return hash((tuple(self.joints), self._data.__hash__()))
+        matrices = caching.hash_fast(self.inverse_bind_matrices.tobytes())
+        return hash((tuple(self.joints), matrices))

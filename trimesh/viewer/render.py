@@ -368,8 +368,5 @@ def turntable(scene, duration: Number, fps: Number):
     # a full turn around it through the scene center over the duration
     orbit = rotation_matrix(2.0 * np.pi * times / duration, axis, scene.centroid)
     return Animation(
-        edges=[(None, scene.camera.name)],
-        times=times,
-        matrices=orbit @ start,
-        name="turntable",
+        name="turntable", nodes=[scene.camera.name], times=times, matrices=orbit @ start
     )

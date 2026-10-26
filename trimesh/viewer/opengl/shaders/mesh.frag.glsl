@@ -17,8 +17,9 @@ flat in float fragment_node_index;
 // missing textures are a 1x1 white texture so they change nothing,
 // except a normal map which `material.has_textures.x` skips entirely,
 // where diffuse transmission's alpha and color multiply its factor and color
+// and transmission's red multiplies its factor
 uniform sampler2D base_color_texture, metallic_roughness_texture, emissive_texture;
-uniform sampler2D normal_texture, occlusion_texture;
+uniform sampler2D normal_texture, occlusion_texture, transmission_texture;
 uniform sampler2D diffuse_transmission_texture, diffuse_transmission_color_texture;
 // how much of the environment nearby surfaces leave visible, per pixel
 uniform sampler2D ambient_occlusion;
@@ -102,7 +103,9 @@ void main() {
         * texture(base_color_texture, texture_uv)
         * vec4(srgb_to_linear(srgb_color.rgb), srgb_color.a);
 
-    float alpha = base_color.a;
+    // clear glass lets through what is behind it, as `ALPHA_MODES` describes
+    float alpha = base_color.a
+        * (1.0 - material.transmission_color.w * texture(transmission_texture, texture_uv).r);
     if (alpha_mode == ALPHA_OPAQUE) {
         alpha = 1.0;
     }

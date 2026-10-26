@@ -12,7 +12,7 @@ import numpy as np
 
 from .. import exceptions, util
 from ..constants import tol
-from ..typed import NDArray
+from ..typed import Callable, NDArray
 from . import color
 
 try:
@@ -311,6 +311,77 @@ class MultiMaterial(Material):
         return self.materials[idx]
 
 
+class PBRField:
+    """
+    A field of a `PBRMaterial` from a glTF extension, stored in its
+    `_data` under the field's name like the others, where setting None
+    removes it.
+    """
+
+    def __init__(self, cast: Callable | None = None):
+        """
+        Declare a field.
+
+        Parameters
+        ------------
+        cast
+          Converts a value when it is set, like `float`, or None to
+          store the value as it is, like an image.
+        """
+        self.cast = cast
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        """
+        Remember the name the field was declared with.
+
+        Parameters
+        ------------
+        owner
+          The class declaring the field.
+        name
+          The field's name, which is also its key in `_data`.
+        """
+        self.name = name
+
+    def __get__(self, material: "PBRMaterial | None", owner: type | None = None):
+        """
+        The value of the field, or None if it isn't set.
+
+        Parameters
+        ------------
+        material
+          The material, or None when read from the class.
+        owner
+          The class of the material.
+
+        Returns
+        ------------
+        value
+          The stored value, or this field when read from the class.
+        """
+        if material is None:
+            return self
+        return material._data.get(self.name)
+
+    def __set__(self, material: "PBRMaterial", value) -> None:
+        """
+        Set the field, or remove it if `value` is None.
+
+        Parameters
+        ------------
+        material
+          The material.
+        value
+          The new value.
+        """
+        if value is None:
+            material._data.pop(self.name, None)
+        elif self.cast is None:
+            material._data[self.name] = value
+        else:
+            material._data[self.name] = self.cast(value)
+
+
 class PBRMaterial(Material):
     """
     Create a material for physically based rendering as
@@ -319,6 +390,26 @@ class PBRMaterial(Material):
 
     Parameters with `Texture` in them must be PIL.Image objects
     """
+
+    # how much light passes through like clear glass, from 0.0 to 1.0,
+    # from `KHR_materials_transmission`
+    transmissionFactor = PBRField(float)
+    # an image whose red channel multiplies `transmissionFactor`
+    transmissionTexture = PBRField()
+    # how much light a thin surface like a leaf scatters out of its other
+    # side, from `KHR_materials_diffuse_transmission`
+    diffuseTransmissionFactor = PBRField(float)
+    # an image whose alpha channel multiplies `diffuseTransmissionFactor`
+    diffuseTransmissionTexture = PBRField()
+    # the (3,) linear RGB color of that scattered light, white if not set
+    diffuseTransmissionColorFactor = PBRField(
+        lambda value: np.array(value, dtype=np.float64).reshape(3)
+    )
+    # an sRGB image whose color multiplies `diffuseTransmissionColorFactor`
+    diffuseTransmissionColorTexture = PBRField()
+    # the base color is the final color with no lighting from
+    # `KHR_materials_unlit`, for skies and baked or photographed light
+    unlit = PBRField(bool)
 
     def __init__(
         self,
@@ -336,6 +427,7 @@ class PBRMaterial(Material):
         alphaMode=None,
         alphaCutoff=None,
         transmissionFactor=None,
+        transmissionTexture=None,
         diffuseTransmissionFactor=None,
         diffuseTransmissionColorFactor=None,
         diffuseTransmissionTexture=None,
@@ -361,6 +453,7 @@ class PBRMaterial(Material):
         self.diffuseTransmissionColorFactor = diffuseTransmissionColorFactor
 
         # PIL image
+        self.transmissionTexture = transmissionTexture
         self.diffuseTransmissionTexture = diffuseTransmissionTexture
         self.diffuseTransmissionColorTexture = diffuseTransmissionColorTexture
         self.normalTexture = normalTexture
@@ -462,111 +555,6 @@ class PBRMaterial(Material):
             self._data["alphaCutoff"] = float(value)
 
     @property
-    def transmissionFactor(self):
-        """
-        How much light passes through the surface like clear glass,
-        from `KHR_materials_transmission`: 0.0 is opaque and 1.0
-        lets everything through except reflections.
-
-        Returns
-        -----------
-        transmissionFactor : float or None
-          Fraction of light transmitted.
-        """
-        return self._data.get("transmissionFactor")
-
-    @transmissionFactor.setter
-    def transmissionFactor(self, value):
-        if value is None:
-            self._data.pop("transmissionFactor", None)
-        else:
-            self._data["transmissionFactor"] = float(value)
-
-    @property
-    def diffuseTransmissionFactor(self):
-        """
-        How much of the light a thin surface like a leaf or paper
-        scatters diffusely out of its other side rather than back,
-        from `KHR_materials_diffuse_transmission`: 0.0 is opaque.
-
-        Returns
-        -----------
-        diffuseTransmissionFactor : float or None
-          Fraction of diffuse light transmitted.
-        """
-        return self._data.get("diffuseTransmissionFactor")
-
-    @diffuseTransmissionFactor.setter
-    def diffuseTransmissionFactor(self, value):
-        if value is None:
-            self._data.pop("diffuseTransmissionFactor", None)
-        else:
-            self._data["diffuseTransmissionFactor"] = float(value)
-
-    @property
-    def diffuseTransmissionColorFactor(self):
-        """
-        The linear RGB color of diffusely transmitted light from
-        `KHR_materials_diffuse_transmission`, which multiplies the
-        sampled texels of `diffuseTransmissionColorTexture`.
-
-        Returns
-        -----------
-        diffuseTransmissionColorFactor : (3,) float or None
-          Linear RGB, white if not set.
-        """
-        return self._data.get("diffuseTransmissionColorFactor")
-
-    @diffuseTransmissionColorFactor.setter
-    def diffuseTransmissionColorFactor(self, value):
-        if value is None:
-            self._data.pop("diffuseTransmissionColorFactor", None)
-        else:
-            self._data["diffuseTransmissionColorFactor"] = np.array(
-                value, dtype=np.float64
-            ).reshape(3)
-
-    @property
-    def diffuseTransmissionTexture(self):
-        """
-        The texture whose alpha channel multiplies
-        `diffuseTransmissionFactor`.
-
-        Returns
-        ----------
-        image : PIL.Image or None
-          Diffuse transmission texture.
-        """
-        return self._data.get("diffuseTransmissionTexture")
-
-    @diffuseTransmissionTexture.setter
-    def diffuseTransmissionTexture(self, value):
-        if value is None:
-            self._data.pop("diffuseTransmissionTexture", None)
-        else:
-            self._data["diffuseTransmissionTexture"] = value
-
-    @property
-    def diffuseTransmissionColorTexture(self):
-        """
-        The sRGB texture whose color channels multiply
-        `diffuseTransmissionColorFactor`.
-
-        Returns
-        ----------
-        image : PIL.Image or None
-          Diffuse transmission color texture.
-        """
-        return self._data.get("diffuseTransmissionColorTexture")
-
-    @diffuseTransmissionColorTexture.setter
-    def diffuseTransmissionColorTexture(self, value):
-        if value is None:
-            self._data.pop("diffuseTransmissionColorTexture", None)
-        else:
-            self._data["diffuseTransmissionColorTexture"] = value
-
-    @property
     def doubleSided(self):
         """
         Specifies whether the material is double sided.
@@ -585,27 +573,6 @@ class PBRMaterial(Material):
             self._data.pop("doubleSided", None)
         else:
             self._data["doubleSided"] = bool(value)
-
-    @property
-    def unlit(self):
-        """
-        The base color is the final color with no lighting at all, from
-        `KHR_materials_unlit`, for things like skies and baked or
-        photographed lighting.
-
-        Returns
-        -----------
-        unlit : bool or None
-          If no light shades the material.
-        """
-        return self._data.get("unlit")
-
-    @unlit.setter
-    def unlit(self, value):
-        if value is None:
-            self._data.pop("unlit", None)
-        else:
-            self._data["unlit"] = bool(value)
 
     @property
     def metallicFactor(self):

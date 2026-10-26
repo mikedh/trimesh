@@ -2,39 +2,37 @@
 animation.py
 --------------
 
-Read and write glTF keyframed animation and skins.
-
-glTF animates the `translation`, `rotation`, and `scale` of nodes with
-samplers, each an accessor of times and one of values. trimesh stores
-an `Animation` of scene graph edge matrices on one timeline, so this is
-where channels become matrices and back. glTF orders quaternions
-`x, y, z, w` where trimesh orders them `w, x, y, z`.
+Read and write glTF keyframed animation and skins, where glTF
+orders quaternions `x, y, z, w` and trimesh orders them `w, x, y, z`.
 """
-
-from collections import defaultdict
 
 import numpy as np
 
 from ...constants import log, tol
+from ...scene.animation import Animation, Interpolation
 from ...transformations import sample_channel, trs_from_matrix, trs_matrix
 from ...typed import NDArray3D, float64
 
-# the value of each channel a node doesn't store, in glTF order
+# the value of each part of a transform a node doesn't store, in glTF order
 DEFAULTS = {
     "translation": [0.0, 0.0, 0.0],
     "rotation": [0.0, 0.0, 0.0, 1.0],
     "scale": [1.0, 1.0, 1.0],
 }
 
+# the glTF sampler interpolation each trimesh interpolation is written as
+INTERPOLATIONS = {
+    Interpolation.LINEAR: "LINEAR",
+    Interpolation.STEP: "STEP",
+    Interpolation.CUBIC: "CUBICSPLINE",
+}
+# and the one each is loaded as
+FROM_GLTF = {value: key for key, value in INTERPOLATIONS.items()}
+
 # quaternion components reordered between glTF `x, y, z, w` and
 # trimesh `w, x, y, z`
 WXYZ_FROM_XYZW = [3, 0, 1, 2]
 XYZW_FROM_WXYZ = [1, 2, 3, 0]
-
-# samples per second taken of a cubic spline when it is loaded: the
-# 60 Hz refresh rate of a typical display, as a player can't show
-# motion finer than the frames it draws
-SPLINE_RATE = 60.0
 
 
 def node_matrices(nodes: list) -> NDArray3D[float64]:
@@ -44,39 +42,33 @@ def node_matrices(nodes: list) -> NDArray3D[float64]:
     Parameters
     ------------
     nodes : list
-      glTF nodes which each store a `matrix` or any of its channels.
+      glTF nodes which each store a `matrix` or any of its parts.
 
     Returns
     ------------
     matrices : (len(nodes), 4, 4) float
       Homogeneous transform of every node relative to its parent.
     """
-    # every node's channels with the default for any it doesn't store
+    # every node's parts with the default for any it doesn't store
     translation, rotation, scale = (
-        np.array([node.get(key, value) for node in nodes], dtype=np.float64).reshape(
-            (-1, len(value))
-        )
+        np.reshape([node.get(key, value) for node in nodes], (-1, len(value)))
         for key, value in DEFAULTS.items()
     )
     matrices = trs_matrix(translation, rotation[:, WXYZ_FROM_XYZW], scale)
-    # a node which stores a `matrix` stores no channels
+    # a node which stores a `matrix` stores no parts
     explicit = [index for index, node in enumerate(nodes) if "matrix" in node]
     # glTF matrices are column-major
-    matrices[explicit] = (
-        np.array([nodes[index]["matrix"] for index in explicit], dtype=np.float64)
-        .reshape((-1, 4, 4))
-        .transpose((0, 2, 1))
-    )
+    stored = np.reshape([nodes[index]["matrix"] for index in explicit], (-1, 4, 4))
+    matrices[explicit] = stored.transpose((0, 2, 1))
     return matrices
 
 
-def parse_animations(header: dict, access: list, names: dict, edges: dict) -> list:
+def parse_animations(header: dict, access: list, names: dict) -> list:
     """
-    Load each glTF animation as one `Animation` of scene graph edges.
-
-    Channels which are all "LINEAR" or all "STEP" load exactly onto
-    the union of their keyframe times. A cubic spline or mixed modes
-    are sampled onto a `SPLINE_RATE` timeline and blended linearly.
+    Load each glTF animation as an `Animation` of every node it moves at
+    every keyframe of any of its channels, which is exact at those times,
+    between which it is a cubic spline if any channel is, held if every
+    channel is, and otherwise blended linearly.
 
     Parameters
     ------------
@@ -85,107 +77,67 @@ def parse_animations(header: dict, access: list, names: dict, edges: dict) -> li
     access : list
       Decoded accessor data.
     names : dict
-      {node index : node name}
-    edges : dict
-      {node name : parent node name}
+      {node index : node name} of the nodes in the loaded scene.
 
     Returns
     ----------
     animations : list
       `trimesh.scene.animation.Animation` objects.
     """
-    from ...scene.animation import Animation
-
-    nodes = header.get("nodes", [])
     result = []
     for number, animation in enumerate(header.get("animations", [])):
-        name = animation.get("name", f"animation_{number}")
-        # {node index : {channel : (times, values, in, out, mode)}}
-        curves = defaultdict(dict)
+        channels = []
         for channel in animation.get("channels", []):
-            node = channel.get("target", {}).get("node")
-            path = channel.get("target", {}).get("path")
-            if path == "weights":
+            target = channel.get("target", {})
+            if target.get("path") == "weights":
                 log.warning("morph target `weights` animation is not supported")
-            if node not in names or path not in DEFAULTS:
+            # a node outside the loaded scene isn't there to animate
+            if target.get("node") not in names or target.get("path") not in DEFAULTS:
                 continue
             try:
                 sampler = animation["samplers"][channel["sampler"]]
-                times = np.asarray(access[sampler["input"]], dtype=np.float64).reshape(-1)
-                # (keyframe, 1 or 3, width): a cubic spline stores an
-                # arriving tangent, value, and leaving tangent per keyframe
-                values = np.asarray(access[sampler["output"]], dtype=np.float64).reshape(
-                    (len(times), -1, len(DEFAULTS[path]))
-                )
-            except (KeyError, IndexError, ValueError, TypeError):
+                keys, values = access[sampler["input"]], access[sampler["output"]]
+                mode = FROM_GLTF[sampler.get("interpolation", "LINEAR")]
+                channels.append((target["node"], target["path"], keys, values, mode))
+            except (KeyError, IndexError, TypeError):
                 if tol.strict:
                     raise
-                log.warning(f"unable to load animation `{name}`", exc_info=True)
-                continue
+                log.warning("unable to load animation channel", exc_info=True)
+        if len(channels) == 0:
+            continue
+        times = np.unique(np.concatenate([channel[2] for channel in channels]))
+        nodes = list(dict.fromkeys(channel[0] for channel in channels))
+        # every node at rest at every keyframe, then each channel sampled
+        rest = trs_from_matrix(node_matrices([header["nodes"][n] for n in nodes]))
+        parts = {p: np.tile(part, (len(times), 1, 1)) for p, part in zip(DEFAULTS, rest)}
+        for node, path, keys, values, mode in channels:
+            # (k, 1 or 3, width) where a cubic spline stores an arriving
+            # tangent, value, and leaving tangent per keyframe
+            values = values.reshape((len(keys), -1, parts[path].shape[2]))
             if path == "rotation":
                 values = values[..., WXYZ_FROM_XYZW]
-            # the value is in the middle, which is all there is unless cubic
-            middle = values.shape[1] // 2
-            curves[node][path] = (
-                times,
-                values[:, middle],
-                values[:, 0],
-                values[:, -1],
-                sampler.get("interpolation", "LINEAR"),
-            )
-        if len(curves) == 0:
-            continue
-
-        channels = [curve for node in curves.values() for curve in node.values()]
-        modes = {curve[4] for curve in channels}
-        grid = np.unique(np.concatenate([curve[0] for curve in channels]))
-        interpolation = "linear"
-        if modes == {"STEP"}:
-            interpolation = "step"
-        elif modes != {"LINEAR"}:
-            # a spline or mixed modes are sampled densely and blended linearly
-            dense = np.arange(grid[0], grid[-1], 1.0 / SPLINE_RATE)
-            grid = np.union1d(grid, dense)
-
-        # (keyframe, edge, width) of every channel of every animated node
-        shape = (len(grid), len(curves))
-        parts = {
-            path: np.zeros((*shape, len(default))) for path, default in DEFAULTS.items()
-        }
-        # {(path, mode, keyframe times) : [(column, curve)]}
-        groups = defaultdict(list)
-        # a channel the file doesn't animate holds the rest pose
-        rests = trs_from_matrix(node_matrices([nodes[node] for node in curves]))
-        for part, rest in zip(parts.values(), rests):
-            part[:] = rest
-        for column, curve in enumerate(curves.values()):
-            for path, channel in curve.items():
-                groups[(path, channel[4], channel[0].tobytes())].append((column, channel))
-        # channels with the same keyframes and interpolation sample at once
-        for (path, mode, _), members in groups.items():
-            columns = [column for column, _ in members]
-            # the keyframe times every member shares
-            times = members[0][1][0]
-            # stacked (keyframe, channel, width) values and tangents
-            stacked = [
-                np.stack([channel[which] for _, channel in members], axis=1)
-                for which in (1, 2, 3)
-            ]
-            parts[path][:, columns] = sample_channel(
-                times,
-                *stacked,
-                mode=mode,
-                query=grid,
+            parts[path][:, nodes.index(node)] = sample_channel(
+                times=keys.reshape(-1),
+                values=values[:, values.shape[1] // 2],
+                tangent_in=values[:, 0],
+                tangent_out=values[:, -1],
+                mode=INTERPOLATIONS[mode],
+                query=times,
                 rotation=path == "rotation",
             )
-        parts = parts.values()
-        matrices = trs_matrix(*(part.reshape((-1, part.shape[-1])) for part in parts))
+        # cubic if any channel is, held if every one is, otherwise linear
+        modes = {channel[4] for channel in channels}
+        interpolation = Interpolation.LINEAR
+        if Interpolation.CUBIC in modes:
+            interpolation = Interpolation.CUBIC
+        elif modes == {Interpolation.STEP}:
+            interpolation = Interpolation.STEP
         result.append(
             Animation(
-                edges=[(edges.get(names[node]), names[node]) for node in curves],
-                times=grid,
-                matrices=matrices.reshape((*shape, 4, 4)),
-                name=name,
+                name=animation.get("name", f"animation_{number}"),
+                nodes=[names[node] for node in nodes],
+                times=times,
+                matrices=trs_matrix(*parts.values()),
                 interpolation=interpolation,
             )
         )
@@ -193,18 +145,15 @@ def parse_animations(header: dict, access: list, names: dict, edges: dict) -> li
 
 
 def append_animations(
-    tree: dict,
-    buffer_items: dict,
-    animations: list,
-    node_index: dict,
-    graph,
-    spline: bool = False,
+    tree: dict, buffer_items: dict, animations: list, node_index: dict
 ) -> None:
     """
-    Add animations to a glTF tree in place, with every animation of a
-    name written as one glTF animation, as importers play only the first
-    of several sharing a name. Every animated node is rewritten from a
-    `matrix` into channels as the spec forbids animating a matrix.
+    Add animations to a glTF tree in place, those sharing a name as one
+    glTF animation as importers play only the first. An animated node's
+    `matrix` is rewritten into parts as the spec forbids animating one,
+    and only parts which move or aren't where the node rests animate,
+    interpolated as the animation is with a spline's derivative as the
+    tangents of a glTF cubic spline.
 
     Parameters
     ------------
@@ -216,117 +165,78 @@ def append_animations(
       `trimesh.scene.animation.Animation` objects.
     node_index : dict
       {node name : index in `tree["nodes"]`}
-    graph : trimesh.scene.transforms.SceneGraph
-      The exported graph, for the parent of each node.
-    spline : bool
-      Write "CUBICSPLINE" samplers fit through the keyframes with
-      `scipy.interpolate.CubicSpline` rather than "LINEAR" ones.
     """
     # imported here as this module is imported by `gltf/__init__.py`
-    from . import _data_append, float32
+    from . import _data_append
 
-    if len(animations) == 0:
-        return
-    parents = graph.transforms.parents
-    # the rest pose of every node, as the channels of a node without a
-    # `matrix` and the decomposed `matrix` of one with it
-    rests = trs_from_matrix(node_matrices(tree["nodes"]))
     # {name : glTF animation} which every animation of the name adds to
     result = {}
-    animated = set()
     for animation in animations:
-        parts = dict(zip(DEFAULTS, animation.trs))
-        mode = animation.interpolation.upper()
-        times = None
-        samplers, channels = [], []
-        for column, (frame_from, frame_to) in enumerate(animation.edges):
-            index = node_index.get(frame_to)
-            # falsy frames like `0` or `""` are valid node names
-            if frame_from is None:
-                frame_from = graph.base_frame
-            if index is None or parents.get(frame_to) != frame_from:
-                # glTF animates a node relative to its parent node
-                log.warning(f"can't export animation of `{frame_from} -> {frame_to}`")
-                continue
-            for (path, values), rest in zip(parts.items(), rests):
-                resting = rest[index]
-                values = values[:, column]
-                # skip a channel which never leaves the rest pose in the
-                # float32 that is written, where a quaternion and its
-                # negation are the same rotation
-                written = values.astype(float32)
-                still = (written == resting.astype(float32)).all()
-                if path == "rotation":
-                    still = still or (written == -resting.astype(float32)).all()
-                    values = values[:, XYZW_FROM_WXYZ]
-                if still:
-                    continue
-                if times is None:
-                    times = _data_append(
+        present = [i for i, node in enumerate(animation.nodes) if node in node_index]
+        if len(present) < len(animation.nodes):
+            if tol.strict:
+                raise ValueError(f"`{animation.name}` animates missing nodes")
+            log.warning(f"can't export the missing nodes `{animation.name}` animates")
+        indexes = [node_index[animation.nodes[i]] for i in present]
+        nodes = [tree["nodes"][index] for index in indexes]
+        # every node at rest ahead of its keyframes as (1 + k, n, width)
+        parts = [
+            np.concatenate((rest[None], part[:, present]))
+            for rest, part in zip(trs_from_matrix(node_matrices(nodes)), animation.trs)
+        ]
+        parts[1] = parts[1][..., XYZW_FROM_WXYZ]
+        times = np.float32(animation.times)
+        # a spline writes its derivative as both tangents of a keyframe
+        tangents = [None] * 3
+        interpolation = animation.interpolation
+        if interpolation == Interpolation.CUBIC and animation.spline is not None:
+            derivative = animation.spline(animation.times, 1)[:, present]
+            tangents = np.split(np.float32(derivative), [3, 7], axis=2)
+            tangents[1] = tangents[1][..., XYZW_FROM_WXYZ]
+        elif interpolation == Interpolation.CUBIC:
+            interpolation = Interpolation.LINEAR
+        sampler = {"interpolation": INTERPOLATIONS[interpolation]}
+        for (path, default), part, tangent in zip(DEFAULTS.items(), parts, tangents):
+            still, values = np.float32(part[0]), np.float32(part[1:])
+            for node, value in zip(nodes, still):
+                node.pop("matrix", None)
+                if (value != default).any():
+                    node[path] = value.tolist()
+            # a path moves if it leaves its rest by more than the few float32
+            # units in the last place a matrix decomposition leaves behind
+            tolerance = 4.0 * np.finfo(np.float32).eps * max(np.abs(part).max(), 1.0)
+            moves = (np.abs(part[1:] - part[0]) > tolerance).any(axis=(0, 2))
+            if path == "rotation":
+                # a quaternion and its negation are the same rotation
+                moves &= (np.abs(part[1:] + part[0]) > tolerance).any(axis=(0, 2))
+            if tangent is not None:
+                # arriving tangent, value, and leaving tangent per keyframe
+                values = np.stack((tangent, values, tangent), axis=1).reshape(
+                    (-1, *values.shape[1:])
+                )
+            vector = f"VEC{len(default)}"
+            for column in np.flatnonzero(moves):
+                # equal accessors are written once by `_data_append`
+                inputs, output = (
+                    _data_append(
                         acc=tree["accessors"],
                         buff=buffer_items,
-                        blob={"componentType": 5126, "type": "SCALAR"},
-                        data=animation.times.astype(float32),
+                        blob={"componentType": 5126, "type": kind},
+                        data=np.ascontiguousarray(data),
                     )
-                interpolation = mode
-                if spline and mode == "LINEAR" and len(animation.times) > 1:
-                    from scipy.interpolate import CubicSpline
-
-                    # a spline through every keyframe, written with its
-                    # derivative as both the arriving and leaving tangent
-                    tangent = CubicSpline(animation.times, values, axis=0)(
-                        animation.times, 1
-                    )
-                    values = np.stack((tangent, values, tangent), axis=1).reshape(
-                        (-1, values.shape[1])
-                    )
-                    interpolation = "CUBICSPLINE"
-                samplers.append(
-                    {
-                        "input": times,
-                        "output": _data_append(
-                            acc=tree["accessors"],
-                            buff=buffer_items,
-                            blob={"componentType": 5126, "type": f"VEC{values.shape[1]}"},
-                            data=np.ascontiguousarray(values, dtype=float32),
-                        ),
-                        "interpolation": interpolation,
-                    }
+                    for kind, data in (("SCALAR", times), (vector, values[:, column]))
                 )
-                channels.append(
-                    {
-                        "sampler": len(samplers) - 1,
-                        "target": {"node": index, "path": path},
-                    }
+                merged = result.setdefault(
+                    animation.name,
+                    {"name": animation.name, "samplers": [], "channels": []},
                 )
-                animated.add(index)
-        if len(channels) > 0:
-            merged = result.setdefault(
-                animation.name,
-                {"name": animation.name, "samplers": [], "channels": []},
-            )
-            # samplers are referenced by index within their animation
-            offset = len(merged["samplers"])
-            merged["samplers"].extend(samplers)
-            merged["channels"].extend(
-                {**channel, "sampler": channel["sampler"] + offset}
-                for channel in channels
-            )
-
-    if len(result) == 0:
-        return
-    for index in animated:
-        node = tree["nodes"][index]
-        if "matrix" not in node:
-            continue
-        node.pop("matrix")
-        translation, quaternion, scale = (rest[index] for rest in rests)
-        for (path, default), value in zip(
-            DEFAULTS.items(), (translation, quaternion[XYZW_FROM_WXYZ], scale)
-        ):
-            if not np.allclose(value, default):
-                node[path] = value.tolist()
-    tree["animations"] = list(result.values())
+                target = {"node": indexes[column], "path": path}
+                merged["channels"].append(
+                    {"sampler": len(merged["samplers"]), "target": target}
+                )
+                merged["samplers"].append({"input": inputs, "output": output, **sampler})
+    if len(result) > 0:
+        tree["animations"] = list(result.values())
 
 
 def parse_skins(header: dict, access: list, names: dict) -> list:
@@ -389,28 +299,32 @@ def append_skins(tree: dict, buffer_items: dict, skins: dict, node_index: dict) 
       {node name : index in `tree["nodes"]`}
     """
     # imported here as this module is imported by `gltf/__init__.py`
-    from . import _data_append, float32
+    from . import _data_append
 
-    written = {}
+    # equal accessors are written once by `_data_append`, so equal skins are
+    # equal entries which every node using one shares
+    entries = []
     for node, skin in skins.items():
         try:
             target = tree["nodes"][node_index[node]]
             joints = [node_index[joint] for joint in skin.joints]
         except KeyError:
+            if tol.strict:
+                raise
             log.warning(f"can't export the skin of `{node}` as a node is missing")
             continue
-        key = (tuple(joints), hash(skin.inverse_bind_matrices.tobytes()))
-        if key not in written:
-            accessor = _data_append(
-                acc=tree["accessors"],
-                buff=buffer_items,
-                blob={"componentType": 5126, "type": "MAT4"},
-                # glTF matrices are column-major
-                data=np.ascontiguousarray(
-                    skin.inverse_bind_matrices.transpose((0, 2, 1)), dtype=float32
-                ),
-            )
-            skins_list = tree.setdefault("skins", [])
-            skins_list.append({"joints": joints, "inverseBindMatrices": accessor})
-            written[key] = len(skins_list) - 1
-        target["skin"] = written[key]
+        accessor = _data_append(
+            acc=tree["accessors"],
+            buff=buffer_items,
+            blob={"componentType": 5126, "type": "MAT4"},
+            # glTF matrices are column-major
+            data=np.ascontiguousarray(
+                skin.inverse_bind_matrices.transpose((0, 2, 1)), dtype=np.float32
+            ),
+        )
+        entry = {"joints": joints, "inverseBindMatrices": accessor}
+        if entry not in entries:
+            entries.append(entry)
+        target["skin"] = entries.index(entry)
+    if len(entries) > 0:
+        tree["skins"] = entries

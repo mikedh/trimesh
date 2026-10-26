@@ -27,6 +27,8 @@ def test_cycloidal():
     export = scene.export(file_type="glb")
     g.validate_glb(export, "cycloidal.glb")
     reloaded = g.roundtrip(export, "glb")
+    once = reloaded.export(file_type="glb")
+    twice = g.roundtrip(once, "glb").export(file_type="glb")
 
     nodes = scene.graph.nodes_geometry
     # a viewer that isn't playing shows the file at rest, which is the first frame
@@ -40,8 +42,13 @@ def test_cycloidal():
         # several sharing a name
         "one clip": [a["name"] for a in g.glb_chunks(export)[0]["animations"]]
         == ["cycloidal"],
-        "same edges": sum(len(a.edges) for a in reloaded.animations)
-        == sum(len(a.edges) for a in scene.animations),
+        # the reloaded film exports to a file which loads and exports to
+        # the same animation, to float32 rounding
+        "fixed point": g.same_animations(once, twice),
+        "same keyframes": g.np.array_equal(
+            reloaded.animations[0].times,
+            g.np.float32(scene.animations[0].times),
+        ),
         "same duration": g.np.isclose(reloaded.duration, hero.DURATION),
         "same nodes": set(reloaded.graph.nodes_geometry) == set(nodes),
         # the outlines are lines which keep their color, and the cover
@@ -98,16 +105,18 @@ def test_pyrender_scene():
         reloaded, resolution=[160, 120], include_depth=True, include_segmentation=True
     )
     index = arrays.segmentation
-    # its ambient light is an `EnvironmentLight`, which only the viewer has
-    standard = [
-        light
-        for light in scene.lights
-        if not isinstance(light, g.trimesh.scene.lighting.EnvironmentLight)
-    ]
     checks = {
+        # its ambient light is an `EXT_lights_image_based` environment
         "lights": [(type(light), light.intensity) for light in reloaded.lights]
-        == [(type(light), light.intensity) for light in standard]
-        != [(type(light), light.intensity) for light in scene.lights],
+        == [(type(light), light.intensity) for light in scene.lights]
+        == [
+            (getattr(g.trimesh.scene.lighting, kind), intensity)
+            for kind, intensity in [
+                ("DirectionalLight", 1.0),
+                ("SpotLight", 10.0),
+                ("EnvironmentLight", 1.0),
+            ]
+        ],
         # pyrender's spot light cone
         "cone": g.np.allclose(
             [reloaded.lights[1].innerConeAngle, reloaded.lights[1].outerConeAngle],

@@ -21,7 +21,6 @@ if int(pyglet.version.split(".")[0]) >= 2:
     raise ImportError('`trimesh.viewer.pyglet1` requires `pip install "pyglet<2"`')
 
 from ... import util
-from ...scene import lighting
 from ...scene.cameras import DEFAULT_Z_FAR
 from ...transformations import translation_matrix
 from ...typed import ArrayLike, Callable, Iterable, Number
@@ -495,11 +494,13 @@ class SceneViewer(pyglet.window.Window):
         apply them as openGL lights.
         """
         gl.glEnable(gl.GL_LIGHTING)
-        # the scene's lights or the default ones which aren't in
-        # its graph, with the world transform of each
-        lights, transforms = lighting.autolight(scene)
+        from ..conversion import render_lights
+
+        # the scene's lights or the default ones without changing the scene,
+        # less the environment which is last and fixed function can't draw
+        lights, transforms = render_lights(scene, scene.camera_transform)
         # opengl only supports 7 lights?
-        for i, (light, matrix) in enumerate(zip(lights[:7], transforms)):
+        for i, (light, matrix) in enumerate(zip(lights[:-1][:7], transforms)):
             # the index of which light we have
             lightN = getattr(gl, f"GL_LIGHT{i}")
 

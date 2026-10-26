@@ -13,7 +13,7 @@ from typing import Literal
 
 import numpy as np
 
-from .. import caching, util
+from .. import util
 from ..base import Trimesh
 from ..bounds import corners as bounds_corners
 from ..path.path import Path
@@ -21,17 +21,12 @@ from ..points import PointCloud
 from ..scene.cameras import projection_matrices
 from ..scene.lighting import (
     HARMONICS,
-    LUMINANCE,
-    STUDIO_SHARPNESS,
     DirectionalLight,
     EnvironmentLight,
     SpotLight,
     autolight,
-    cubemap_directions,
-    cubemap_sample,
-    cubemap_size,
+    prefilter,
     spherical_harmonics,
-    studio_environment,
 )
 from ..typed import ArrayLike, NDArray, float64
 from ..visual.color import to_rgba
@@ -40,13 +35,13 @@ from ..voxel.base import VoxelGrid
 from .opengl.shaders import (
     ALPHA_MODES,
     FRAME,
+    LUMINANCE,
     MATERIAL,
     MATERIAL_TEXTURES,
     MAX_LIGHTS,
     MAX_SHADOWS,
     SEGMENT,
     SKIN,
-    SPECULAR_SHARPNESS,
     VERTEX,
 )
 
@@ -82,19 +77,6 @@ RENDER_DEFAULTS = {
 # the radius ambient occlusion looks for nearby surfaces within, as a
 # fraction of `scene.scale` which is the length of the bounds diagonal
 OCCLUSION_RADIUS = 0.1
-
-# texels across each face of the cube map every environment is drawn
-# from, as the default studio's: a mip level down still holds its
-# sharpest softbox, which reflections blend in as roughness is never zero
-ENVIRONMENT_SIZE = 2 * cubemap_size(STUDIO_SHARPNESS.max())
-# its mip levels, down to the one which holds the lobe of roughness one,
-# whose sharpness is the constant of the fit as `log(1)` is zero
-ENVIRONMENT_LEVELS = 1 + int(
-    np.log2(ENVIRONMENT_SIZE // cubemap_size(np.exp(SPECULAR_SHARPNESS[-1])))
-)
-
-# `environment_levels` by the hash of the cube map they were made from
-_ENVIRONMENT_LEVELS = {}
 
 
 @dataclass
@@ -175,20 +157,23 @@ def frame_constants(
 
     transforms = np.asarray(transforms)
     light, rotation = lights[-1], util.unitize(transforms[-1, :3, :3].T)
-    tint = light.color[:3] / 255.0 * light.intensity
+    tint = light.intensity
+    irradiance = spherical_harmonics(light.cubemap)
     # world to the environment's frame, which a draw makes view to it,
     # and the irradiance of a white diffuse surface over pi so the shader
-    # only multiplies the polynomials of `spherical_harmonics`
+    # only multiplies the polynomials of `HARMONICS`
     frame["environment_rotation"][0, :3, :3] = rotation
-    frame["environment_color"][0] = (*tint, ENVIRONMENT_LEVELS - 1)
-    frame["irradiance"][0, :, :3] = light.irradiance * HARMONICS[:, None] * tint / np.pi
+    levels = len(prefilter(light.cubemap))
+    frame["environment_color"][0] = (tint, tint, tint, levels - 1)
+    frame["irradiance"][0, :, :3] = irradiance * HARMONICS[:, None] * tint / np.pi
     up = rotation[1]
     # how bright a white floor facing up looks with nothing shadowing it,
     # which a shadow on the floor is darker than: what it gets from the
-    # environment and from directional lights, which a white surface
-    # facing one reflects `C * I / pi` of
+    # environment, the polynomials of `HARMONICS` at +Y, and from
+    # directional lights, which a white surface facing one reflects `C * I / pi` of
     facing = np.clip(util.unitize(transforms[: len(placed), :3, 2]) @ up, 0.0, None)
-    received = spherical_harmonics(np.eye(3)[1]) @ light.irradiance * tint / np.pi
+    upwards = HARMONICS * [1, 1, 0, 0, 0, 0, -1, 0, -1]
+    received = upwards @ irradiance * tint / np.pi
     received = received + (facing * directional * intensity) @ colors / np.pi
     frame["ground_light"][0, 0] = received @ LUMINANCE
     # a fraction of the scene's size, or of one if it's empty
@@ -323,12 +308,14 @@ def mesh_to_arrays(mesh: Trimesh) -> GeometryArrays:
             "diffuseTransmissionFactor",
         )
     ]
-    record["transmission_color"][:3] = value["diffuseTransmissionColorFactor"]
+    record["transmission_color"] = [
+        *value["diffuseTransmissionColorFactor"],
+        value["transmissionFactor"],
+    ]
     alpha_mode = ALPHA_MODES[value["alphaMode"]]
     record["flags"] = (alpha_mode, bool(pbr.unlit), 0, bool(pbr.doubleSided))
     if pbr.transmissionFactor is not None:
         # glass, which is BLEND as `ALPHA_MODES` describes
-        record["base_color"][3] *= 1.0 - value["transmissionFactor"]
         record["flags"][0] = ALPHA_MODES["BLEND"]
     # the textures by their name in the shader from their glTF name
     images = {
@@ -337,6 +324,7 @@ def mesh_to_arrays(mesh: Trimesh) -> GeometryArrays:
         "emissive_texture": pbr.emissiveTexture,
         "normal_texture": pbr.normalTexture,
         "occlusion_texture": pbr.occlusionTexture,
+        "transmission_texture": pbr.transmissionTexture,
         "diffuse_transmission_texture": pbr.diffuseTransmissionTexture,
         "diffuse_transmission_color_texture": pbr.diffuseTransmissionColorTexture,
     }
@@ -468,74 +456,19 @@ def render_lights(scene, camera_transform: ArrayLike) -> tuple[list, NDArray[flo
     transforms : (n, 4, 4) float
       World pose of each light right now.
     """
-    environment, frame = studio_environment(scene, camera_transform)
-    defaults, poses = autolight(scene, camera_transform)
-    defaults, poses = [*defaults, environment], np.vstack((poses, frame[None]))
-    if not scene.has_lights:
-        return defaults, poses
-    lights = [light for light in scene.lights if light.name in scene.graph.nodes]
-    transforms = [scene.graph.get(light.name)[0] for light in lights]
-    environments = [isinstance(light, EnvironmentLight) for light in lights]
-    order = np.argsort(environments, kind="stable")
-    lights, transforms = [lights[i] for i in order], [transforms[i] for i in order]
-    if not any(environments):
-        lights.append(defaults[-1])
-        transforms.append(poses[-1])
-    elif sum(environments) > 1:
+    studio = list(zip(*autolight(scene, camera_transform)))
+    pairs = studio
+    if scene.has_lights:
+        pairs = [
+            (light, scene.graph.get(light.name)[0])
+            for light in scene.lights
+            if light.name in scene.graph.nodes
+        ]
+    environments = [pair for pair in pairs if isinstance(pair[0], EnvironmentLight)]
+    if len(environments) > 1:
         util.log.warning("rendering the first of several environment lights")
-        first = len(lights) - sum(environments) + 1
-        lights, transforms = lights[:first], transforms[:first]
-    return lights, np.reshape(transforms, (-1, 4, 4))
-
-
-def environment_levels(cubemap: NDArray) -> list[NDArray]:
-    """
-    The mip levels of a cube map the viewer reflects, laid out as
-    `KHR_lights_environment` describes: level `k` of `n` is the radiance
-    blurred by the spherical Gaussian as wide as a GGX reflection of
-    roughness `k / (n - 1)`, from a mirror at level zero, for
-    `ENVIRONMENT_LEVELS` from `ENVIRONMENT_SIZE`. Each level is the
-    integral over every texel of the cube map averaged down to the
-    level's size, cached as it only depends on the cube map.
-
-    Parameters
-    ------------
-    cubemap : (6, n, n, 3) float
-      Radiance of the faces of `lighting.CUBE_FACES`.
-
-    Returns
-    ------------
-    levels : list of (6, m, m, 3) float32
-      Every mip level, each half as wide as the one before.
-    """
-    cubemap = np.asarray(cubemap, dtype=np.float64)
-    key = caching.hash_fast(cubemap.tobytes()) + hash(cubemap.shape)
-    try:
-        return _ENVIRONMENT_LEVELS[key]
-    except KeyError:
-        pass
-    if cubemap.shape[1] % ENVIRONMENT_SIZE != 0:
-        directions = cubemap_directions(ENVIRONMENT_SIZE)[0]
-        cubemap = cubemap_sample(cubemap, directions)
-    # float32 is twice as fast and rounds `d @ d.T - 1` under 1e-7
-    cubemap = cubemap.astype(np.float32)
-    levels = []
-    for level in range(ENVIRONMENT_LEVELS):
-        width = ENVIRONMENT_SIZE >> level
-        step = cubemap.shape[1] // width
-        blurred = cubemap.reshape((6, width, step, width, step, 3)).mean(axis=(2, 4))
-        if level > 0:
-            roughness = level / (ENVIRONMENT_LEVELS - 1)
-            sharpness = np.float32(
-                np.exp(np.polyval(SPECULAR_SHARPNESS, np.log(roughness)))
-            )
-            directions, solid_angle = cubemap_directions(width)
-            directions = directions.reshape((-1, 3)).astype(np.float32)
-            # BLAS multiplies by a contiguous transpose five times faster
-            cosine = directions @ np.ascontiguousarray(directions.T)
-            weights = np.exp(sharpness * (cosine - 1.0))
-            weights *= solid_angle.reshape(-1)
-            blurred = (weights @ blurred.reshape((-1, 3))) / weights.sum(axis=1)[:, None]
-        levels.append(blurred.reshape((6, width, width, 3)))
-    _ENVIRONMENT_LEVELS[key] = levels
-    return levels
+    # the punctual lights then one environment, the studio's if there's none
+    pairs = [pair for pair in pairs if not isinstance(pair[0], EnvironmentLight)]
+    pairs.append([*environments, studio[-1]][0])
+    lights, transforms = zip(*pairs)
+    return list(lights), np.reshape(transforms, (-1, 4, 4))

@@ -25,7 +25,7 @@ import numpy as np
 
 import trimesh
 from trimesh.scene.animation import Animation
-from trimesh.scene.lighting import EnvironmentLight, autolight, studio_cubemap
+from trimesh.scene.lighting import EnvironmentLight, autolight, cubemap_directions
 from trimesh.transformations import euler_matrix, rotation_matrix
 from trimesh.visual.material import PBRMaterial
 
@@ -227,36 +227,29 @@ def animate(scene, fps=30):
 
     scene.camera_transform = camera[0]
     # the studio's key and rim lights where the camera starts, and in place
-    # of its environment the space around the drive, which is posed with
-    # +Y up so that +Z is up in this scene
+    # of its environment the space around the drive: a faint blue sky above
+    # and the softboxes of `SPACE`, posed with +Y up so +Z is up in this scene
     lights, transforms = autolight(scene)
-    for light, transform in zip(lights, transforms):
-        scene.graph[light.name] = transform
     up = rotation_matrix(np.pi / 2.0, [1.0, 0.0, 0.0])
-    space = EnvironmentLight(
-        name="space",
-        cubemap=studio_cubemap(
-            sky=[0.01, 0.01, 0.03],
-            ground=[0.0, 0.0, 0.0],
-            # each softbox's direction turned into the frame of the light's node
-            softboxes=[
-                (np.dot(trimesh.util.unitize(direction), up[:3, :3]), sharpness, color)
-                for direction, sharpness, color in SPACE
-            ],
-        ),
-    )
-    scene.lights = [*lights, space]
-    scene.graph[space.name] = up
+    directions = cubemap_directions(64)[0]
+    cubemap = np.multiply.outer(0.5 + 0.5 * directions[..., 1], [0.01, 0.01, 0.03])
+    for towards, sharpness, color in SPACE:
+        # each softbox's direction turned into the frame of the light's node
+        towards = np.dot(trimesh.util.unitize(towards), up[:3, :3])
+        lobe = np.exp(sharpness * (directions @ towards - 1.0))
+        cubemap += np.multiply.outer(lobe, color)
+    space = EnvironmentLight(name="space", cubemap=cubemap)
+    scene.lights = [*lights[:2], space]
+    for light, transform in zip(scene.lights, [*transforms[:2], up]):
+        scene.graph[light.name] = transform
     # deep enough to see the whole cloud until it has flown past
     scene.camera.z_far = 2.0 * GROWTH * scene.scale
-    scene.animations.extend(
-        Animation(edges, times, values, name="cycloidal")
-        for edges, values in [
-            (list(zip(parents, nodes)), matrices),
-            ([(None, "cloud")], cloud[:, None]),
-            ([(None, f"outline_{index}") for index in range(COPIES)], outlines),
-            ([(None, scene.camera.name)], camera[:, None]),
-        ]
+    # the transform of every moving node at every keyframe
+    moving = [*nodes, "cloud", *[f"outline_{index}" for index in range(COPIES)]]
+    moving.append(scene.camera.name)
+    keyed = np.concatenate((matrices, cloud[:, None], outlines, camera[:, None]), axis=1)
+    scene.animations.append(
+        Animation(name="cycloidal", nodes=moving, times=times, matrices=keyed)
     )
     # the scene at rest is the first frame, which is what a viewer that
     # isn't playing the animation shows

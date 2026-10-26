@@ -25,13 +25,13 @@ from ... import util
 from ...bounds import corners
 from ...scene import Scene
 from ...scene.cameras import DEFAULT_FOV, current_view
+from ...scene.lighting import prefilter
 from ...transformations import adjugate
 from ...typed import ArrayLike, Integer, Iterable, NDArray, Sequence
 from ...visual import to_rgba
 from ..conversion import (
     RENDER_DEFAULTS,
     GeometryArrays,
-    environment_levels,
     frame_constants,
     geometry_to_arrays,
     render_lights,
@@ -1037,7 +1037,7 @@ class SceneViewer:
         # reflections off each roughness, as linear radiance
         self.textures["environment"] = generate(self.names, "textures")
         gl.glBindTexture(gl.GL_TEXTURE_CUBE_MAP, self.textures["environment"])
-        levels = environment_levels(self.environment.cubemap)
+        levels = prefilter(self.environment.cubemap)
         for level, faces in enumerate(levels):
             size = faces.shape[1]
             for face, pixels in enumerate(faces):
@@ -1352,26 +1352,10 @@ class SceneViewer:
         table.world_rows = np.array(
             [row.get(node, -1) for node in world_nodes], dtype=np.int64
         )
-        # every animation driving an edge, which columns of its matrices
-        # do and their rows, where an edge from the base frame is also None
-        edge_rows = {edge: index for index, edge in enumerate(table.chain_edges)}
-        edge_rows.update(
-            {
-                (None, child): index
-                for (parent, child), index in edge_rows.items()
-                if parent == graph.base_frame
-            }
-        )
-        table.animated = []
-        for animation in scene.animations:
-            found = [
-                (column, edge_rows[edge])
-                for column, edge in enumerate(animation.edges)
-                if edge in edge_rows
-            ]
-            if len(found) > 0:
-                columns, edges = np.array(found, dtype=np.int64).T
-                table.animated.append((animation, columns, edges))
+        # the row of every node an animation can drive
+        table.node_rows = {
+            node: index for index, (_, node) in enumerate(table.chain_edges)
+        }
 
     def draw(self, mode: str = "color") -> None:
         """
@@ -1404,13 +1388,18 @@ class SceneViewer:
                 (-1, 4, 4),
             )
             if self.animation_time is not None:
-                # animated edges where they are now, leaving the scene as it is
-                for animation, columns, rows in table.animated:
+                # animated nodes where they are now, leaving the scene as it is
+                for animation in self.scene.animations:
                     # an animation shorter than the others loops
                     seconds = self.animation_time
                     if animation.duration > 0.0:
                         seconds = seconds % animation.duration
-                    chain[rows] = animation.at(seconds)[columns]
+                    # where each is in the chain, or -1 if it isn't drawn
+                    rows = np.array(
+                        [table.node_rows.get(node, -1) for node in animation.nodes],
+                        dtype=np.int64,
+                    )
+                    chain[rows[rows >= 0]] = animation.at(seconds)[rows >= 0]
             for rows in table.chain_levels[1:]:
                 chain[rows] = np.matmul(chain[table.chain_parent[rows]], chain[rows])
             # with the identity for anything which is the world itself

@@ -15,7 +15,9 @@ import os
 
 import numpy as np
 
-from ....scene.lighting import LUMINANCE
+# Rec.709 weights of linear RGB for how bright a color looks
+LUMINANCE = np.array([0.2126, 0.7152, 0.0722])
+
 
 # the directory holding the `.glsl` files
 DIRECTORY = os.path.abspath(os.path.dirname(__file__))
@@ -36,11 +38,6 @@ ALPHA_MODES = {"OPAQUE": 0, "MASK": 1, "BLEND": 2}
 # shaded color, the view depth and node index of every pixel, or only depth
 OUTPUT_MODES = {"color": 0, "index": 1, "depth": 2}
 
-# the spherical Gaussian with the same mean cosine as a GGX reflection
-# lobe, whose sharpness is `exp(polyval(SPECULAR_SHARPNESS, log(roughness)))`
-# fit within 1.1% over roughness 0.04 to 1, which blurs the environment
-SPECULAR_SHARPNESS = (0.131, 1.0381, -0.7256, 1.0728)
-
 # the most lights a frame can be lit by
 MAX_LIGHTS = 8
 # the most directional and spot lights which cast shadows
@@ -56,6 +53,7 @@ MATERIAL_TEXTURES = {
     "emissive_texture": True,
     "normal_texture": False,
     "occlusion_texture": False,
+    "transmission_texture": False,
     "diffuse_transmission_texture": False,
     "diffuse_transmission_color_texture": True,
 }
@@ -229,7 +227,8 @@ MATERIAL = np.dtype(
         # and the fraction of diffuse light a thin surface scatters out of
         # its other side from `KHR_materials_diffuse_transmission`
         ("factors", "<f4", 4),
-        # linear RGB of that scattered light, then zero
+        # linear RGB of that scattered light, then the fraction of light
+        # passing through like clear glass from `KHR_materials_transmission`
         ("transmission_color", "<f4", 4),
         # the value in `ALPHA_MODES`, then one for `KHR_materials_unlit`,
         # for an invisible floor which only shows shadows, and for drawing

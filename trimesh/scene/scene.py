@@ -939,8 +939,12 @@ class Scene(Geometry3D):
             at = time
             if loop and animation.duration > 0.0:
                 at = time % animation.duration
-            # every edge of an animation is sampled and written at once
-            self.graph.update_matrices(animation.edges, animation.at(at))
+            # every node of an animation is sampled and written at once
+            parents = self.graph.transforms.parents
+            self.graph.update_matrices(
+                [(parents.get(node), node) for node in animation.nodes],
+                animation.at(at),
+            )
 
     @property
     def lights(self) -> list[lighting.Light]:
@@ -1124,19 +1128,20 @@ class Scene(Geometry3D):
         geometry = {k: self.geometry[k] for k in geometry_names}
         result = Scene(geometry=geometry, graph=graph)
 
-        # keep the animated edges which survived: as the subscene is
+        # keep the animated nodes which survived: as the subscene is
         # rooted at `node` its own edge is no longer drivable
         for animation in self.animations:
-            kept = [
-                index
-                for index, (_, frame_to) in enumerate(animation.edges)
-                if frame_to in nodes and frame_to != node
-            ]
+            kept = [i for i, n in enumerate(animation.nodes) if n in nodes and n != node]
             if len(kept) > 0:
-                moved = animation.copy()
-                moved.edges = [animation.edges[index] for index in kept]
-                moved.matrices = animation.matrices[:, kept]
-                result.animations.append(moved)
+                result.animations.append(
+                    Animation(
+                        name=animation.name,
+                        nodes=[animation.nodes[i] for i in kept],
+                        times=animation.times.copy(),
+                        matrices=animation.matrices[:, kept],
+                        interpolation=animation.interpolation,
+                    )
+                )
         # a skin only works if its node and every joint survived
         result.skins = {
             key: skin
@@ -1407,7 +1412,7 @@ class Scene(Geometry3D):
         if np.allclose(scale, 1.0):
             return result
 
-        # animated edges scale like every other edge in the graph
+        # animated translations scale like every other edge in the graph
         for animation in result.animations:
             animation.matrices[..., :3, 3] *= scale
 
@@ -1527,9 +1532,9 @@ class Scene(Geometry3D):
         )
         copied.cameras = [camera.copy() for camera in self.cameras]
         # deep copy so the keyframe arrays aren't shared with the original
-        copied.animations = [animation.copy() for animation in self.animations]
+        copied.animations = deepcopy(self.animations)
         # nodes sharing a skin still share one afterwards
-        skins = {id(skin): skin.copy() for skin in self.skins.values()}
+        skins = {id(skin): deepcopy(skin) for skin in self.skins.values()}
         copied.skins = {node: skins[id(skin)] for node, skin in self.skins.items()}
 
         # lights are plain values so a deepcopy is safe here, and copied
@@ -1671,7 +1676,12 @@ def light_fingerprint(scene: Scene, lights: Sequence[lighting.Light]) -> list:
         pose = None
         if light.name in nodes:
             pose = scene.graph.get(light.name)[0].tobytes()
-        values = repr(sorted(vars(light).items()))
+        # arrays by their bytes, as `repr` abbreviates large ones
+        values = []
+        for key, value in sorted(vars(light).items()):
+            if isinstance(value, np.ndarray):
+                value = (value.shape, caching.hash_fast(value.tobytes()))
+            values.append((key, repr(value)))
         fingerprint.append((light.name, type(light).__name__, values, pose))
     return fingerprint
 
@@ -1809,19 +1819,22 @@ def append_scenes(iterable, common=None, base_frame="world"):
         # mark nodes from current scene as consumed
         consumed.update(current)
 
-        # animations drive edges, so they have to follow the same node
+        # animations drive nodes, so they have to follow the same node
         # renaming the edges just went through or they'd target nothing
         for animation in s.animations:
-            moved = animation.copy()
-            moved.edges = [
-                (map_node.get(frame_from, frame_from), map_node.get(frame_to, frame_to))
-                for frame_from, frame_to in animation.edges
-            ]
-            result.animations.append(moved)
+            result.animations.append(
+                Animation(
+                    name=animation.name,
+                    nodes=[map_node.get(node, node) for node in animation.nodes],
+                    times=animation.times.copy(),
+                    matrices=animation.matrices.copy(),
+                    interpolation=animation.interpolation,
+                )
+            )
 
         # skins name their node and joints so they follow the renaming
         for key, skin in s.skins.items():
-            moved = skin.copy()
+            moved = deepcopy(skin)
             moved.joints = [map_node.get(joint, joint) for joint in skin.joints]
             result.skins[map_node.get(key, key)] = moved
 

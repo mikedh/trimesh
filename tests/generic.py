@@ -700,6 +700,26 @@ def require_rendering():
         raise unittest.SkipTest(f"unable to create an OpenGL context: {E}")
 
 
+def gradient_environment(sky, ground, softboxes=(), size=64):
+    """
+    An `EnvironmentLight` named "environment" of a gradient from `ground`
+    straight down to `sky` straight up plus softboxes, which are
+    `color * exp(sharpness * (dot(d, towards) - 1))` for each
+    `(towards, sharpness, color)` in every direction `d`.
+    """
+    from trimesh.scene.lighting import EnvironmentLight, cubemap_directions
+
+    directions = cubemap_directions(size)[0]
+    ground = np.asarray(ground, dtype=np.float64)
+    cubemap = ground + np.multiply.outer(
+        0.5 + 0.5 * directions[..., 1], np.subtract(sky, ground)
+    )
+    for towards, sharpness, color in softboxes:
+        lobe = np.exp(sharpness * (directions @ trimesh.util.unitize(towards) - 1.0))
+        cubemap += np.multiply.outer(lobe, color)
+    return EnvironmentLight(name="environment", cubemap=cubemap)
+
+
 def set_environment(scene, environment, pose=None):
     """
     Light `scene` with an `EnvironmentLight` on a node at `pose` and the
@@ -928,10 +948,113 @@ def dolly_scene(node, duration=1.0):
     lens = trimesh.transformations.translation_matrix([0, 0, 6])
     scene.graph.update(frame_from="dolly", frame_to="lens", matrix=lens)
     times = np.linspace(0.0, duration, 5)
-    slide = np.tile(np.eye(4), (len(times), 1, 1))
-    slide[:, 0, 3] = times
-    scene.animations.append(Animation(edges=[(None, node)], times=times, matrices=slide))
+    slide = np.tile(np.eye(4), (len(times), 1, 1, 1))
+    slide[:, 0, 0, 3] = times
+    scene.animations.append(
+        Animation(name="slide", nodes=[node], times=times, matrices=slide)
+    )
     return scene
+
+
+def same_animations(export, other):
+    """
+    If two GLBs animate the same: the same channels on the same node paths
+    with the same interpolation, and every value they read equal to a few
+    float32 units in the last place of its accessor's largest value, which
+    is all composing and decomposing matrices on load can move it.
+    """
+    found = []
+    for data in (export, other):
+        header, blob = glb_chunks(data)
+        accessors = accessor_values(header, blob)
+        structure, values = [], []
+        for animation in header.get("animations", []):
+            for channel in animation["channels"]:
+                sampler = animation["samplers"][channel["sampler"]]
+                target = channel["target"]
+                structure.append(
+                    (
+                        animation.get("name"),
+                        target["node"],
+                        target["path"],
+                        sampler["interpolation"],
+                    )
+                )
+                values.extend((accessors[sampler["input"]], accessors[sampler["output"]]))
+        found.append((structure, values))
+    (structure, values), (other_structure, other_values) = found
+    epsilon = 4.0 * np.finfo(np.float32).eps
+    return structure == other_structure and all(
+        a.shape == b.shape and np.allclose(a, b, rtol=0.0, atol=epsilon * np.abs(a).max())
+        for a, b in zip(values, other_values)
+    )
+
+
+def spec_nodes(header, accessors, time):
+    """
+    The (n, 4, 4) transform of every glTF node from its parent at a
+    time, with every animation of the file applied as the spec's
+    appendix samples it, from numpy and scipy only.
+    """
+    from scipy.spatial.transform import Rotation
+
+    nodes = header["nodes"]
+    trs = {"translation": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1]}
+    trs = {key: np.array([n.get(key, v) for n in nodes], float) for key, v in trs.items()}
+    for animation in header.get("animations", []):
+        for channel in animation["channels"]:
+            sampler = animation["samplers"][channel["sampler"]]
+            path, node = channel["target"]["path"], channel["target"]["node"]
+            trs[path][node] = spec_sample(
+                accessors[sampler["input"]],
+                accessors[sampler["output"]],
+                sampler.get("interpolation", "LINEAR"),
+                path == "rotation",
+                time,
+            )
+    local = np.tile(np.eye(4), (len(nodes), 1, 1))
+    local[:, :3, :3] = Rotation.from_quat(trs["rotation"]).as_matrix()
+    local[:, :3, :3] *= trs["scale"][:, None, :]
+    local[:, :3, 3] = trs["translation"]
+    for index, node in enumerate(nodes):
+        if "matrix" in node:
+            local[index] = np.reshape(node["matrix"], (4, 4)).T
+    return local
+
+
+def spec_sample(times, values, interpolation, rotation, time):
+    """
+    One glTF animation channel at a time as the spec's appendix samples
+    it, with `x, y, z, w` rotations, from numpy and scipy only.
+    """
+    from scipy.spatial.transform import Rotation, Slerp
+
+    times = np.asarray(times, dtype=np.float64).reshape(-1)
+    values = np.asarray(values, dtype=np.float64).reshape(
+        (len(times), -1, np.shape(values)[-1])
+    )
+    clamped = np.clip(time, times[0], times[-1])
+    # the keyframe at or before the time, and the one after it
+    before = np.clip(np.searchsorted(times, clamped, side="right") - 1, 0, len(times) - 1)
+    after = min(before + 1, len(times) - 1)
+    if interpolation == "STEP" or before == after:
+        return values[before, values.shape[1] // 2]
+    if interpolation == "CUBICSPLINE":
+        span = times[after] - times[before]
+        step = (clamped - times[before]) / span
+        sampled = (
+            (2 * step**3 - 3 * step**2 + 1) * values[before, 1]
+            + span * (step**3 - 2 * step**2 + step) * values[before, 2]
+            + (-2 * step**3 + 3 * step**2) * values[after, 1]
+            + span * (step**3 - step**2) * values[after, 0]
+        )
+        if rotation:
+            sampled = sampled / np.linalg.norm(sampled)
+        return sampled
+    if rotation:
+        keys = Rotation.from_quat(values[[before, after], 0])
+        return Slerp(times[[before, after]], keys)(clamped).as_quat()
+    return np.array([np.interp(clamped, times, column) for column in values[:, 0].T])
 
 
 def to_glb_bytes(geom: trimesh.Geometry) -> bytes:

@@ -5,7 +5,7 @@ pyrender_scene.py
 The scene from pyrender's `examples/example.py` built with only trimesh
 and its models streamed straight from pyrender's repository, saved as a
 GLB which any glTF viewer shows with the same lights, camera and
-materials, less pyrender's ambient light which only trimesh's viewer draws.
+materials, pyrender's ambient light being an `EXT_lights_image_based` light.
 
 | pyrender                          | trimesh                                    |
 |-----------------------------------|--------------------------------------------|
@@ -109,9 +109,7 @@ def build(resolver, seed=0):
             innerConeAngle=np.pi / 16,
             outerConeAngle=np.pi / 6,
         ),
-        lighting.EnvironmentLight(
-            name="ambient", cubemap=lighting.studio_cubemap(ambient, ambient)
-        ),
+        lighting.EnvironmentLight(name="ambient", cubemap=np.tile(ambient, (6, 1, 1, 1))),
     ]
     for light in scene.lights:
         scene.graph.update(frame_to=light.name, matrix=CAMERA_POSE)

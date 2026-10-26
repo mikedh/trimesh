@@ -3,18 +3,21 @@ try:
 except BaseException:
     import generic as g
 
+import PIL.Image
+
+from trimesh.exchange.gltf.lights import rgbd_pack, rgbd_unpack
 from trimesh.scene.lighting import (
+    CUBE_FACES,
+    HARMONICS,
     DirectionalLight,
     EnvironmentLight,
     PointLight,
     SpotLight,
-    cubemap_sample,
+    prefilter,
     spherical_harmonics,
-    studio_cubemap,
 )
 from trimesh.viewer.conversion import (
     OCCLUSION_RADIUS,
-    environment_levels,
     render_lights,
 )
 
@@ -73,10 +76,42 @@ def ambient(color):
     return EnvironmentLight(name="environment", cubemap=cubemap)
 
 
-def studio(sky, ground, softboxes=()):
-    """An environment of a gradient from `ground` to `sky` and softboxes."""
-    cubemap = studio_cubemap(sky, ground, softboxes)
-    return EnvironmentLight(name="environment", cubemap=cubemap)
+def cubemap_sample(cubemap, directions):
+    """
+    The value of a cube map towards directions as OpenGL's linear filtering
+    with `GL_TEXTURE_CUBE_MAP_SEAMLESS` blends the four texels around each.
+    """
+    np = g.np
+    size = cubemap.shape[1]
+    # the texels of every face with a border one texel past its edges
+    middles = (2.0 * np.arange(-1, size + 1) + 1.0 - size) / size
+    faces = CUBE_FACES[:, None, None]
+    border = (
+        faces[..., 0, :]
+        + middles[:, None] * faces[..., 1, :]
+        + middles[:, None, None] * faces[..., 2, :]
+    )
+    # the face each of those and the directions are on, then each in the
+    # face's frame as the row and column on it
+    flat = np.vstack((border.reshape((-1, 3)), directions.reshape((-1, 3))))
+    axis = np.abs(flat).argmax(axis=1)
+    face = 2 * axis + (flat[np.arange(len(flat)), axis] < 0.0)
+    local = np.matmul(CUBE_FACES[face], flat[:, :, None])[:, :, 0]
+    coordinates = (local[:, [2, 1]] / local[:, :1] + 1.0) * size / 2.0 - 0.5
+    # the border is the nearest texel on the neighboring face
+    count = len(border.reshape((-1, 3)))
+    nearest = np.clip(np.round(coordinates[:count]), 0, size - 1).astype(np.int64)
+    padded = cubemap[face[:count], nearest[:, 0], nearest[:, 1]]
+    padded = padded.reshape((6, size + 2, size + 2, -1))
+    coordinates, face = coordinates[count:] + 1.0, face[count:]
+    low = np.floor(coordinates).astype(np.int64)
+    fraction = (coordinates - low)[:, None]
+    corners = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    index = low[:, None] + corners
+    weights = np.prod(np.where(corners, fraction, 1.0 - fraction), axis=2)
+    texels = padded[face[:, None], index[..., 0], index[..., 1]]
+    samples = (texels * weights[..., None]).sum(axis=1)
+    return samples.reshape((*directions.shape[:-1], cubemap.shape[-1]))
 
 
 def clear_glass(thickness, height, roughness):
@@ -94,22 +129,18 @@ def clear_glass(thickness, height, roughness):
 def round_trip_checks(name, scene):
     """
     A scene which shows something renders the same after a glTF round
-    trip with its viewer-only environment.
+    trip, its environment included as the RGBD its file stores, which
+    `test_light` bounds.
     """
     exported = g.trimesh.util.wrap_as_stream(scene.export(file_type="glb"))
     reloaded = g.trimesh.load_scene(exported, file_type="glb")
-    if scene.has_lights:
-        # glTF has no `EnvironmentLight`, which only the viewer draws,
-        # and can't say a scene has no lights at all
-        standard = []
-        if reloaded.has_lights:
-            standard = reloaded.lights
-        reloaded.lights = standard + [
-            light for light in scene.lights if isinstance(light, EnvironmentLight)
-        ]
+    stored = scene.copy()
+    for light in stored.lights:
+        if isinstance(light, EnvironmentLight):
+            light.cubemap = rgbd_unpack(rgbd_pack(prefilter(light.cubemap)[0]))
     before, after = (
         g.png(current.render(resolution=scene.camera.resolution)).astype(int)
-        for current in (scene, reloaded)
+        for current in (stored, reloaded)
     )
     return {
         f"{name} renders the same after a glTF round trip": (
@@ -156,11 +187,13 @@ def test_conversion():
             diffuseTransmissionColorFactor=[0.5, 0.25, 1.0],
         )
     )
+    image = PIL.Image.new("RGB", (2, 3), (7, 8, 9))
+    glass.visual.material.transmissionTexture = image
     expected = g.np.zeros((), dtype=MATERIAL)
-    expected["base_color"] = [1.0, 0.0, 0.0, 0.5]
+    expected["base_color"] = [1.0, 0.0, 0.0, 1.0]
     expected["emissive"] = [0.25, 0.5, 0.75, 0.0]
     expected["factors"] = [0.25, 0.75, 0.375, 0.125]
-    expected["transmission_color"] = [0.5, 0.25, 1.0, 0.0]
+    expected["transmission_color"] = [0.5, 0.25, 1.0, 0.5]
     expected["flags"] = [ALPHA_MODES["BLEND"], 0, 0, 1]
     # a skinned mesh keeps which joints move each corner
     skinned = g.trimesh.creation.box()
@@ -228,6 +261,9 @@ def test_conversion():
         ).all()
         and painted_arrays.material["factors"][0] == 0.5,
         "every material value": glass_arrays.material.tobytes() == expected.tobytes(),
+        "transmission texture": g.np.array_equal(
+            glass_arrays.textures["transmission_texture"], image
+        ),
         "every glTF alpha mode": blend_modes == set(ALPHA_MODES.values()),
         "unskinned has no skin": box_arrays.skin is None,
         "skin rows": skinned_arrays.skin.dtype == SKIN,
@@ -555,15 +591,21 @@ def shade_reference(scene, normal=None, lights=None):
     # either side of the roughness, which `test_light` checks against
     # brute force integrals of the cube map, in the environment's frame
     environment, pose = lights[-1], transforms[-1]
-    tint = environment.color[:3] / 255.0 * environment.intensity
+    tint = environment.intensity
     rotation = g.trimesh.util.unitize(pose[:3, :3].T)
+    irradiance = spherical_harmonics(environment.cubemap) * HARMONICS[:, None]
     above, below = (
-        spherical_harmonics(normals @ rotation.T) @ environment.irradiance * tint / np.pi
-        for normals in (surface, -surface)
+        np.column_stack(
+            (np.ones(len(x)), y, z, x, x * y, y * z, 3 * z**2 - 1, x * z, x**2 - y**2)
+        )
+        @ irradiance
+        * tint
+        / np.pi
+        for x, y, z in ((normals @ rotation.T).T for normals in (surface, -surface))
     )
     color += diffuse_color * above + transmission_color * below
     reflected = 2.0 * (surface * view).sum(axis=1, keepdims=True) * surface - view
-    levels = environment_levels(environment.cubemap)
+    levels = prefilter(environment.cubemap)
     samples = np.array(
         [cubemap_sample(level, reflected @ rotation.T) for level in levels]
     )
@@ -664,11 +706,15 @@ def lighting_cases():
     )
     lamp = PointLight(name="lamp", color=WHITE, intensity=40.0)
     # a softbox which is bright, as plastic only reflects 4% of light head on
-    window = studio([0.05] * 3, [0.05] * 3, [([0.6, 0.6, 0.5], 30.0, [40.0] * 3)])
-    gradient = studio([0.9, 0.8, 0.7], [0.05, 0.05, 0.1])
+    window = g.gradient_environment(
+        [0.05] * 3, [0.05] * 3, [([0.6, 0.6, 0.5], 30.0, [40.0] * 3)]
+    )
+    gradient = g.gradient_environment([0.9, 0.8, 0.7], [0.05, 0.05, 0.1])
     # a softbox twice a unit vector away, which is read as a direction
-    reflected = studio([0.8, 0.7, 0.6], [0.05, 0.08, 0.1], [([1.4, 1, 1], 20.0, [4] * 3)])
-    below = studio([0.02] * 3, [0.3, 0.2, 0.4])
+    reflected = g.gradient_environment(
+        [0.8, 0.7, 0.6], [0.05, 0.08, 0.1], [([1.4, 1, 1], 20.0, [4] * 3)]
+    )
+    below = g.gradient_environment([0.02] * 3, [0.3, 0.2, 0.4])
     metal = {"metallic": 1.0, "roughness": 0.3}
     semi = {"metallic": 0.5, "roughness": 0.3}
     dim = ambient([0.1] * 3)
@@ -821,7 +867,7 @@ def test_lighting():
         checks[f"{name} exposure doubles light"] = g.np.abs(exposed - doubled).max() <= 1
         checks[f"{name} exposure brightens"] = (exposed - image)[interior].mean() > 10
 
-    # everything a render uses but the environment survives glTF, and
+    # everything a render uses survives glTF, and
     # the default lights are the same after loading a scene without lights
     for name, scene in cases.items():
         checks.update(round_trip_checks(name, scene))
@@ -837,7 +883,7 @@ def test_lighting():
             lambda image: g.np.abs(image[:3, :3] - expected).max() <= 1,
         ),
         "background sky is up": (
-            studio([0.8] * 3, [0.0] * 3),
+            g.gradient_environment([0.8] * 3, [0.0] * 3),
             lambda image: image[0, 0].mean() > image[-1, 0].mean() + 40,
         ),
     }.items():
@@ -891,7 +937,7 @@ def test_lighting():
     # sees what glTF says: the same image with its planes in its own units,
     # so a near plane which would cut the sphere doesn't once scaled, and
     # the scale moves nothing else: geometry fixed to the camera, or a scroll
-    gradient = studio(
+    gradient = g.gradient_environment(
         [0.8, 0.7, 0.6], [0.05, 0.05, 0.1], [([0.6, 0.6, 0.5], 30.0, [2.0] * 3)]
     )
     for projection, magnification in [
@@ -1789,6 +1835,20 @@ def test_methods():
     )
     # a corner of the sheet with nothing behind it
     checks["glass reflects"] = glass[40, 60].sum() > bare[40, 60].sum()
+    # the red of transmission's texture multiplies its factor
+    textured, factored = clear_glass(0.01, 1.0, 0.2), clear_glass(0.01, 1.0, 0.2)
+    textured.visual.material.transmissionTexture = PIL.Image.new(
+        "RGB", (2, 2), (128, 9, 9)
+    )
+    factored.visual.material.transmissionFactor = 128 / 255
+    textured, factored = (
+        g.render(framed(red, sheet), background=[0, 0, 0, 255]).color.astype(int)
+        for sheet in [textured, factored]
+    )
+    checks["transmission texture is its red"] = (
+        g.np.abs(textured - factored).max() <= 1
+        and g.np.abs(factored[..., :3] - glass).max() > 20
+    )
     # translucency blends what the display shows, so a half transparent
     # glowing sheet over black is half as bright as an opaque one
     glow = {}

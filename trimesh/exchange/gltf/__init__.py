@@ -10,6 +10,7 @@ import base64
 import json
 from collections import OrderedDict, defaultdict, deque
 from copy import deepcopy
+from functools import partial
 
 import numpy as np
 
@@ -29,9 +30,10 @@ from .animation import (
     parse_animations,
     parse_skins,
 )
-from .extensions import handle_extensions, unregistered
+from .extensions import MATERIAL_EXTENSIONS, handle_extensions, unregistered
+from .lights import ENVIRONMENT as _ENVIRONMENT
 from .lights import NAME as _LIGHTS
-from .lights import append_lights, parse_lights
+from .lights import append_environment, append_lights, parse_environment, parse_lights
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -63,29 +65,6 @@ _default_material = {
     }
 }
 
-# which keys of a PBRMaterial are images
-PBR_TEXTURES = (
-    "baseColorTexture",
-    "emissiveTexture",
-    "normalTexture",
-    "occlusionTexture",
-    "metallicRoughnessTexture",
-    "diffuseTransmissionTexture",
-    "diffuseTransmissionColorTexture",
-)
-
-# {extension : keys of a PBRMaterial it stores}: clear glass, and light
-# scattered out of the other side of a thin surface with its textures
-MATERIAL_EXTENSIONS = {
-    "KHR_materials_transmission": ("transmissionFactor",),
-    "KHR_materials_diffuse_transmission": (
-        "diffuseTransmissionFactor",
-        "diffuseTransmissionColorFactor",
-        "diffuseTransmissionTexture",
-        "diffuseTransmissionColorTexture",
-    ),
-}
-
 # GL geometry modes
 _GL_LINES = 1
 _GL_POINTS = 0
@@ -113,7 +92,6 @@ def export_gltf(
     embed_buffers=False,
     extension_webp=False,
     extension_draco=False,
-    animation_spline=False,
 ):
     """
     Export a scene object as a GLTF directory.
@@ -143,9 +121,6 @@ def export_gltf(
     extension_draco : bool
       Compress mesh data using Draco (KHR_draco_mesh_compression).
       Requires the `DracoPy` package to be installed.
-    animation_spline : bool
-      Write animation as cubic splines fit through every keyframe
-      with `scipy.interpolate.CubicSpline` rather than linearly.
 
     Returns
     ----------
@@ -163,7 +138,6 @@ def export_gltf(
         include_normals=include_normals,
         extension_webp=extension_webp,
         extension_draco=extension_draco,
-        animation_spline=animation_spline,
     )
 
     # allow custom postprocessing
@@ -220,7 +194,6 @@ def export_glb(
     buffer_postprocessor=None,
     extension_webp=False,
     extension_draco=False,
-    animation_spline=False,
 ):
     """
     Export a scene as a binary GLTF (GLB) file.
@@ -241,9 +214,6 @@ def export_glb(
     extension_draco : bool
       Compress mesh data using Draco (KHR_draco_mesh_compression).
       Requires the `DracoPy` package to be installed.
-    animation_spline : bool
-      Write animation as cubic splines fit through every keyframe
-      with `scipy.interpolate.CubicSpline` rather than linearly.
 
     Returns
     ----------
@@ -262,7 +232,6 @@ def export_glb(
         buffer_postprocessor=buffer_postprocessor,
         extension_webp=extension_webp,
         extension_draco=extension_draco,
-        animation_spline=animation_spline,
     )
 
     # A bufferView is a slice of a file
@@ -685,7 +654,6 @@ def _create_gltf_structure(
     buffer_postprocessor=None,
     extension_webp=False,
     extension_draco=False,
-    animation_spline=False,
 ):
     """
     Generate a GLTF header.
@@ -704,9 +672,6 @@ def _create_gltf_structure(
       Export textures as webP using EXT_texture_webp extension.
     extension_draco : bool
       Compress mesh data using Draco (KHR_draco_mesh_compression).
-    animation_spline : bool
-      Write animation as cubic splines fit through every keyframe
-      with `scipy.interpolate.CubicSpline` rather than linearly.
 
     Returns
     ---------------
@@ -802,6 +767,13 @@ def _create_gltf_structure(
     # generate a default pair for a scene that never had any
     if scene.has_lights:
         append_lights(scene.lights, tree=tree, node_index=node_index)
+        append_environment(
+            scene,
+            tree=tree,
+            append_image=partial(
+                _append_image, tree=tree, buffer_items=buffer_items, extension_webp=False
+            ),
+        )
 
     # add any keyframed animation, which also rewrites the nodes it
     # targets from a `matrix` into TRS as the spec requires
@@ -811,8 +783,6 @@ def _create_gltf_structure(
             buffer_items=buffer_items,
             animations=scene.animations,
             node_index=node_index,
-            graph=scene.graph,
-            spline=animation_spline,
         )
     if len(scene.skins) > 0:
         append_skins(
@@ -1618,8 +1588,8 @@ def _read_buffers(
       Can be passed to load_kwargs for a trimesh.Scene
     """
 
-    # decoded accessor data, empty if the file has no buffers at all
-    access = []
+    # decoded accessor data and buffer views, empty if the file has no buffers
+    access, views = [], []
 
     if "bufferViews" in header:
         # split buffer data into buffer views
@@ -2141,9 +2111,19 @@ def _read_buffers(
             # if the node doesn't have any geometry just add
             graph.append(kwargs)
 
+    # the scene's environment, and its node if the file doesn't have it
+    if _ENVIRONMENT in header.get("extensions", {}):
+        images = _parse_textures(header, views, resolver)
+        environment, rotation = parse_environment(header, scene_index, images)
+        if environment is not None:
+            lights.append(environment)
+            if environment.name not in {edge["frame_to"] for edge in graph}:
+                frame = {"frame_from": DEFAULT_BASE_FRAME, "frame_to": environment.name}
+                graph.append({**frame, "matrix": rotation})
+
     # animations only drive nodes of the loaded scene, not those of
     # other scenes in the file which aren't in the graph
-    edges = {edge["frame_to"]: edge["frame_from"] for edge in graph}
+    loaded = {edge["frame_to"] for edge in graph}
     # kwargs for load_kwargs
     result = {
         "class": "Scene",
@@ -2155,13 +2135,10 @@ def _read_buffers(
         "cameras": [cameras[key] for key in sorted(cameras)],
         "lights": lights,
         "metadata": {},
-        # the traversal above already worked out which edge every node
-        # sits on, which is the edge an animation targeting it drives
         "animations": parse_animations(
             header=header,
             access=access,
-            names={index: name for index, name in names.items() if name in edges},
-            edges=edges,
+            names={index: name for index, name in names.items() if name in loaded},
         ),
     }
     skins = parse_skins(header=header, access=access, names=names)
@@ -2179,7 +2156,9 @@ def _read_buffers(
         # load any scene extensions into a field of scene.metadata
         # except lights which are loaded into `Scene.lights`
         extensions = {
-            key: value for key, value in header["extensions"].items() if key != _LIGHTS
+            key: value
+            for key, value in header["extensions"].items()
+            if key not in (_LIGHTS, _ENVIRONMENT)
         }
         if len(extensions) > 0:
             result["metadata"]["gltf_extensions"] = extensions
@@ -2397,12 +2376,11 @@ def _append_material(mat, tree, buffer_items, mat_hashes, texture_hashes, extens
     if isinstance(as_pbr.doubleSided, bool):
         result["doubleSided"] = as_pbr.doubleSided
 
-    for key in (
-        "transmissionFactor",
-        "diffuseTransmissionFactor",
-        "diffuseTransmissionColorFactor",
-    ):
-        if getattr(as_pbr, key) is not None:
+    # the fields of extensions, which move into them below
+    fields = [key for keys in MATERIAL_EXTENSIONS.values() for key in keys]
+    textures = [key for key in fields if key.endswith("Texture")]
+    for key in fields:
+        if key not in textures and getattr(as_pbr, key) is not None:
             result[key] = np.asarray(getattr(as_pbr, key)).tolist()
 
     # if scalars are defined correctly export
@@ -2411,7 +2389,14 @@ def _append_material(mat, tree, buffer_items, mat_hashes, texture_hashes, extens
     if isinstance(as_pbr.roughnessFactor, float):
         result["roughnessFactor"] = as_pbr.roughnessFactor
 
-    for key in PBR_TEXTURES:
+    for key in (
+        "baseColorTexture",
+        "emissiveTexture",
+        "normalTexture",
+        "occlusionTexture",
+        "metallicRoughnessTexture",
+        *textures,
+    ):
         img = getattr(as_pbr, key)
         if img is None:
             continue
