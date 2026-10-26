@@ -274,7 +274,7 @@ class EnvironmentLight(Light):
         Multiplies the whole environment.
     cubemap : (6, n, n, 3) float
         Linear RGB radiance of the faces of `CUBE_FACES`, or an
-        equirectangular (h, 2h, 3) image to convert.
+        equirectangular (h, 2h, 3) image with its top row up to resample.
     """
 
     def __init__(
@@ -289,7 +289,28 @@ class EnvironmentLight(Light):
             cubemap = np.zeros((6, 1, 1, 3))
         cubemap = np.asarray(cubemap, dtype=np.float64)
         if cubemap.ndim == 3:
-            cubemap = equirectangular_to_cubemap(cubemap)
+            # a latitude-longitude panorama with +Y its top row and a
+            # direction `d` `0.5 + atan2(d[2], d[0]) / (2 pi)` of the way
+            # across, as the Khronos glTF Sample Viewer reads them, into the
+            # smallest power of two faces whose texels mid-face, `2 / size`
+            # radians, are no wider than the image's at its equator, `pi / h`
+            height, width = cubemap.shape[:2]
+            size = 2 ** int(np.ceil(np.log2(max(2.0 * height / np.pi, 1.0))))
+            x, y, z = cubemap_directions(size)[0].reshape((-1, 3)).T
+            # a column from each edge on the other side so longitude wraps
+            wrapped = np.concatenate((cubemap[:, -1:], cubemap, cubemap[:, :1]), axis=1)
+            # blend the four pixels around each texel, pixel middles integers
+            limit = np.array(wrapped.shape[:2]) - 1
+            row = np.arccos(np.clip(y, -1.0, 1.0)) / np.pi * height - 0.5
+            column = (0.5 + np.arctan2(z, x) / (2.0 * np.pi)) * width + 0.5
+            coordinates = np.column_stack((row, column)).clip(0, limit)
+            low = np.floor(coordinates).astype(np.int64)
+            fraction = (coordinates - low)[:, None]
+            corners = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+            index = np.minimum(low[:, None] + corners, limit)
+            weights = np.prod(np.where(corners, fraction, 1.0 - fraction), axis=2)
+            samples = wrapped[index[..., 0], index[..., 1]] * weights[..., None]
+            cubemap = samples.sum(axis=1).reshape((6, size, size, -1))
         self.cubemap = cubemap
 
 
@@ -310,15 +331,11 @@ def cubemap_directions(size: Integer) -> tuple[NDArray[float64], NDArray[float64
     solid_angle : (6, size, size) float
       Steradians each texel covers, which sum to `4 pi`.
     """
-    size = int(size)
     edges = np.linspace(-1.0, 1.0, size + 1)
     middles = (edges[1:] + edges[:-1]) / 2.0
-    faces = CUBE_FACES[:, None, None]
-    directions = (
-        faces[..., 0, :]
-        + middles[:, None] * faces[..., 1, :]
-        + middles[:, None, None] * faces[..., 2, :]
-    )
+    # `(1, s, t)` of every texel by row `t` and column `s` onto every face
+    texels = np.stack(np.broadcast_arrays(1.0, middles, middles[:, None]), axis=-1)
+    directions = texels @ CUBE_FACES[:, None]
     # the solid angle from the middle of a face to the corner (u, v) is
     # `atan2(u * v, sqrt(u^2 + v^2 + 1))`, which differences into texels
     corner = np.arctan2(
@@ -327,51 +344,6 @@ def cubemap_directions(size: Integer) -> tuple[NDArray[float64], NDArray[float64
     solid_angle = corner[1:, 1:] - corner[:-1, 1:] - corner[1:, :-1] + corner[:-1, :-1]
     directions /= np.linalg.norm(directions, axis=-1, keepdims=True)
     return directions, np.broadcast_to(solid_angle, (6, size, size))
-
-
-def equirectangular_to_cubemap(
-    image: ArrayLike, size: Integer | None = None
-) -> NDArray[float64]:
-    """
-    Resample a latitude-longitude panorama twice as wide as it is tall
-    into a cube map, blending the four pixels around each texel. Its top
-    row is +Y and a direction `d` is `0.5 + atan2(d[2], d[0]) / (2 pi)`
-    of the way across, as the Khronos glTF Sample Viewer reads them.
-
-    Parameters
-    ------------
-    image : (h, 2h, c) float
-      Linear radiance with the first row at the top.
-    size : int or None
-      Texels across each face, by default the smallest power of two whose
-      texels mid-face, `2 / size` radians, are no wider than the image's
-      at its equator, `pi / h` radians.
-
-    Returns
-    ------------
-    cubemap : (6, size, size, c) float
-      Texels of the faces of `CUBE_FACES`.
-    """
-    image = np.asarray(image, dtype=np.float64)
-    height, width = image.shape[:2]
-    if size is None:
-        size = 2 ** int(np.ceil(np.log2(max(2.0 * height / np.pi, 1.0))))
-    size = int(size)
-    x, y, z = cubemap_directions(size)[0].reshape((-1, 3)).T
-    # a column from each edge on the other side so longitude wraps around
-    wrapped = np.concatenate((image[:, -1:], image, image[:, :1]), axis=1)
-    # the row and column of each texel where pixel middles are integers
-    limit = np.array(wrapped.shape[:2]) - 1
-    row = np.arccos(np.clip(y, -1.0, 1.0)) / np.pi * height - 0.5
-    column = (0.5 + np.arctan2(z, x) / (2.0 * np.pi)) * width + 0.5
-    coordinates = np.column_stack((row, column)).clip(0, limit)
-    low = np.floor(coordinates).astype(np.int64)
-    fraction = (coordinates - low)[:, None]
-    corners = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
-    index = np.minimum(low[:, None] + corners, limit)
-    weights = np.prod(np.where(corners, fraction, 1.0 - fraction), axis=2)
-    samples = (wrapped[index[..., 0], index[..., 1]] * weights[..., None]).sum(axis=1)
-    return samples.reshape((6, size, size, -1))
 
 
 def prefilter(cubemap: ArrayLike) -> list[NDArray]:
@@ -421,6 +393,7 @@ def prefilter(cubemap: ArrayLike) -> list[NDArray]:
             directions = directions.reshape((-1, 3)).astype(np.float32)
             # BLAS multiplies by a contiguous transpose five times faster
             cosine = directions @ np.ascontiguousarray(directions.T)
+            # in place so the weights stay float32
             weights = np.exp(sharpness * (cosine - 1.0))
             weights *= solid_angle.reshape(-1)
             blurred = (weights @ blurred.reshape((-1, 3))) / weights.sum(axis=1)[:, None]
@@ -507,44 +480,42 @@ def autolight(
     frame[:3, :3] = np.column_stack((np.cross(up, back), up, back))
 
     names = set(scene.graph.nodes)
-    lights, transforms = [], []
     # (name, linear RGB, intensity in lux, towards it in the studio frame)
     # where a white surface facing the key reflects 0.58 and the rim 0.28
-    for name, color, intensity, towards in (
+    studio = (
         ("key_light", (255, 219, 178), 2.077136, (0.579228, 0.573576, 0.579228)),
         ("rim_light", (191, 212, 255), 1.064896, (-0.211309, 0.906308, -0.365998)),
-    ):
-        lights.append(
-            DirectionalLight(
-                name=util.unique_name(name, names),
-                color=[*color, 255],
-                intensity=intensity,
-            )
+    )
+    lights = [
+        DirectionalLight(
+            name=util.unique_name(name, names), color=[*color, 255], intensity=intensity
         )
-        # a light's +Z points back towards where its light comes from
-        transforms.append(align_vectors([0.0, 0.0, 1.0], frame[:3, :3] @ towards))
+        for name, color, intensity, _ in studio
+    ]
+    # a light's +Z points back towards where its light comes from
+    transforms = [align_vectors([0, 0, 1], frame[:3, :3] @ row[3]) for row in studio]
 
     # the environment, two texels across the deviation `1 / sqrt(30)` of
-    # its side softboxes: a gradient from the floor straight down to the sky
-    # straight up, in linear RGB
+    # its side softboxes, in linear RGB: a gradient from the floor straight
+    # down to the sky straight up plus softboxes `exp(sharpness * (dot(d,
+    # towards) - 1))` in every direction `d`, broad overhead, then on the
+    # key's side and the rim's side
     directions = cubemap_directions(64)[0]
-    ground = np.array([0.10037, 0.095253, 0.09053])
-    sky = np.array([0.324112, 0.307588, 0.292336])
-    cubemap = ground + np.multiply.outer(0.5 + 0.5 * directions[..., 1], sky - ground)
-    # and softboxes `color * exp(sharpness * (dot(d, towards) - 1))` in every
-    # direction `d` as (towards, sharpness, color): broad overhead, then on
-    # the key's side and the rim's side
-    for towards, sharpness, color in (
-        ((0.0, 1.0, 0.0), 4.0, (0.35, 0.35, 0.35)),
-        ((0.813798, 0.34202, 0.469846), 30.0, (2.279906, 1.958037, 1.591464)),
-        ((-0.919158, 0.207912, 0.334546), 30.0, (0.90676, 1.006457, 1.210596)),
-    ):
-        lobe = np.exp(sharpness * (directions @ util.unitize(towards) - 1.0))
-        cubemap += np.multiply.outer(lobe, color)
-    lights.append(
-        EnvironmentLight(
-            name=util.unique_name("environment_light", names), cubemap=cubemap
-        )
+    towards = [
+        [0.0, 1.0, 0.0],
+        [0.813798, 0.34202, 0.469846],
+        [-0.919158, 0.207912, 0.334546],
+    ]
+    lobes = np.exp([4.0, 30.0, 30.0] * (directions @ util.unitize(towards).T - 1.0))
+    rise = 0.5 + 0.5 * directions[..., 1:2]
+    cubemap = np.concatenate((1.0 - rise, rise, lobes), axis=-1) @ [
+        [0.10037, 0.095253, 0.09053],
+        [0.324112, 0.307588, 0.292336],
+        [0.35, 0.35, 0.35],
+        [2.279906, 1.958037, 1.591464],
+        [0.90676, 1.006457, 1.210596],
+    ]
+    environment = EnvironmentLight(
+        name=util.unique_name("environment_light", names), cubemap=cubemap
     )
-    transforms.append(frame)
-    return lights, np.array(transforms)
+    return [*lights, environment], np.array([*transforms, frame])

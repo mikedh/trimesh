@@ -211,13 +211,11 @@ class SimpleMaterial(Material):
         roughness = (2 / (self.glossiness + 2)) ** (1.0 / 4.0)
 
         # simple materials ignore diffuse when there is an image
+        factor = None
         if self.image is None:
             # diffuse is sRGB but the PBR factor is linear
-            factor = np.append(
-                color.srgb_to_linear(self.diffuse[:3]), color.to_float(self.diffuse[3:])
-            )
-        else:
-            factor = None
+            factor = color.to_float(self.diffuse)
+            factor[:3] = color.srgb_to_linear(factor[:3])
 
         return PBRMaterial(
             # simple materials are never metal: the glTF default is 1.0
@@ -314,34 +312,23 @@ class MultiMaterial(Material):
 class PBRField:
     """
     A field of a `PBRMaterial` from a glTF extension, stored in its
-    `_data` under the field's name like the others, where setting None
-    removes it.
+    `_data` like the others, where None removes it.
     """
 
-    def __init__(self, cast: Callable | None = None):
+    def __init__(self, name: str, cast: Callable | None = None):
         """
         Declare a field.
 
         Parameters
         ------------
-        cast
-          Converts a value when it is set, like `float`, or None to
-          store the value as it is, like an image.
-        """
-        self.cast = cast
-
-    def __set_name__(self, owner: type, name: str) -> None:
-        """
-        Remember the name the field was declared with.
-
-        Parameters
-        ------------
-        owner
-          The class declaring the field.
         name
-          The field's name, which is also its key in `_data`.
+          The field's name and its key in `_data`.
+        cast
+          Converts a value when it is set like `float`, or None to
+          store it as it is like an image.
         """
         self.name = name
+        self.cast = cast
 
     def __get__(self, material: "PBRMaterial | None", owner: type | None = None):
         """
@@ -357,7 +344,7 @@ class PBRField:
         Returns
         ------------
         value
-          The stored value, or this field when read from the class.
+          The stored value or None, or this field from the class.
         """
         if material is None:
             return self
@@ -365,21 +352,20 @@ class PBRField:
 
     def __set__(self, material: "PBRMaterial", value) -> None:
         """
-        Set the field, or remove it if `value` is None.
+        Set the field, or remove it with None.
 
         Parameters
         ------------
         material
           The material.
         value
-          The new value.
+          The new value, or None to remove it.
         """
-        if value is None:
-            material._data.pop(self.name, None)
-        elif self.cast is None:
+        material._data.pop(self.name, None)
+        if value is not None and self.cast is not None:
+            value = self.cast(value)
+        if value is not None:
             material._data[self.name] = value
-        else:
-            material._data[self.name] = self.cast(value)
 
 
 class PBRMaterial(Material):
@@ -391,25 +377,22 @@ class PBRMaterial(Material):
     Parameters with `Texture` in them must be PIL.Image objects
     """
 
-    # how much light passes through like clear glass, from 0.0 to 1.0,
-    # from `KHR_materials_transmission`
-    transmissionFactor = PBRField(float)
+    # `KHR_materials_transmission`: from 0.0 to 1.0 passing through like glass
+    transmissionFactor = PBRField("transmissionFactor", float)
     # an image whose red channel multiplies `transmissionFactor`
-    transmissionTexture = PBRField()
-    # how much light a thin surface like a leaf scatters out of its other
-    # side, from `KHR_materials_diffuse_transmission`
-    diffuseTransmissionFactor = PBRField(float)
+    transmissionTexture = PBRField("transmissionTexture")
+    # `KHR_materials_diffuse_transmission`: scattered through a thin leaf
+    diffuseTransmissionFactor = PBRField("diffuseTransmissionFactor", float)
     # an image whose alpha channel multiplies `diffuseTransmissionFactor`
-    diffuseTransmissionTexture = PBRField()
+    diffuseTransmissionTexture = PBRField("diffuseTransmissionTexture")
     # the (3,) linear RGB color of that scattered light, white if not set
     diffuseTransmissionColorFactor = PBRField(
-        lambda value: np.array(value, dtype=np.float64).reshape(3)
+        "diffuseTransmissionColorFactor", lambda value: np.float64(value).reshape(3)
     )
     # an sRGB image whose color multiplies `diffuseTransmissionColorFactor`
-    diffuseTransmissionColorTexture = PBRField()
-    # the base color is the final color with no lighting from
-    # `KHR_materials_unlit`, for skies and baked or photographed light
-    unlit = PBRField(bool)
+    diffuseTransmissionColorTexture = PBRField("diffuseTransmissionColorTexture")
+    # `KHR_materials_unlit`: the base color is the final color with no lighting
+    unlit = PBRField("unlit", bool)
 
     def __init__(
         self,
@@ -426,13 +409,6 @@ class PBRMaterial(Material):
         doubleSided=False,
         alphaMode=None,
         alphaCutoff=None,
-        transmissionFactor=None,
-        transmissionTexture=None,
-        diffuseTransmissionFactor=None,
-        diffuseTransmissionColorFactor=None,
-        diffuseTransmissionTexture=None,
-        diffuseTransmissionColorTexture=None,
-        unlit=None,
         **kwargs,
     ):
         # store values in an internal dict
@@ -447,15 +423,8 @@ class PBRMaterial(Material):
         self.metallicFactor = metallicFactor
         self.roughnessFactor = roughnessFactor
         self.alphaCutoff = alphaCutoff
-        self.transmissionFactor = transmissionFactor
-        self.diffuseTransmissionFactor = diffuseTransmissionFactor
-        # (3,) float
-        self.diffuseTransmissionColorFactor = diffuseTransmissionColorFactor
 
         # PIL image
-        self.transmissionTexture = transmissionTexture
-        self.diffuseTransmissionTexture = diffuseTransmissionTexture
-        self.diffuseTransmissionColorTexture = diffuseTransmissionColorTexture
         self.normalTexture = normalTexture
         self.emissiveTexture = emissiveTexture
         self.occlusionTexture = occlusionTexture
@@ -464,12 +433,15 @@ class PBRMaterial(Material):
 
         # bool
         self.doubleSided = doubleSided
-        self.unlit = unlit
 
         # str
         self.name = name
         self.alphaMode = alphaMode
 
+        # the `PBRField` values of glTF extensions like `unlit=True`
+        for key in list(kwargs):
+            if isinstance(getattr(PBRMaterial, key, None), PBRField):
+                setattr(self, key, kwargs.pop(key))
         if len(kwargs) > 0:
             util.log.debug(
                 "unsupported material keys: {}".format(", ".join(kwargs.keys()))
@@ -806,8 +778,7 @@ class PBRMaterial(Material):
 
     def to_pbr(self):
         """
-        Return this material, which is already a PBR material,
-        matching `SimpleMaterial.to_pbr` and `MultiMaterial.to_pbr`.
+        This material, as it already is one like `SimpleMaterial.to_pbr` returns.
 
         Returns
         ------------
@@ -828,11 +799,9 @@ class PBRMaterial(Material):
         """
         diffuse = self.baseColorFactor
         if diffuse is not None:
-            # the PBR factor is linear but diffuse is sRGB, which is
-            # the inverse of `SimpleMaterial.to_pbr`
-            diffuse = np.append(
-                color.linear_to_srgb(diffuse[:3]), color.to_float(diffuse[3:])
-            )
+            # the inverse of `SimpleMaterial.to_pbr` as diffuse is sRGB
+            diffuse = color.to_float(diffuse)
+            diffuse[:3] = color.linear_to_srgb(diffuse[:3])
         return SimpleMaterial(
             image=self.baseColorTexture,
             diffuse=diffuse,

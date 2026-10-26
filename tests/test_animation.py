@@ -62,11 +62,11 @@ def test_sample():
         )
         checks[f"{interpolation} duration"] = animation.duration == times[-1]
         checks[f"{interpolation} keyframes exact"] = all(
-            g.np.allclose(animation.at(time), matrix, atol=1e-12)
+            g.np.allclose(animation.interpolate(time), matrix, atol=1e-12)
             for time, matrix in zip(times, matrices)
         )
         for time in queries:
-            sampled = animation.at(time)
+            sampled = animation.interpolate(time)
             checks[f"{interpolation} shape {time:.3f}"] = sampled.shape == (count, 4, 4)
             # the glTF spec's names for linear and step
             mode = interpolation.value.upper()
@@ -89,22 +89,22 @@ def test_sample():
 
     # editing the keyframes in place moves what is sampled
     middle = (times[2] + times[3]) / 2
-    before = animation.at(middle)
+    before = animation.interpolate(middle)
     animation.matrices[..., :3, 3] += [1.0, 2.0, 3.0]
-    after = animation.at(middle)
+    after = animation.interpolate(middle)
     checks["in place edit"] = g.np.allclose(
         after[:, :3, 3], before[:, :3, 3] + [1.0, 2.0, 3.0]
     ) and g.np.allclose(after[:, :3, :3], before[:, :3, :3])
     # one keyframe holds forever, and a repeated time is still finite
     single = Animation(name="single", nodes=nodes, times=[2.0], matrices=matrices[:1])
     checks["single keyframe"] = all(
-        g.np.allclose(single.at(time), matrices[0]) for time in queries
+        g.np.allclose(single.interpolate(time), matrices[0]) for time in queries
     )
     repeated = Animation(
         name="repeated", nodes=nodes[:1], times=[0.0, 0.0, 1.0], matrices=matrices[:3, :1]
     )
     checks["repeated time finite"] = all(
-        g.np.isfinite(repeated.at(time)).all() for time in queries
+        g.np.isfinite(repeated.interpolate(time)).all() for time in queries
     )
     for name, kwargs in {
         "decreasing times": {"times": times[::-1], "matrices": matrices},
@@ -167,7 +167,7 @@ def test_scene():
     reference = scene.copy().graph
     checks = {"duration": g.np.isclose(scene.duration, 1.0)}
     for time in [0.0, 0.3, 0.62, 1.0]:
-        sampled = animation.at(time)
+        sampled = animation.interpolate(time)
         pose = dict(zip(animation.nodes, sampled))
         scene.animate(time)
         for node, matrix in pose.items():
@@ -197,7 +197,7 @@ def test_scene():
         checks[f"edge data kept {time}"] = unmoved(edge_data[("parent", "child")]) == edge
         # sampling doesn't read the graph the animation just wrote
         checks[f"graph independent {time}"] = g.np.array_equal(
-            animation.at(time), sampled
+            animation.interpolate(time), sampled
         )
 
     # only the named animations move
@@ -212,12 +212,12 @@ def test_scene():
     looped.graph.update(frame_to="slow")
     looped.animations.append(slow)
     looped.animate(2.3, loop=True)
-    pose = dict(zip(animation.nodes, animation.at(0.3)))
+    pose = dict(zip(animation.nodes, animation.interpolate(0.3)))
     checks["loops each"] = g.np.allclose(
         looped.graph.get("child", "parent")[0], pose["child"]
-    ) and g.np.allclose(looped.graph["slow"][0], slow.at(2.3)[0])
+    ) and g.np.allclose(looped.graph["slow"][0], slow.interpolate(2.3)[0])
     looped.animate(2.3)
-    pose = dict(zip(animation.nodes, animation.at(1.0)))
+    pose = dict(zip(animation.nodes, animation.interpolate(1.0)))
     checks["holds without looping"] = g.np.allclose(
         looped.graph.get("child", "parent")[0], pose["child"]
     )

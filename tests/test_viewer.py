@@ -379,7 +379,6 @@ layout(std140, row_major) uniform Material {
             "mat3": [("matrix", "<f4", (3, 3))],
         }.items():
             shaders.BLOCKS[block_name] = g.np.dtype(dtype)
-            shaders._SHADER_SOURCE.clear()
             checks[f"std140 {block_name} refuses {name}"] = False
             try:
                 shaders.shader_source("mesh.frag")
@@ -387,7 +386,6 @@ layout(std140, row_major) uniform Material {
                 checks[f"std140 {block_name} refuses {name}"] = True
             finally:
                 shaders.BLOCKS[block_name] = original
-                shaders._SHADER_SOURCE.clear()
 
     # the filled shaders pass the reference compiler, which is stricter
     # than drivers, as the programs `create_context` compiles validated
@@ -418,7 +416,7 @@ layout(std140, row_major) uniform Material {
     viewer = g.offscreen_viewer(g.trimesh.creation.box().scene())
     viewer.to_array()
     for name, item in viewer.context.programs.items():
-        program, dtypes = item.program, shaders.INPUTS.get(name, ())
+        program, dtypes = item, shaders.INPUTS.get(name, ())
         # the passes with no inputs read the frame, and only meshes a material
         blocks = ("Frame", "Material")[: 1 + (name == "mesh")]
         # every input is where `shaders.attribute_locations` put it
@@ -1164,7 +1162,7 @@ def test_shadows():
 
     def frame(viewer):
         """Draw a frame of a scene whose geometry hasn't changed and read it."""
-        viewer.render(changed=False)
+        viewer.draw()
         return viewer.read_pixels("resolved").astype(g.np.int64)
 
     still, shifted = frame(viewers[0]), frame(viewers[1])

@@ -30,8 +30,7 @@ class Interpolation(str, Enum):
     """
     How an animation is sampled between keyframes: blending the
     translation, rotation, and scale linearly, holding each keyframe,
-    or along a cubic spline through every keyframe. A `str` mixin as
-    `StrEnum` needs Python 3.11 and trimesh supports 3.10.
+    or along a cubic spline through every keyframe.
     """
 
     LINEAR = "linear"
@@ -111,31 +110,24 @@ class Animation:
         return self._data["matrices"]
 
     @caching.cache_decorator
-    def trs(self) -> tuple[NDArray3D[float64], NDArray3D[float64], NDArray3D[float64]]:
+    def trs(self) -> NDArray3D[float64]:
         """
         The matrices split into translation, rotation, and scale once
         so sampling between keyframes is only a blend.
 
         Returns
         ------------
-        translation : (k, n, 3) float
-          Translation of every node at every keyframe.
-        quaternion : (k, n, 4) float
-          Rotation ordered `w, x, y, z`, with neighboring keyframes in
-          the same hemisphere so a blend takes the shorter way around.
-        scale : (k, n, 3) float
-          Scale of every node at every keyframe.
+        trs : (k, n, 10) float
+          The translation, rotation quaternion ordered `w, x, y, z`, and
+          scale of every node at every keyframe, with the quaternions of
+          neighboring keyframes in the same hemisphere so a blend takes
+          the shorter way around.
         """
-        # plain arrays as every operation on a tracked one is tracked
-        matrices = np.asarray(self.matrices)
-        translation, quaternion, scale = (
-            part.reshape((*matrices.shape[:2], -1))
-            for part in trs_from_matrix(matrices.reshape((-1, 4, 4)))
-        )
+        trs = np.concatenate(trs_from_matrix(self.matrices), axis=2)
         # a quaternion and its negation are the same rotation
-        flips = (quaternion[1:] * quaternion[:-1]).sum(axis=2) < 0.0
-        quaternion[1:] *= np.cumprod(np.where(flips, -1.0, 1.0), axis=0)[..., None]
-        return translation, quaternion, scale
+        flips = (trs[1:, :, 3:7] * trs[:-1, :, 3:7]).sum(axis=2) < 0.0
+        trs[1:, :, 3:7] *= np.cumprod(np.where(flips, -1.0, 1.0), axis=0)[..., None]
+        return trs
 
     @caching.cache_decorator
     def spline(self) -> Callable | None:
@@ -146,8 +138,7 @@ class Animation:
         Returns
         ------------
         spline : None or scipy.interpolate.CubicSpline
-          Of the translation, quaternion, and scale stacked into (k, n, 10),
-          or None with one keyframe or if scipy isn't installed.
+          Of `trs`, or None with one keyframe or if scipy isn't installed.
         """
         if len(self.times) < 2:
             return None
@@ -156,7 +147,7 @@ class Animation:
         except ImportError:
             log.warning(f"`{self.name}` is sampled linearly without scipy")
             return None
-        return CubicSpline(np.asarray(self.times), np.concatenate(self.trs, axis=2))
+        return CubicSpline(np.asarray(self.times), self.trs)
 
     @property
     def duration(self) -> float:
@@ -170,7 +161,7 @@ class Animation:
         """
         return float(self.times[-1])
 
-    def at(self, time: Floating) -> NDArray3D[float64]:
+    def interpolate(self, time: Floating) -> NDArray3D[float64]:
         """
         The transform of every node from its parent at a time, holding
         the first and last keyframe outside of the animation.
@@ -187,23 +178,16 @@ class Animation:
         """
         times = np.asarray(self.times)
         if self.interpolation == Interpolation.CUBIC and self.spline is not None:
-            # where `trs_matrix` normalizes quaternions as glTF specifies
             sampled = self.spline(np.clip(time, times[0], times[-1]))
-            return trs_matrix(sampled[:, :3], sampled[:, 3:7], sampled[:, 7:])
-        # the keyframes on either side of the time are all it reads
-        bracket = np.clip(np.searchsorted(times, time) + [-1, 0], 0, len(times) - 1)
-        # held or blended between them, without cubic tangents
-        mode, query = Interpolation.LINEAR, [time]
-        if self.interpolation == Interpolation.STEP:
-            mode = Interpolation.STEP
-        return trs_matrix(
-            *(
-                sample_channel(
-                    times[bracket], part[bracket], None, None, mode, query, rotation
-                )[0]
-                for part, rotation in zip(self.trs, (False, True, False))
-            )
-        )
+        else:
+            # held or blended between keyframes, without cubic tangents
+            mode = Interpolation.LINEAR
+            if self.interpolation == Interpolation.STEP:
+                mode = Interpolation.STEP
+            sampled = sample_channel(times, self.trs, time, mode)
+            sampled[:, 3:7] = sample_channel(times, self.trs[..., 3:7], time, mode, True)
+        # where `trs_matrix` normalizes quaternions as glTF specifies
+        return trs_matrix(sampled[:, :3], sampled[:, 3:7], sampled[:, 7:])
 
 
 class Skin:
@@ -227,10 +211,9 @@ class Skin:
         """
         self.joints = list(joints)
         if inverse_bind_matrices is None:
-            inverse_bind_matrices = np.tile(np.eye(4), (len(self.joints), 1, 1))
-        self.inverse_bind_matrices = np.array(
-            inverse_bind_matrices, dtype=np.float64
-        ).reshape((len(self.joints), 4, 4))
+            inverse_bind_matrices = np.eye(4)
+        shape = (len(self.joints), 4, 4)
+        self.inverse_bind_matrices = np.broadcast_to(inverse_bind_matrices, shape) * 1.0
 
     def deform(self, mesh, graph) -> NDArray2D[float64]:
         """
@@ -252,11 +235,10 @@ class Skin:
         """
         # each joint's world transform times its inverse bind matrix
         world = np.reshape([graph.get(joint)[0] for joint in self.joints], (-1, 4, 4))
+        attributes = mesh.vertex_attributes
+        joints, weights = attributes["joints"], attributes["weights"]
         return skin_points(
-            mesh.vertices,
-            mesh.vertex_attributes["joints"],
-            mesh.vertex_attributes["weights"],
-            np.matmul(world, self.inverse_bind_matrices),
+            mesh.vertices, joints, weights, world @ self.inverse_bind_matrices
         )
 
     def __hash__(self) -> int:

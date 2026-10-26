@@ -118,25 +118,23 @@ class SceneGraph:
         matrices : (n, 4, 4) float
           Homogeneous transformation matrix of every edge.
         """
+        # every matrix changes in place so the hash has to be recomputed
+        self.transforms._hash = None
         edge_data = self.transforms.edge_data
-        matrices = np.asanyarray(matrices, dtype=np.float64)
-        try:
-            for (frame_from, frame_to), matrix in zip(edges, matrices):
-                # falsy frames like `0` or `""` are valid node names
-                if frame_from is None:
-                    frame_from = self.base_frame
-                key = (frame_from, frame_to)
-                if key in edge_data:
-                    edge_data[key]["matrix"] = matrix
-                    continue
-                # setting a matrix must never change the tree
-                message = f"can't set the matrix of `{frame_from} -> {frame_to}`"
-                if tol.strict:
-                    raise ValueError(message)
-                log.warning(message)
-        finally:
-            # every matrix changed in place so the hash has to be recomputed
-            self.transforms.invalidate()
+        for (frame_from, frame_to), matrix in zip(
+            edges, np.asarray(matrices, dtype=float)
+        ):
+            # falsy frames like `0` or `""` are valid node names
+            if frame_from is None:
+                frame_from = self.base_frame
+            if (frame_from, frame_to) in edge_data:
+                edge_data[(frame_from, frame_to)]["matrix"] = matrix
+                continue
+            # setting a matrix must never change the tree
+            message = f"can't set the matrix of `{frame_from} -> {frame_to}`"
+            if tol.strict:
+                raise ValueError(message)
+            log.warning(message)
 
     def get(
         self, frame_to: Hashable, frame_from: Hashable | None = None
@@ -625,14 +623,6 @@ class EnforcedForest:
         # if multiple calls are made for the same path
         # but the connectivity hasn't changed return cached
         self._cache = {}
-
-    def invalidate(self) -> None:
-        """
-        Mark the forest's data as changed after editing it in place, such
-        as the matrices in `edge_data`, so its hash is recomputed and
-        everything cached from it is too. The topology must not change.
-        """
-        self._hash = None
 
     def add_edge(self, u, v, **kwargs):
         """

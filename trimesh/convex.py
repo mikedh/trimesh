@@ -207,15 +207,13 @@ def convex_hull(
     points = points[np.isfinite(points).all(axis=1)]
 
     if len(points) == 0:
-        # empty points can exit early
         return Trimesh()
 
     try:
         hull = ConvexHull(points, qhull_options=qhull_str)
     except (QhullError, ValueError):
-        # retry degenerate/coplanar/NaN/inf/etc
         util.log.debug("Failed to compute convex hull: retrying with `QJ`", exc_info=True)
-        # retry with just "joggle" enabled as a recovery move
+        # try with "joggle" enabled
         hull = ConvexHull(points, qhull_options="QJ")
 
     # hull object doesn't remove unreferenced vertices

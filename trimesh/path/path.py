@@ -731,10 +731,8 @@ class Path(parent.Geometry):
             for entity in self.entities
         ]
         lines = util.vstack_empty(stacked).reshape((-1, 2, vertices.shape[1]))
-        entity = np.repeat(
-            np.arange(len(stacked)), [len(lines) // 2 for lines in stacked]
-        )
-        return lines, entity
+        counts = [len(item) // 2 for item in stacked]
+        return lines, np.repeat(np.arange(len(counts)), counts)
 
     @property
     def segments(self) -> NDArray[float64]:

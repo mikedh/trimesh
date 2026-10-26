@@ -1,5 +1,6 @@
 import collections
 import os
+import pickle
 import warnings
 from copy import deepcopy
 from hashlib import sha256
@@ -80,18 +81,14 @@ class Scene(Geometry3D):
         # create a new graph
         self.graph = SceneGraph(base_frame=base_frame)
 
-        # keyframed animation, those sharing a name are
-        # exported as a single glTF animation
+        # keyframed animations, and {node : Skin} for skinned mesh nodes
         self.animations: list[Animation] = []
-        # {scene graph node : Skin} for nodes whose mesh their joints move
         self.skins: dict[Hashable, Skin] = {}
-        # cameras riding scene graph nodes named after them, where the
-        # first is the one `Scene.camera` looks through
+        # cameras riding the nodes named after them, the first looked through
         self.cameras: list[Camera] = []
-        # lights riding scene graph nodes, or None for the defaults
+        # lights riding nodes or None for the defaults, and the fingerprint
+        # of generated defaults which are only the scene's once changed
         self._lights = None
-        # what the default lights `Scene.lights` generated looked like, so
-        # they are only the scene's once they are changed
         self._default_lights = None
 
         # create our cache
@@ -865,10 +862,8 @@ class Scene(Geometry3D):
         """
         if camera is None:
             return
-        if self.has_camera:
-            self.cameras[0] = camera
-        else:
-            self.cameras.append(camera)
+        # replace the first camera, or add it if there isn't one
+        self.cameras[:1] = [camera]
 
     @property
     def has_camera(self) -> bool:
@@ -898,8 +893,6 @@ class Scene(Geometry3D):
         """
         if self._lights is None:
             return False
-        if self._default_lights is None:
-            return True
         return light_fingerprint(self, self._lights) != self._default_lights
 
     @property
@@ -933,6 +926,7 @@ class Scene(Geometry3D):
           Repeat each animation past its own end as glTF players do,
           rather than holding its last pose.
         """
+        parents = self.graph.transforms.parents
         for animation in self.animations:
             if name is not None and animation.name != name:
                 continue
@@ -940,10 +934,9 @@ class Scene(Geometry3D):
             if loop and animation.duration > 0.0:
                 at = time % animation.duration
             # every node of an animation is sampled and written at once
-            parents = self.graph.transforms.parents
             self.graph.update_matrices(
                 [(parents.get(node), node) for node in animation.nodes],
-                animation.at(at),
+                animation.interpolate(at),
             )
 
     @property
@@ -1128,34 +1121,8 @@ class Scene(Geometry3D):
         geometry = {k: self.geometry[k] for k in geometry_names}
         result = Scene(geometry=geometry, graph=graph)
 
-        # keep the animated nodes which survived: as the subscene is
-        # rooted at `node` its own edge is no longer drivable
-        for animation in self.animations:
-            kept = [i for i, n in enumerate(animation.nodes) if n in nodes and n != node]
-            if len(kept) > 0:
-                result.animations.append(
-                    Animation(
-                        name=animation.name,
-                        nodes=[animation.nodes[i] for i in kept],
-                        times=animation.times.copy(),
-                        matrices=animation.matrices[:, kept],
-                        interpolation=animation.interpolation,
-                    )
-                )
-        # a skin only works if its node and every joint survived
-        result.skins = {
-            key: skin
-            for key, skin in self.skins.items()
-            if key in nodes and all(joint in nodes for joint in skin.joints)
-        }
-        # lights and cameras are nodes too: keep the ones that survived
-        if self.has_lights:
-            result.lights = [
-                deepcopy(light) for light in self.lights if light.name in nodes
-            ]
-        result.cameras = [
-            camera.copy() for camera in self.cameras if camera.name in nodes
-        ]
+        # the subscene is rooted at `node` so its own edge isn't drivable
+        copy_attachments(self, result, nodes=nodes, rename={}, root=node)
         result.metadata.update(deepcopy(self.metadata))
         return result
 
@@ -1256,20 +1223,15 @@ class Scene(Geometry3D):
         """
         from ..viewer.render import render_scene
 
-        if util.is_pathlib(file_obj):
-            file_obj = str(file_obj.absolute())
-        if isinstance(file_obj, str):
+        if isinstance(file_obj, (str, os.PathLike)):
             file_obj = os.path.abspath(os.path.expanduser(file_obj))
-        if file_type is None:
-            if isinstance(file_obj, str):
-                file_type = file_obj.split(".")[-1]
-            else:
-                file_type = "png"
+            # a file name's extension is its type unless one was passed
+            file_type = file_type or file_obj.split(".")[-1]
         return render_scene(
             self,
             resolution=resolution,
             file_obj=file_obj,
-            file_type=file_type.strip().lower().lstrip("."),
+            file_type=(file_type or "png").strip().lower().lstrip("."),
             duration=duration,
             fps=fps,
             engine=engine,
@@ -1489,20 +1451,15 @@ class Scene(Geometry3D):
         # the graph, instancing, and the edges animations drive as they were
         edge_data = result.graph.transforms.edge_data
         edges = [key for key, edge in edge_data.items() if "matrix" in edge]
-        if len(edges) > 0:
-            matrices = np.array([edge_data[key]["matrix"] for key in edges])
-            matrices[:, :3, 3] *= scale
-            result.graph.update_matrices(edges, matrices)
+        matrices = np.reshape([edge_data[key]["matrix"] for key in edges], (-1, 4, 4))
+        matrices[:, :3, 3] *= scale
+        result.graph.update_matrices(edges, matrices)
 
         # the inverse bind matrices go from world space where every edge
-        # translation was just scaled, so they get the same scale
-        stretch = np.diag(
-            [*np.broadcast_to(np.asarray(scale, dtype=np.float64), (3,)), 1.0]
-        )
+        # translation was just scaled, so they become `S @ B @ inv(S)`
+        diagonal = np.append(np.broadcast_to(scale, (3,)), 1.0)
         for skin in {id(skin): skin for skin in result.skins.values()}.values():
-            skin.inverse_bind_matrices = (
-                stretch @ skin.inverse_bind_matrices @ np.linalg.inv(stretch)
-            )
+            skin.inverse_bind_matrices *= np.outer(diagonal, 1.0 / diagonal)
 
         # a light's range is a length so it scales, but its intensity
         # in candela or lux is a physical quantity which doesn't
@@ -1530,17 +1487,12 @@ class Scene(Geometry3D):
         copied = Scene(
             geometry=geometry, graph=self.graph.copy(), metadata=self.metadata.copy()
         )
-        copied.cameras = [camera.copy() for camera in self.cameras]
-        # deep copy so the keyframe arrays aren't shared with the original
-        copied.animations = deepcopy(self.animations)
-        # nodes sharing a skin still share one afterwards
-        skins = {id(skin): deepcopy(skin) for skin in self.skins.values()}
-        copied.skins = {node: skins[id(skin)] for node, skin in self.skins.items()}
-
-        # lights are plain values so a deepcopy is safe here, and copied
-        # defaults stay defaults until the copy changes them
-        copied._lights = deepcopy(self._lights)
-        copied._default_lights = deepcopy(self._default_lights)
+        # one deep copy so nodes sharing a skin still share one, and
+        # copied default lights stay defaults until the copy changes them
+        copied.cameras, copied.animations, copied.skins, copied._lights = deepcopy(
+            (self.cameras, self.animations, self.skins, self._lights)
+        )
+        copied._default_lights = self._default_lights
         return copied
 
     def show(
@@ -1652,10 +1604,11 @@ def split_scene(geometry, **kwargs):
     return scene
 
 
-def light_fingerprint(scene: Scene, lights: Sequence[lighting.Light]) -> list:
+def light_fingerprint(scene: Scene, lights: Sequence[lighting.Light]) -> int:
     """
-    The name, kind, values and world transform of every light, to tell
-    if the default lights `Scene.lights` generated were changed since.
+    A hash of the values of every light and the world transform of the
+    node each rides, to tell if the default lights `Scene.lights`
+    generated were changed since.
 
     Parameters
     ------------
@@ -1666,24 +1619,12 @@ def light_fingerprint(scene: Scene, lights: Sequence[lighting.Light]) -> list:
 
     Returns
     ------------
-    fingerprint : list
-      One tuple per light which compares equal only for equal lights.
+    fingerprint : int
+      Equal only for equal lights in equal places.
     """
     nodes = scene.graph.nodes
-    fingerprint = []
-    for light in lights:
-        # the world transform of the node the light rides, if it has one
-        pose = None
-        if light.name in nodes:
-            pose = scene.graph.get(light.name)[0].tobytes()
-        # arrays by their bytes, as `repr` abbreviates large ones
-        values = []
-        for key, value in sorted(vars(light).items()):
-            if isinstance(value, np.ndarray):
-                value = (value.shape, caching.hash_fast(value.tobytes()))
-            values.append((key, repr(value)))
-        fingerprint.append((light.name, type(light).__name__, values, pose))
-    return fingerprint
+    poses = [scene.graph.get(light.name)[0] for light in lights if light.name in nodes]
+    return caching.hash_fast(pickle.dumps((list(lights), poses)))
 
 
 def default_light_nodes(scene: Scene) -> set:
@@ -1704,6 +1645,59 @@ def default_light_nodes(scene: Scene) -> set:
     if scene._lights is None or scene.has_lights:
         return set()
     return {light.name for light in scene._lights}
+
+
+def copy_attachments(
+    source: Scene, target: Scene, nodes: Iterable, rename: dict, root: Hashable
+) -> None:
+    """
+    Copy the animations, skins, cameras and lights riding the scene
+    graph nodes another scene kept into it, following any renaming.
+
+    Parameters
+    ------------
+    source : trimesh.Scene
+      Scene to copy from.
+    target : trimesh.Scene
+      Scene to add to, mutated in place.
+    nodes : (n,) hashable
+      Nodes of `source` which `target` has, where anything riding one
+      it doesn't have is left behind.
+    rename : dict
+      {node name in `source` : node name in `target`} if it changed.
+    root : hashable
+      The base frame of `target`, which has no edge to animate.
+    """
+    for animation in source.animations:
+        kept = [i for i, n in enumerate(animation.nodes) if n in nodes and n != root]
+        if len(kept) > 0:
+            target.animations.append(
+                Animation(
+                    name=animation.name,
+                    nodes=[
+                        rename.get(animation.nodes[i], animation.nodes[i]) for i in kept
+                    ],
+                    times=animation.times.copy(),
+                    matrices=animation.matrices[:, kept],
+                    interpolation=animation.interpolation,
+                )
+            )
+    # a skin only works if its node and every joint were kept
+    for node, skin in source.skins.items():
+        if node in nodes and all(joint in nodes for joint in skin.joints):
+            joints = [rename.get(joint, joint) for joint in skin.joints]
+            target.skins[rename.get(node, node)] = Skin(
+                joints, skin.inverse_bind_matrices
+            )
+    # cameras and lights are named after the node they ride
+    cameras = [camera.copy() for camera in source.cameras if camera.name in nodes]
+    lights = []
+    if source.has_lights:
+        lights = [deepcopy(light) for light in source.lights if light.name in nodes]
+        target.lights = [*(target._lights or []), *lights]
+    for item in (*cameras, *lights):
+        item.name = rename.get(item.name, item.name)
+    target.cameras.extend(cameras)
 
 
 def append_scenes(iterable, common=None, base_frame="world"):
@@ -1737,7 +1731,6 @@ def append_scenes(iterable, common=None, base_frame="world"):
     # animations, skins, cameras and lights are added with their nodes
     # remapped alongside the edges
     result = Scene(base_frame=base_frame)
-    lights = []
 
     # nodes which shouldn't be remapped
     common = set(common)
@@ -1819,42 +1812,13 @@ def append_scenes(iterable, common=None, base_frame="world"):
         # mark nodes from current scene as consumed
         consumed.update(current)
 
-        # animations drive nodes, so they have to follow the same node
-        # renaming the edges just went through or they'd target nothing
-        for animation in s.animations:
-            result.animations.append(
-                Animation(
-                    name=animation.name,
-                    nodes=[map_node.get(node, node) for node in animation.nodes],
-                    times=animation.times.copy(),
-                    matrices=animation.matrices.copy(),
-                    interpolation=animation.interpolation,
-                )
-            )
-
-        # skins name their node and joints so they follow the renaming
-        for key, skin in s.skins.items():
-            moved = deepcopy(skin)
-            moved.joints = [map_node.get(joint, joint) for joint in skin.joints]
-            result.skins[map_node.get(key, key)] = moved
-
-        # cameras and lights are named after their node so they follow its
-        # renaming, and the first scene's camera is the one looked through
-        cameras = [camera.copy() for camera in s.cameras]
-        result.cameras.extend(cameras)
-        moved = []
-        if s.has_lights:
-            moved = [deepcopy(light) for light in s.lights]
-            lights.extend(moved)
-        for item in (*cameras, *moved):
-            item.name = map_node.get(item.name, item.name)
+        # the first scene's camera is the one looked through
+        copy_attachments(s, result, s.graph.nodes, map_node, s.graph.base_frame)
         # later metadata wins
         result.metadata.update(deepcopy(s.metadata))
 
     result.graph.from_edgelist(edges)
     result.geometry.update(geometry)
-    if len(lights) > 0:
-        result.lights = lights
 
     return result
 

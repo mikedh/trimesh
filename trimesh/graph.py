@@ -782,17 +782,9 @@ def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None
     """
     Return a version of the mesh which will render nicely with
     smooth shading: vertices are split along sharp edges so a
-    cylinder's caps are disconnected from its side.
-
-    Every triangle corner is a node in a graph and corners are
-    connected across every edge whose two faces are within `angle`.
-    Each connected group of corners around a vertex becomes one
-    new vertex with one normal. Adjacency is computed on vertices
-    merged by position so texture seams don't become shading seams.
-
-    Faces keep their order, so face attributes like face colors
-    stay aligned, and per-vertex attributes like UV coordinates and
-    vertex colors are carried through.
+    cylinder's caps are disconnected from its side, but not along
+    texture seams. Faces keep their order and per-vertex attributes
+    like UV coordinates and vertex colors are carried through.
 
     Parameters
     -----------

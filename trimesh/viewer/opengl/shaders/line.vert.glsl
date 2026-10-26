@@ -24,7 +24,6 @@ const float NEAR_Z = -1e-5;
 void main() {
     vec4 view_start = model_view * vec4(segment_start, 1.0);
     vec4 view_end = model_view * vec4(segment_end, 1.0);
-
     // a segment entirely behind the camera is moved off screen
     if (view_start.z > NEAR_Z && view_end.z > NEAR_Z) {
         gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
@@ -40,7 +39,6 @@ void main() {
     }
     vec4 clip_start = frame.projection * view_start;
     vec4 clip_end = frame.projection * view_end;
-
     // both endpoints in pixels
     vec2 viewport_size = frame.viewport_size.xy;
     vec2 pixel_start = (clip_start.xy / clip_start.w * 0.5 + 0.5) * viewport_size;
@@ -52,26 +50,17 @@ void main() {
         along = pixel_delta / pixel_length;
     }
     vec2 across = vec2(-along.y, along.x);
-
     // half the rectangle size: half the line width plus a pixel for antialiasing
-    float line_width = frame.line_widths.x;
-    if (points) {
-        line_width = frame.line_widths.y;
-    }
+    float line_width = mix(frame.line_widths.x, frame.line_widths.y, points);
     float radius = 0.5 * line_width + 1.0;
     vec2 corner = CORNERS[gl_VertexID];
     half_length = 0.5 * pixel_length;
     pixel_offset = corner * vec2(half_length + radius, radius);
     segment_color = color;
     line_width_pixels = line_width;
-
     vec2 pixel = 0.5 * (pixel_start + pixel_end) + along * pixel_offset.x + across * pixel_offset.y;
     // take depth from the nearest endpoint so lines depth test against meshes
-    vec4 clip_corner = clip_end;
-    view_depth = -view_end.z;
-    if (corner.x < 0.0) {
-        clip_corner = clip_start;
-        view_depth = -view_start.z;
-    }
+    vec4 clip_corner = mix(clip_end, clip_start, bvec4(corner.x < 0.0));
+    view_depth = -mix(view_end.z, view_start.z, corner.x < 0.0);
     gl_Position = vec4((pixel / viewport_size * 2.0 - 1.0) * clip_corner.w, clip_corner.z, clip_corner.w);
 }

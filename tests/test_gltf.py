@@ -1819,7 +1819,7 @@ def test_animation_gltf():
             queries.extend((union[1:] + union[:-1]) / 2.0)
         for time in queries:
             checks[f"{name} spec {time:.3f}"] = g.np.allclose(
-                animation.at(time), g.spec_nodes(header, accessors, time)[:2]
+                animation.interpolate(time), g.spec_nodes(header, accessors, time)[:2]
             )
 
     # what is exported the spec samples to the pose of the scene at every
@@ -1987,7 +1987,11 @@ def test_lights_gltf():
     # a light which doesn't store a color is white per the spec
     stored[0].pop("color")
     parsed = g.trimesh.exchange.gltf.lights.parse_lights(
-        header, {index: node.get("name") for index, node in enumerate(header["nodes"])}
+        header,
+        {index: node.get("name") for index, node in enumerate(header["nodes"])},
+        scene_index=0,
+        images=None,
+        graph=[],
     )
     # the light was warm white, so only the default makes it pure white
     checks["missing color is white"] = (

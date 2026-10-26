@@ -285,9 +285,7 @@ def _specular_glossiness(context: MaterialContext) -> dict[str, Any] | None:
 
 
 # material extensions which only hold `PBRMaterial` fields of the same
-# name, which import and export both read: clear glass, light scattered
-# out of the other side of a thin surface, and an empty object making
-# the base color the final color, which is `PBRMaterial.unlit`
+# name, which import and export both read, plus `PBRMaterial.unlit`
 MATERIAL_EXTENSIONS = {
     "KHR_materials_transmission": ("transmissionFactor", "transmissionTexture"),
     "KHR_materials_diffuse_transmission": (

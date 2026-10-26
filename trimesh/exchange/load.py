@@ -427,27 +427,21 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
         else:
             scene = Scene(geometry)
 
-        # cameras riding their nodes, or one camera
-        if "cameras" in kwargs:
-            scene.cameras = kwargs["cameras"]
+        # cameras, lights, animations and skins ride nodes in the graph
+        scene.cameras.extend(kwargs.get("cameras", []))
+        scene.animations.extend(kwargs.get("animations", []))
+        scene.skins.update(kwargs.get("skins", {}))
+        if kwargs.get("lights"):
+            scene.lights = kwargs["lights"]
+
+        # camera, if it exists
         camera = kwargs.get("camera")
         if camera:
             scene.camera = camera
-            # a camera which is already a node in the graph is where it is
-            if kwargs.get("camera_transform") is not None:
-                scene.camera_transform = kwargs["camera_transform"]
+            scene.camera_transform = kwargs.get("camera_transform")
 
         if "base_frame" in kwargs:
             scene.graph.base_frame = kwargs["base_frame"]
-
-        # lights, if they exist: their nodes are already in the graph
-        lights = kwargs.get("lights")
-        if lights:
-            scene.lights = lights
-
-        # keyframed animation and skins, if they exist
-        scene.animations.extend(kwargs.get("animations", []))
-        scene.skins.update(kwargs.get("skins", {}))
         metadata = kwargs.get("metadata")
         if isinstance(metadata, dict):
             scene.metadata.update(kwargs["metadata"])

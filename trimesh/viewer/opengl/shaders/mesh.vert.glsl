@@ -10,7 +10,6 @@ out vec3 view_position, view_normal;
 out vec2 texture_uv;
 out vec4 vertex_color;
 flat out float fragment_node_index;
-
 // one joint's transform, stored as its four rows
 mat4 joint_rows(float joint) {
     int row = int(joint_offset) + 4 * int(joint);

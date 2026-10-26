@@ -2,7 +2,6 @@
 // told apart by `pass_index`, reading the samplers its inputs name.
 uniform int pass_index;
 uniform sampler2D scene_depth, noisy_occlusion, bloom_source;
-
 out vec4 fragment_color;
 
 // how far in front of the camera the middle of a pixel of `scene_depth` is
@@ -83,16 +82,13 @@ void main() {
         float threshold = linear_to_srgb(vec3(START_COMPRESSION)).x;
         float spread = frame.bloom.y;
         int radius = int(ceil(3.0 * spread));
-        vec3 total = vec3(0.0);
-        float weights = 0.0;
+        vec4 total = vec4(0.0);
         for (int tap = -radius; tap <= radius; tap++) {
             vec3 color = textureLod(bloom_source, gl_FragCoord.xy * texel + float(tap) * direction, level).rgb;
             float peak = max(color.r, max(color.g, color.b));
             color *= mix(1.0, clamp((peak - threshold) / (1.0 - threshold), 0.0, 1.0), across);
-            float weight = exp(-0.5 * float(tap * tap) / (spread * spread));
-            total += weight * color;
-            weights += weight;
+            total += exp(-0.5 * float(tap * tap) / (spread * spread)) * vec4(color, 1.0);
         }
-        fragment_color = vec4(total / weights, 1.0);
+        fragment_color = vec4(total.rgb / total.w, 1.0);
     }
 }

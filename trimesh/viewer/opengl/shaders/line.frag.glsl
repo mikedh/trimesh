@@ -5,11 +5,10 @@ in vec4 segment_color;
 in vec2 pixel_offset;
 in float half_length, view_depth, line_width_pixels;
 
-// draw each segment, which is a point, as a little lit sphere
+// draw each segment, which is a point, as a little lit sphere, and which
+// of `scene.graph.nodes_geometry` this is, for segmentation
 uniform bool points;
-// which of `scene.graph.nodes_geometry` this is, for segmentation
 uniform float node_index;
-
 out vec4 fragment_color;
 
 void main() {
@@ -17,16 +16,13 @@ void main() {
     float past_end = max(abs(pixel_offset.x) - half_length, 0.0);
     float distance = length(vec2(past_end, pixel_offset.y));
     float coverage = clamp(0.5 * line_width_pixels + 0.5 - distance, 0.0, 1.0);
-    // don't write depth outside the line
-    if (coverage <= 0.0) {
+    // don't write depth outside the line, where depth images and
+    // segmentation have no antialiasing: a pixel is on the line or it isn't
+    bool index = frame.output_mode.x == OUTPUT_INDEX;
+    if (coverage <= 0.0 || (index && coverage < 0.5)) {
         discard;
     }
-    // depth images and segmentation have no antialiasing: a pixel is
-    // either on the line or it isn't
-    if (frame.output_mode.x == OUTPUT_INDEX) {
-        if (coverage < 0.5) {
-            discard;
-        }
+    if (index) {
         fragment_color = vec4(view_depth, node_index, 0.0, 1.0);
         return;
     }

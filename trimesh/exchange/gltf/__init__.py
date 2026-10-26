@@ -23,17 +23,8 @@ from ...scene.cameras import Camera
 from ...scene.transforms import DEFAULT_BASE_FRAME
 from ...typed import NDArray, Stream
 from ...util import triangle_strips_to_faces, unique_name
-from .animation import (
-    append_animations,
-    append_skins,
-    node_matrices,
-    parse_animations,
-    parse_skins,
-)
+from . import animation, lights
 from .extensions import MATERIAL_EXTENSIONS, handle_extensions, unregistered
-from .lights import ENVIRONMENT as _ENVIRONMENT
-from .lights import NAME as _LIGHTS
-from .lights import append_environment, append_lights, parse_environment, parse_lights
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -712,10 +703,9 @@ def _create_gltf_structure(
         except BaseException:
             log.debug("failed to export scene metadata!", exc_info=True)
 
-    # store materials as {hash : index} to avoid duplicates
+    # store materials as {hash : index} to avoid duplicates, and
+    # textures as {(mode, size, hash) : index} so images are stored once
     mat_hashes = {}
-    # and textures as {content : index} so equal images are stored once
-    texture_hashes = {}
     # store data from geometries
     buffer_items = IndexedDict()
 
@@ -735,7 +725,6 @@ def _create_gltf_structure(
                 include_normals=include_normals,
                 unitize_normals=unitize_normals,
                 mat_hashes=mat_hashes,
-                texture_hashes=texture_hashes,
                 extension_webp=extension_webp,
                 extension_draco=extension_draco,
             )
@@ -758,36 +747,25 @@ def _create_gltf_structure(
     # set the roots on the existing scene dict — it may already
     # hold `extras` with the scene metadata
     tree["scenes"][0]["nodes"] = nodes.pop("scene_roots")
-    # {node name : index in tree["nodes"]} which animation channels and
-    # lights target by index, pop so it isn't serialized into the header
+    # {node name : index in tree["nodes"]} which animations and lights target
     node_index = nodes.pop("node_index")
     tree.update(nodes)
 
     # note this checks `has_lights` rather than `lights`, which would
     # generate a default pair for a scene that never had any
     if scene.has_lights:
-        append_lights(scene.lights, tree=tree, node_index=node_index)
-        append_environment(
+        lights.append_lights(
             scene,
             tree=tree,
+            node_index=node_index,
             append_image=partial(
                 _append_image, tree=tree, buffer_items=buffer_items, extension_webp=False
             ),
         )
 
     # add any keyframed animation, which also rewrites the nodes it
-    # targets from a `matrix` into TRS as the spec requires
-    if len(scene.animations) > 0:
-        append_animations(
-            tree=tree,
-            buffer_items=buffer_items,
-            animations=scene.animations,
-            node_index=node_index,
-        )
-    if len(scene.skins) > 0:
-        append_skins(
-            tree=tree, buffer_items=buffer_items, skins=scene.skins, node_index=node_index
-        )
+    # targets from a `matrix` into TRS as the spec requires, and skins
+    animation.append_animations(tree, buffer_items, scene, node_index)
 
     extensions_used = set()
     extensions_required = set()
@@ -844,7 +822,6 @@ def _append_mesh(
     include_normals: bool | None,
     unitize_normals: bool,
     mat_hashes: dict,
-    texture_hashes: dict,
     extension_webp: bool,
     extension_draco: bool = False,
 ):
@@ -869,9 +846,7 @@ def _append_mesh(
       May be undesirable but will fail validators without this.
 
     mat_hashes : dict
-      Which materials have already been added
-    texture_hashes : dict
-      Which images have already been added
+      Which materials and textures have already been added
     extension_webp : bool
       Export textures as webP (using glTF's EXT_texture_webp extension).
     extension_draco : bool
@@ -991,7 +966,6 @@ def _append_mesh(
             tree=tree,
             buffer_items=buffer_items,
             mat_hashes=mat_hashes,
-            texture_hashes=texture_hashes,
             extension_webp=extension_webp,
         )
 
@@ -1044,24 +1018,22 @@ def _append_mesh(
     attributes = dict(mesh.vertex_attributes)
     try:
         # both or neither, as joints without weights are kept as an extra
-        joints, weights = attributes["joints"], attributes["weights"]
+        skinning = {
+            "JOINTS_0": (attributes["joints"], "<u2", 5123),
+            "WEIGHTS_0": (attributes["weights"], float32, 5126),
+        }
         del attributes["joints"], attributes["weights"]
-        shape = (len(mesh.vertices), 4)
-        if np.shape(joints) != shape or np.shape(weights) != shape:
-            raise ValueError(f"joints and weights must be {shape} to export as VEC4")
-        primitive = current["primitives"][0]["attributes"]
-        primitive["JOINTS_0"] = _data_append(
-            acc=tree["accessors"],
-            buff=buffer_items,
-            blob={"componentType": 5123, "type": "VEC4", "byteOffset": 0},
-            data=np.asarray(joints, dtype="<u2"),
-        )
-        primitive["WEIGHTS_0"] = _data_append(
-            acc=tree["accessors"],
-            buff=buffer_items,
-            blob={"componentType": 5126, "type": "VEC4", "byteOffset": 0},
-            data=np.asarray(weights, dtype=float32),
-        )
+        if any(
+            np.shape(item[0]) != (len(mesh.vertices), 4) for item in skinning.values()
+        ):
+            raise ValueError("joints and weights must be one VEC4 per vertex")
+        for key, (data, dtype, component) in skinning.items():
+            current["primitives"][0]["attributes"][key] = _data_append(
+                acc=tree["accessors"],
+                buff=buffer_items,
+                blob={"componentType": component, "type": "VEC4", "byteOffset": 0},
+                data=np.asarray(data, dtype=dtype),
+            )
     except KeyError:
         pass
     except ValueError:
@@ -1378,12 +1350,8 @@ def _append_point(points, name, tree, buffer_items):
       Will have buffer appended with points data
     """
 
-    # normalize point positions to (n, 3) float32 (gltf POSITION dtype)
-    positions = np.asanyarray(points.vertices, dtype=float32)
-    if util.is_shape(positions, (-1, 2)):
-        positions = np.column_stack((positions, np.zeros(len(positions), dtype=float32)))
-    elif not util.is_shape(positions, (-1, 3)):
-        raise ValueError("Pointcloud must be (n,3)!")
+    # (n, 3) float32 which is glTF's POSITION type
+    positions = util.stack_3D(points.vertices).astype(float32)
 
     acc_vertex = _data_append(
         acc=tree["accessors"],
@@ -1751,14 +1719,11 @@ def _read_buffers(
                     # only continues a polyline if it starts where the last
                     # one ended in the same color
                     pairs = np.arange(len(vertices)).reshape((-1, 2))
-                    joined = (vertices[pairs[1:, 0]] == vertices[pairs[:-1, 1]]).all(
-                        axis=1
-                    )
+                    keys = vertices
                     if "COLOR_0" in attr:
                         colors = access[attr["COLOR_0"]]
-                        joined &= (colors[pairs[1:, 0]] == colors[pairs[:-1, 1]]).all(
-                            axis=1
-                        )
+                        keys = np.column_stack((vertices, colors))
+                    joined = (keys[pairs[1:, 0]] == keys[pairs[:-1, 1]]).all(axis=1)
                     starts = np.concatenate(([0], np.flatnonzero(~joined) + 1))
                     # every polyline is its first start then every end
                     kwargs["entities"] = [
@@ -1867,14 +1832,12 @@ def _read_buffers(
                     }
                     # which joints move each vertex and how much
                     if "JOINTS_0" in attr and "WEIGHTS_0" in attr:
-                        weights = np.asarray(access[attr["WEIGHTS_0"]])
+                        weights = access[attr["WEIGHTS_0"]]
                         if weights.dtype.kind == "u":
                             # normalized integers
                             weights = weights / np.iinfo(weights.dtype).max
-                        custom["joints"] = np.asarray(
-                            access[attr["JOINTS_0"]], dtype=np.uint16
-                        )
-                        custom["weights"] = np.asarray(weights, dtype=np.float64)
+                        custom["joints"] = access[attr["JOINTS_0"]].astype(np.uint16)
+                        custom["weights"] = weights.astype(np.float64)
                     if "JOINTS_1" in attr:
                         log.warning("only the first four joints of a vertex are loaded")
                     if len(custom) > 0:
@@ -1988,19 +1951,14 @@ def _read_buffers(
     # index-keyed dict intentionally holds one string key for the base
     names[DEFAULT_BASE_FRAME] = DEFAULT_BASE_FRAME
 
-    # resolved before the traversal below, which is a stack and visits
-    # nodes in an order that has nothing to do with the file's
-    lights = parse_lights(header, names)
-
     # every node's transform from its parent, computed at once
-    matrices = node_matrices(nodes)
+    matrices = animation.node_matrices(nodes)
 
     # visited, kwargs for scene.graph.update
     graph = deque()
     # unvisited, pairs of node indexes
     queue = deque()
 
-    # camera(s), if they exist
     # every camera by its glTF camera index then the node riding it
     cameras = {}
     # {node name : index into the glTF skins}
@@ -2068,12 +2026,12 @@ def _read_buffers(
             kwargs["metadata"] = child["extras"]
 
         # put any node extensions in a field of the metadata, less the
-        # light collected above: unlike the camera the node stays in the
-        # graph so the light's transform is just an edge, which also
-        # makes it animatable like anything else
+        # light which `parse_lights` loaded onto this node
         if "extensions" in child:
             extensions = {
-                key: value for key, value in child["extensions"].items() if key != _LIGHTS
+                key: value
+                for key, value in child["extensions"].items()
+                if key != lights.NAME
             }
             if len(extensions) > 0:
                 kwargs.setdefault("metadata", {})["gltf_extensions"] = extensions
@@ -2111,19 +2069,21 @@ def _read_buffers(
             # if the node doesn't have any geometry just add
             graph.append(kwargs)
 
-    # the scene's environment, and its node if the file doesn't have it
-    if _ENVIRONMENT in header.get("extensions", {}):
+    # every light by its node, then the scene's environment from its images
+    images = None
+    if lights.ENVIRONMENT in header.get("extensions", {}):
         images = _parse_textures(header, views, resolver)
-        environment, rotation = parse_environment(header, scene_index, images)
-        if environment is not None:
-            lights.append(environment)
-            if environment.name not in {edge["frame_to"] for edge in graph}:
-                frame = {"frame_from": DEFAULT_BASE_FRAME, "frame_to": environment.name}
-                graph.append({**frame, "matrix": rotation})
+    scene_lights = lights.parse_lights(header, names, scene_index, images, graph)
 
     # animations only drive nodes of the loaded scene, not those of
     # other scenes in the file which aren't in the graph
     loaded = {edge["frame_to"] for edge in graph}
+    animations, skins = animation.parse_animations(
+        header=header,
+        access=access,
+        names={index: name for index, name in names.items() if name in loaded},
+        skinned=skinned,
+    )
     # kwargs for load_kwargs
     result = {
         "class": "Scene",
@@ -2133,17 +2093,10 @@ def _read_buffers(
         # glTF has no default camera so the first one is looked through,
         # which is the one an export writes first
         "cameras": [cameras[key] for key in sorted(cameras)],
-        "lights": lights,
+        "lights": scene_lights,
         "metadata": {},
-        "animations": parse_animations(
-            header=header,
-            access=access,
-            names={index: name for index, name in names.items() if name in loaded},
-        ),
-    }
-    skins = parse_skins(header=header, access=access, names=names)
-    result["skins"] = {
-        node: skins[index] for node, index in skinned.items() if skins[index] is not None
+        "animations": animations,
+        "skins": skins,
     }
 
     try:
@@ -2152,18 +2105,15 @@ def _read_buffers(
         result["metadata"].update(header["scenes"][header["scene"]]["extras"])
     except BaseException:
         pass
-    try:
-        # load any scene extensions into a field of scene.metadata
-        # except lights which are loaded into `Scene.lights`
-        extensions = {
-            key: value
-            for key, value in header["extensions"].items()
-            if key not in (_LIGHTS, _ENVIRONMENT)
-        }
-        if len(extensions) > 0:
-            result["metadata"]["gltf_extensions"] = extensions
-    except BaseException:
-        pass
+    # load any scene extensions into a field of scene.metadata
+    # except lights which are loaded into `Scene.lights`
+    extensions = {
+        key: value
+        for key, value in header.get("extensions", {}).items()
+        if key not in (lights.NAME, lights.ENVIRONMENT)
+    }
+    if len(extensions) > 0:
+        result["metadata"]["gltf_extensions"] = extensions
 
     return result
 
@@ -2197,10 +2147,8 @@ def _cam_from_gltf(cam):
         )
     perspective = cam["perspective"]
     yfov = perspective["yfov"]
-    # `aspectRatio` is width over height which is the ratio of the
-    # tangents of the half angles, not of the angles themselves, and
-    # without one it is the viewport's: the camera's resolution once
-    # it is given one, which keeps the vertical field of view
+    # `aspectRatio` is the ratio of the half angle tangents, and without
+    # one it is the viewport's which `Camera.fit_resolution` sets
     xfov = 2.0 * np.arctan(perspective.get("aspectRatio", 1.0) * np.tan(yfov / 2.0))
 
     return Camera(
@@ -2227,16 +2175,10 @@ def _convert_camera(camera):
       Camera represented as a GLTF dict
     """
     if camera.magnification is not None:
-        return {
-            "name": camera.name,
-            "type": "orthographic",
-            "orthographic": {
-                "xmag": float(camera.magnification[0]),
-                "ymag": float(camera.magnification[1]),
-                "znear": float(camera.z_near),
-                "zfar": float(camera.z_far),
-            },
-        }
+        xmag, ymag = np.asarray(camera.magnification, dtype=np.float64).tolist()
+        orthographic = {"xmag": xmag, "ymag": ymag, "znear": float(camera.z_near)}
+        orthographic["zfar"] = float(camera.z_far)
+        return {"name": camera.name, "type": "orthographic", "orthographic": orthographic}
     half = np.tan(np.radians(camera.fov) / 2.0)
     perspective = {
         "yfov": float(np.radians(camera.fov[1])),
@@ -2302,7 +2244,7 @@ def _append_image(img, tree, buffer_items, extension_webp):
     return len(tree["images"]) - 1
 
 
-def _append_material(mat, tree, buffer_items, mat_hashes, texture_hashes, extension_webp):
+def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
     """
     Add passed PBRMaterial as GLTF 2.0 specification JSON
     serializable data:
@@ -2320,10 +2262,8 @@ def _append_material(mat, tree, buffer_items, mat_hashes, texture_hashes, extens
       Binary blobs with various data
     mat_hashes : dict
       Which materials have already been added
-      Stored as { hashed : material index }
-    texture_hashes : dict
-      Which images have already been added, stored as
-      { (mode, size, profile, hash of pixels) : texture index }
+      Stored as { hashed : material index } and textures as
+      { (mode, size, hash of pixels) : texture index }
     extension_webp : bool
       Export textures as webP using EXT_texture_webp extension.
 
@@ -2401,20 +2341,12 @@ def _append_material(mat, tree, buffer_items, mat_hashes, texture_hashes, extens
         if img is None:
             continue
         # an image used by more than one material or slot is stored once
-        try:
-            content = (
-                img.mode,
-                img.size,
-                hash_fast(img.tobytes()),
-            )
-        except AttributeError:
-            # not a PIL image so `_append_image` skips it
-            content = None
-        try:
-            result[key] = {"index": texture_hashes[content]}
+        content = None
+        if hasattr(img, "tobytes"):
+            content = (img.mode, img.size, hash_fast(img.tobytes()))
+        if content in mat_hashes:
+            result[key] = {"index": mat_hashes[content]}
             continue
-        except KeyError:
-            pass
         # try adding the base image to the export object
         index = _append_image(
             img=img, tree=tree, buffer_items=buffer_items, extension_webp=extension_webp
@@ -2424,7 +2356,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes, texture_hashes, extens
         if index is not None:
             # add a reference to the base color texture
             result[key] = {"index": len(tree["textures"])}
-            texture_hashes[content] = len(tree["textures"])
+            mat_hashes[content] = len(tree["textures"])
 
             # add texture object, optionally using EXT_texture_webp
             if extension_webp:
