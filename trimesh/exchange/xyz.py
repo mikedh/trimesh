@@ -86,7 +86,7 @@ def export_xyz(cloud, write_colors=True, delimiter=None):
 
     # compile data into a blob
     data = cloud.vertices
-    if write_colors and hasattr(cloud, "colors") and cloud.colors is not None:
+    if write_colors and hasattr(cloud, "colors") and len(cloud.colors) == len(data):
         # stack colors and  vertices
         data = np.hstack((data, cloud.colors))
 

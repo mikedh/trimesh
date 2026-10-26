@@ -945,6 +945,8 @@ def second_moments(polygon: Polygon, return_centered=False):
     x2, y2 = coords.T
     # do vectorized operations
     v = x1 * y2 - x2 * y1
+    # make the exterior contribution positive regardless of winding
+    v *= np.sign(v.sum())
     Ixx = np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2)) / 12.0
     Iyy = np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2)) / 12.0
     Ixy = np.sum(v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1)) / 24.0
@@ -956,6 +958,8 @@ def second_moments(polygon: Polygon, return_centered=False):
         x2, y2 = coords.T
         # do vectorized operations
         v = x1 * y2 - x2 * y1
+        # holes are subtracted regardless of their winding
+        v *= np.sign(v.sum())
         Ixx -= np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2)) / 12.0
         Iyy -= np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2)) / 12.0
         Ixy -= np.sum(v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1)) / 24.0

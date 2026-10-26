@@ -127,7 +127,7 @@ def has_module(name: str) -> bool:
 def unitize(
     vectors: ArrayLike,
     check_valid: bool = False,
-    threshold: float | None = None,
+    threshold: Number | None = None,
 ):
     """
     Unitize a vector or an array or row-vectors.
@@ -1572,7 +1572,7 @@ def concatenate(a, b=None) -> "trimesh.parent.Geometry":
 
     metadata = {}
     try:
-        _ = [metadata.update(deepcopy(m.metadata) for m in is_mesh)]
+        _ = [metadata.update(deepcopy(m.metadata)) for m in is_mesh]
     except BaseException:
         pass
 

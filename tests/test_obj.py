@@ -580,5 +580,36 @@ def test_obj_quad_uv():
     assert g.np.isclose(m.visual.uv.max(), 0.1)
 
 
+def test_no_vertices():
+    import numpy as np
+
+    import trimesh
+    from trimesh.visual import ColorVisuals
+
+    scene = trimesh.Scene()
+    box = trimesh.creation.box(extents=[1, 2, 3])
+    box.visual = ColorVisuals()
+    box.visual.vertex_colors = np.random.uniform(size=(box.vertices.shape[0], 3))
+    box.visual.face_colors = np.random.uniform(size=(box.faces.shape[0], 3))
+    scene.add_geometry(box, geom_name="BOX")
+    scene.add_geometry(trimesh.creation.cone(1.0, 1.0), geom_name="CONE")
+
+    # roundtrip this test scene through an OBJ
+    # box has 6-column `v` lines and the cone has 3-column `v` lines
+    export = scene.export(file_type="obj")
+    loaded = trimesh.load_scene(trimesh.util.wrap_as_stream(export), file_type="obj")
+
+    # every vertex and face should have survived the mixed-width parse
+    truth = scene.to_mesh()
+    assert np.allclose(loaded.to_mesh().vertices, truth.vertices)
+    assert np.array_equal(loaded.to_mesh().faces, truth.faces)
+
+    # faces with no vertices should load as empty rather than `len(None)`
+    empty = trimesh.load_scene(
+        trimesh.util.wrap_as_stream("vn 0 0 1\nf 1 2 3\n"), file_type="obj"
+    )
+    assert len(empty.geometry) == 0
+
+
 if __name__ == "__main__":
-    test_obj_groups_split()
+    test_no_vertices()
