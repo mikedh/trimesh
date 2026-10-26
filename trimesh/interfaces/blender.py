@@ -4,7 +4,6 @@ import platform
 import re
 import subprocess
 import tempfile
-from dataclasses import asdict
 
 import numpy as np
 
@@ -12,7 +11,7 @@ from .. import util
 from ..constants import log
 from ..resources import get_string
 from ..typed import BooleanOperationType, Iterable, Number
-from .generic import MeshScript
+from .generic import HIDDEN_CONSOLE, MeshScript
 
 if platform.system() == "Windows":
     # try to find Blender install on Windows: the PATH first, then every
@@ -175,6 +174,9 @@ CUTOFF_PER_REACH = 1020.0**0.25
 # the most bytes in a Blender name, where 4.3 stores 64 with a terminator
 NAME_BYTES = 63
 
+# seconds `blender --version` gets to answer, which only starts Blender
+VERSION_TIMEOUT = 60.0
+
 
 def version() -> tuple:
     """
@@ -195,8 +197,10 @@ def version() -> tuple:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            timeout=VERSION_TIMEOUT,
+            **HIDDEN_CONSOLE,
         ).stdout
-    except OSError as E:
+    except (OSError, subprocess.TimeoutExpired) as E:
         raise RuntimeError(f"`{_blender_executable}` didn't run: {E}") from E
     match = re.search(r"Blender (\d+)\.(\d+)\.(\d+)", output)
     if match is None:
@@ -232,6 +236,10 @@ def spot_blend_scale() -> float:
     return float(scales[difference.max(axis=0).argmin()])
 
 
+# how many times steeper Blender's spot edge is than glTF's, fit once
+SPOT_BLEND_SCALE = spot_blend_scale()
+
+
 def viewer_glb(scene, count: int, fps: Number, directory: str):
     """
     A copy of a scene with what the OpenGL viewer draws written into it
@@ -240,7 +248,7 @@ def viewer_glb(scene, count: int, fps: Number, directory: str):
     Parameters
     ------------
     scene : trimesh.Scene
-      Scene to copy.
+      Scene to copy, which is not changed.
     count : int
       Frames to render, where one is the current pose rather than the
       animation's first frame.
@@ -263,21 +271,29 @@ def viewer_glb(scene, count: int, fps: Number, directory: str):
     from ..base import Trimesh
     from ..exchange.gltf import DIFFUSE_TRANSMISSION
     from ..scene.animation import Animation
-    from ..viewer.conversion import MaterialUniforms
+    from ..scene.scene import Scene
+    from ..viewer.conversion import PLASTIC
     from ..visual.color import srgb_to_linear, to_float
     from ..visual.material import PBRMaterial
     from ..visual.texture import TextureVisuals
 
-    scene = scene.copy()
+    # the graph is copied and the geometry shared, so what is cached on
+    # it like `smooth_shaded` is reused and only replaced in the copy
+    original = scene
+    scene = Scene(graph=original.graph.copy(), metadata=original.metadata)
+    scene.geometry.update(original.geometry)
+    scene.cameras = list(original.cameras)
+    scene.skins = original.skins
+    if original.has_lights:
+        scene.lights = original.lights
     times = np.arange(count) / fps
     # a later animation of an edge replaces an earlier as in `Scene.animate`
     poses = {}
-    for animation in scene.animations:
+    for animation in original.animations:
         looped = times
         if animation.duration > 0.0:
             looped = times % animation.duration
         poses.update(zip(animation.edges, np.swapaxes(animation.at(looped), 0, 1)))
-    scene.animations = []
     if count > 1 and len(poses) > 0:
         scene.animations.append(
             Animation(list(poses), times, np.stack(list(poses.values()), axis=1))
@@ -305,6 +321,9 @@ def viewer_glb(scene, count: int, fps: Number, directory: str):
             )
             flat.visual.vertex_colors = np.repeat(smooth.visual.face_colors, 3, axis=0)
             smooth = flat
+        else:
+            # the mesh cached on the original is changed below
+            smooth = smooth.copy(include_cache=True)
         if smooth.visual.kind == "texture":
             material = smooth.visual.material.to_pbr().copy()
         else:
@@ -312,10 +331,7 @@ def viewer_glb(scene, count: int, fps: Number, directory: str):
             # tinted by its sRGB colors, which glTF stores as linear
             colors = to_float(smooth.visual.vertex_colors)
             colors[:, :3] = srgb_to_linear(colors[:, :3])
-            plastic = MaterialUniforms()
-            material = PBRMaterial(
-                metallicFactor=plastic.metallic, roughnessFactor=plastic.roughness
-            )
+            material = PBRMaterial(**PLASTIC)
             if (colors[:, 3] < 1.0).any():
                 material.alphaMode = "BLEND"
             smooth.visual = TextureVisuals(material=material)
@@ -358,7 +374,7 @@ def viewer_glb(scene, count: int, fps: Number, directory: str):
 
 
 def build(
-    scene, studio, directory: str, count: int, fps: Number, samples: int, blend=None
+    scene, directory: str, count: int, fps: Number, samples: int, blend=None
 ) -> None:
     """
     Run `resources/templates/blender_scene.py` in Blender, which imports
@@ -368,10 +384,10 @@ def build(
     Parameters
     ------------
     scene : trimesh.Scene
-      Scene to build, through `scene.camera` at `scene.camera.resolution`.
-    studio : trimesh.scene.metadata.Studio
-      The environment, floor, occlusion, exposure and line and point sizes the
-      OpenGL viewer draws, which aren't in a glTF.
+      Scene to build, through `scene.camera` at `scene.camera.resolution`,
+      with the environment, floor, occlusion, exposure and line and point
+      sizes the OpenGL viewer draws, which aren't in a glTF, told to
+      Blender directly.
     directory : str
       Where the GLB, settings and any frames go.
     count : int
@@ -384,6 +400,14 @@ def build(
     blend : str or None
       Save a `.blend` to this path rather than rendering.
     """
+    from ..viewer.conversion import (
+        RENDER_DEFAULTS,
+        ground_light,
+        occlusion_radius,
+        render_lights,
+        shadow_floor,
+    )
+
     if not exists:
         raise ValueError("No blender available!")
     found = version()
@@ -392,6 +416,15 @@ def build(
             f"rendering needs Blender >= {'.'.join(map(str, MINIMUM_VERSION))}, "
             + f"found {'.'.join(map(str, found))} at `{_blender_executable}`"
         )
+    settings = {**RENDER_DEFAULTS, **scene.metadata.get("render", {})}
+    lights, transforms = render_lights(scene, scene.camera_transform)
+    # the environment in world space, which tints all of it
+    environment, pose = lights[-1], transforms[-1]
+    rotation = pose[:3, :3]
+    tint = environment.color[:3] / 255.0 * environment.intensity
+    ground = None
+    if settings["ground_shadow"]:
+        ground = shadow_floor(scene, pose)
     scene, translucent = viewer_glb(scene, count=count, fps=fps, directory=directory)
     width, height = scene.camera.resolution
     path = os.path.join(directory, "scene.glb")
@@ -409,6 +442,7 @@ def build(
     # divided by `fps_base`, which is at least one
     whole_fps = max(round(fps), 1)
     settings = {
+        **settings,
         "input": path,
         "output": os.path.join(directory, "frame_"),
         "blend": blend,
@@ -422,20 +456,23 @@ def build(
         "width": width,
         "height": height,
         "samples": samples,
-        "environment": asdict(studio.environment),
-        "ground": studio.ground,
-        "ground_light": studio.ground_light,
-        "occlusion_radius": studio.occlusion_radius,
-        "show_environment": studio.show_environment,
-        "exposure": studio.exposure,
-        # lines and points are this many pixels across, and a pixel is
-        # this much bigger per unit of depth in front of the camera
-        "line_width": studio.line_width,
-        "point_size": studio.point_size,
+        "environment": {
+            "up": util.unitize(rotation[:, 1]),
+            "sky": environment.sky * tint,
+            "ground": environment.ground * tint,
+            "directions": util.unitize(environment.softboxes["direction"] @ rotation.T),
+            "sharpness": environment.softboxes["sharpness"],
+            "colors": environment.softboxes["color"] * tint,
+        },
+        "ground": ground,
+        "ground_light": ground_light(lights, transforms),
+        "occlusion_radius": occlusion_radius(scene),
+        # lines and points are `line_width` and `point_size` pixels across,
+        # and a pixel is this much bigger per unit of depth in front of the camera
         "pixel": 2.0 * np.tan(np.radians(scene.camera.fov[1]) / 2.0) / height,
         "ranges": {light.name: light.radius for light in scene.lights if light.radius},
         "cutoff": reach * CUTOFF_PER_REACH,
-        "spot_blend_scale": spot_blend_scale(),
+        "spot_blend_scale": SPOT_BLEND_SCALE,
         "translucent": translucent,
     }
     settings_path = os.path.join(directory, "settings.json")
@@ -453,22 +490,21 @@ def build(
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        **HIDDEN_CONSOLE,
     )
     if result.returncode != 0:
         raise RuntimeError(f"`{_blender_executable}` failed:\n{result.stdout}")
 
 
-def render(scene, studio, count: int = 1, fps: Number = 30.0, samples: int = 64):
+def render(scene, count: int = 1, fps: Number = 30.0, samples: int = 64):
     """
     Render a scene with Blender's EEVEE through its own camera.
 
     Parameters
     ------------
     scene : trimesh.Scene
-      Scene to render at `scene.camera.resolution`.
-    studio : trimesh.scene.metadata.Studio
-      The environment, floor and occlusion the OpenGL viewer draws,
-      which aren't in a glTF so Blender is told them directly.
+      Scene from `trimesh.viewer.render.stage` to render at
+      `scene.camera.resolution`.
     count : int
       One frame of the current pose, or this many frames of
       `scene.animations` every `1 / fps` seconds.
@@ -486,7 +522,7 @@ def render(scene, studio, count: int = 1, fps: Number = 30.0, samples: int = 64)
     from PIL import Image
 
     with tempfile.TemporaryDirectory() as directory:
-        build(scene, studio, directory, count=count, fps=fps, samples=samples)
+        build(scene, directory, count=count, fps=fps, samples=samples)
         paths = sorted(glob.glob(os.path.join(directory, "frame_*.png")))
         if len(paths) != count:
             raise RuntimeError(f"blender rendered {len(paths)} of {count} frames")
@@ -498,21 +534,26 @@ def render(scene, studio, count: int = 1, fps: Number = 30.0, samples: int = 64)
 
 
 def save_blend(
-    scene, studio, count: int = 1, fps: Number = 30.0, samples: int = 64
+    scene,
+    resolution=None,
+    duration: Number | None = None,
+    fps: Number = 30.0,
+    samples: int = 64,
 ) -> bytes:
     """
-    The scene as a `.blend` which renders what `render` does when opened
-    in Blender, with its animation, camera, lights, environment and
-    every image packed in.
+    The scene as a `.blend` which renders the frames `render` does when
+    opened in Blender, with its animation, cameras, lights, environment
+    and every image packed in.
 
     Parameters
     ------------
     scene : trimesh.Scene
-      Scene to save, through `scene.camera` at `scene.camera.resolution`.
-    studio : trimesh.scene.metadata.Studio
-      The environment, floor and occlusion the OpenGL viewer draws.
-    count : int
-      Frames in the file's frame range.
+      Scene to save, which is not changed.
+    resolution : (2,) int or None
+      Render size in pixels, defaults to `scene.camera.resolution`.
+    duration : float or None
+      Seconds in the frame range, defaults to `scene.duration` or a
+      turntable if it isn't animated.
     fps : float
       Frames per second of animation.
     samples : int
@@ -523,8 +564,11 @@ def save_blend(
     blend : bytes
       The `.blend` file.
     """
+    from ..viewer.render import stage
+
+    scene, count = stage(scene, resolution=resolution, duration=duration, fps=fps)
     with tempfile.TemporaryDirectory() as directory:
         path = os.path.join(directory, "scene.blend")
-        build(scene, studio, directory, count=count, fps=fps, samples=samples, blend=path)
+        build(scene, directory, count=count, fps=fps, samples=samples, blend=path)
         with open(path, "rb") as file_obj:
             return file_obj.read()

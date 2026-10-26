@@ -14,10 +14,12 @@ $segment_inputs
 $frame_block
 
 uniform mat4 model_view;
-// line width or point diameter in pixels
-uniform float line_width;
+// draw each segment as a point, which is `frame.line_widths.y` across
+uniform bool points;
 
 out vec4 segment_color;
+// line width or point diameter in pixels
+out float line_width_pixels;
 // pixel offset from the segment middle: x along, y across
 out vec2 pixel_offset;
 // half the length of the segment on screen in pixels
@@ -67,11 +69,16 @@ void main() {
     vec2 across = vec2(-along.y, along.x);
 
     // half the rectangle size: half the line width plus a pixel for antialiasing
+    float line_width = frame.line_widths.x;
+    if (points) {
+        line_width = frame.line_widths.y;
+    }
     float radius = 0.5 * line_width + 1.0;
     vec2 corner = CORNERS[gl_VertexID];
     half_length = 0.5 * pixel_length;
     pixel_offset = corner * vec2(half_length + radius, radius);
     segment_color = color;
+    line_width_pixels = line_width;
 
     vec2 pixel = 0.5 * (pixel_start + pixel_end) + along * pixel_offset.x + across * pixel_offset.y;
     // take depth from the nearest endpoint so lines depth test against meshes

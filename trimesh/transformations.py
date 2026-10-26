@@ -200,7 +200,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from .typed import Integer, Number, Seed
-from .util import diagonal_dot, random_generator
+from .util import diagonal_dot, random_generator, unitize
 
 # a cached immutable identity matrix provides a speedup sometimes
 _IDENTITY = np.eye(4)
@@ -1459,11 +1459,29 @@ def quaternion_from_matrix(matrix, isprecise=False):
             np.negative(q, q)
         return q
 
-    single = M.ndim == 2
-    # only the top-left rotation block is ever read below, which is what
-    # lets a bare (3, 3) through the way the historical crop did
-    M = M.reshape((-1,) + M.shape[-2:])
+    if M.ndim == 2:
+        # a single matrix is the hot case so skip the stacking overhead
+        m00, m01, m02 = M[0, :3]
+        m10, m11, m12 = M[1, :3]
+        m20, m21, m22 = M[2, :3]
+        K = np.array(
+            [
+                [m00 - m11 - m22, 0.0, 0.0, 0.0],
+                [m01 + m10, m11 - m00 - m22, 0.0, 0.0],
+                [m02 + m20, m12 + m21, m22 - m00 - m11, 0.0],
+                [m21 - m12, m02 - m20, m10 - m01, m00 + m11 + m22],
+            ]
+        )
+        K /= 3.0
+        # quaternion is eigenvector of K that corresponds to largest eigenvalue
+        w, V = np.linalg.eigh(K)
+        q = V[[3, 0, 1, 2], np.argmax(w)]
+        if q[0] < 0.0:
+            np.negative(q, q)
+        return q
 
+    # only the top-left rotation block is ever read below
+    M = M.reshape((-1,) + M.shape[-2:])
     # symmetric matrix K, only the lower triangle is referenced by `eigh`
     K = np.zeros((len(M), 4, 4))
     K[:, 0, 0] = M[:, 0, 0] - M[:, 1, 1] - M[:, 2, 2]
@@ -1483,9 +1501,6 @@ def quaternion_from_matrix(matrix, isprecise=False):
     q = np.linalg.eigh(K)[1][:, [3, 0, 1, 2], -1]
     # flip to the positive-real hemisphere
     q[q[:, 0] < 0.0] *= -1.0
-
-    if single:
-        return q[0]
     return q
 
 
@@ -1498,6 +1513,13 @@ def trs_from_matrix(matrix: ArrayLike) -> tuple[NDArray, NDArray, NDArray]:
     A mirror can't be a rotation so it is carried as negative scale,
     shear has no exact form so the rotation is the nearest one, and
     a zero scale has the identity rotation.
+
+    This is the inverse of `trs_matrix`, and the counterpart of
+    `decompose_matrix` for transforms that are stored or interpolated
+    as a quaternion. `decompose_matrix` instead returns euler angles
+    and shear for one matrix at a time, and raises on a singular
+    matrix. This is vectorized over a stack and never raises, but
+    can't represent shear.
 
     >>> matrix = random_rotation_matrix()
     >>> matrix[:3, :3] *= [-1.0, 2.0, 5.0]
@@ -1542,6 +1564,11 @@ def trs_matrix(
     Combine a translation, a rotation quaternion, and a scale into
     homogeneous transforms which scale, then rotate, then translate.
     The inverse of `trs_from_matrix`.
+
+    This is the counterpart of `compose_matrix` for a quaternion
+    rotation: `compose_matrix` takes euler angles, shear, and
+    perspective for one matrix at a time, while this takes none of
+    those and builds a whole stack at once.
 
     >>> np.allclose(trs_matrix([1, 2, 3], [1, 0, 0, 0], [1, 1, 1]),
     ...             translation_matrix([1, 2, 3]))
@@ -1612,6 +1639,74 @@ def keyframe_interval(times, query):
     )
     fraction = np.clip(fraction, 0.0, 1.0)
     return lower, upper, width, fraction
+
+
+def sample_channel(
+    times: ArrayLike,
+    values: ArrayLike,
+    tangent_in: ArrayLike | None,
+    tangent_out: ArrayLike | None,
+    mode: str,
+    query: ArrayLike,
+    rotation: bool,
+) -> NDArray:
+    """
+    Sample channels which share keyframe times at any times, holding
+    the first and last keyframe outside of them.
+
+    Parameters
+    ------------
+    times : (k,) float
+      Keyframe times in seconds.
+    values : (k, ...) float
+      Value at each keyframe of any number of channels, with quaternions
+      ordered `w, x, y, z` if `rotation`.
+    tangent_in : (k, ...) float or None
+      Arriving cubic tangents per second, only used by "CUBICSPLINE".
+    tangent_out : (k, ...) float or None
+      Leaving cubic tangents per second, only used by "CUBICSPLINE".
+    mode : str
+      "LINEAR", "STEP", or "CUBICSPLINE" as glTF names them, in any case.
+    query : (m,) float
+      Times to sample at.
+    rotation : bool
+      If the last axis of `values` is quaternions.
+
+    Returns
+    ------------
+    sampled : (m, ...) float
+      The channels at each time.
+    """
+    values = np.asanyarray(values, dtype=np.float64)
+    mode = mode.upper()
+    lower, upper, width, fraction = keyframe_interval(times, query)
+    # one weight per query broadcast across every channel and component
+    column = (-1,) + (1,) * (values.ndim - 1)
+    if mode == "STEP":
+        return values[np.where(fraction >= 1.0, upper, lower)]
+    if mode == "CUBICSPLINE":
+        # glTF's cubic Hermite spline, with tangents per second
+        step, span = fraction.reshape(column), width.reshape(column)
+        squared, cubed = step**2, step**3
+        sampled = (
+            (2.0 * cubed - 3.0 * squared + 1.0) * values[lower]
+            + span * (cubed - 2.0 * squared + step) * tangent_out[lower]
+            + (-2.0 * cubed + 3.0 * squared) * values[upper]
+            + span * (cubed - squared) * tangent_in[upper]
+        )
+        if rotation:
+            # the spec blends quaternion components and then normalizes
+            sampled = unitize(sampled.reshape((-1, 4))).reshape(sampled.shape)
+        return sampled
+    if rotation:
+        # every channel's quaternions slerp at the same fractions
+        count = values[0].size // 4
+        return quaternion_slerp(
+            values[lower].reshape((-1, 4)),
+            values[upper].reshape((-1, 4)),
+            np.repeat(fraction, count),
+        ).reshape(values[lower].shape)
+    return values[lower] + (values[upper] - values[lower]) * fraction.reshape(column)
 
 
 def skin_points(
@@ -1767,7 +1862,32 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     q1 = np.array(quat1, dtype=np.float64)
     frac = np.array(fraction, dtype=np.float64)
 
-    single = q0.ndim == 1 and q1.ndim == 1 and frac.ndim == 0
+    if q0.ndim == 1 and q1.ndim == 1 and frac.ndim == 0:
+        # a single pair is the hot case so skip the stacking overhead
+        q0 = unit_vector(q0[:4])
+        q1 = unit_vector(q1[:4])
+        # a python float is much faster than a 0-dimensional array
+        frac = float(frac)
+        if frac == 0.0:
+            return q0
+        elif frac == 1.0:
+            return q1
+        d = np.dot(q0, q1)
+        if abs(abs(d) - 1.0) < _EPS:
+            return q0
+        if shortestpath and d < 0.0:
+            # invert rotation
+            d = -d
+            np.negative(q1, q1)
+        angle = np.arccos(d) + spin * np.pi
+        if abs(angle) < _EPS:
+            return q0
+        isin = 1.0 / np.sin(angle)
+        q0 *= np.sin((1.0 - frac) * angle) * isin
+        q1 *= np.sin(frac * angle) * isin
+        q0 += q1
+        return q0
+
     q0 = unit_vector(q0[..., :4].reshape((-1, 4)), axis=1)
     q1 = unit_vector(q1[..., :4].reshape((-1, 4)), axis=1)
     frac = frac.reshape((-1, 1))
@@ -1789,11 +1909,7 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     # a degenerate arc holds at its start, and an endpoint returns the
     # quaternion as passed rather than with a shortest-path sign flip
     result = np.where(degenerate | (frac == 0.0), q0, result)
-    result = np.where(frac == 1.0, q1, result)
-
-    if single:
-        return result[0]
-    return result
+    return np.where(frac == 1.0, q1, result)
 
 
 def random_quaternion(rand=None, num=1, seed: Seed = None):
@@ -2563,3 +2679,25 @@ def flips_winding(matrix):
         raise ValueError(f"matrix must be (3, 3) or (4, 4), not {matrix.shape!s}")
     # a transform flips winding exactly when its determinant is negative
     return bool(np.linalg.det(matrix[:3, :3]) < 0.0)
+
+
+def adjugate(matrices: ArrayLike) -> NDArray[np.float64]:
+    """
+    The adjugate `det(M) * inv(M)` of one or more 3x3 matrices, which
+    exists even for singular matrices. It maps `cross(a, b)` to
+    `cross(M @ a, M @ b)`, so normals stored as rows transform as
+    `normals @ adjugate(M)`, and its transpose is the cofactor matrix.
+
+    Parameters
+    -------------
+    matrices : (3, 3) or (n, 3, 3) float
+      Linear transforms.
+
+    Returns
+    --------------
+    adjugate : (3, 3) or (n, 3, 3) float
+      The adjugate of each matrix.
+    """
+    # the rows of the adjugate are the cross products of the columns
+    columns = np.swapaxes(np.asanyarray(matrices, dtype=np.float64), -1, -2)
+    return np.cross(columns[..., [1, 2, 0], :], columns[..., [2, 0, 1], :])

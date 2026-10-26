@@ -516,9 +516,8 @@ if __name__ == "__main__":
             # one entry's versions never leak into the entries after it
             uv = shutil.which("uv")
             if uv is None:
-                uv = [sys.executable, "-m", "uv"]
-            else:
-                uv = [uv]
+                raise RuntimeError("`uv` is not on PATH, needed for `pip` entries")
+            uv = [uv]
             layered = ["run", "--no-project", "--python", sys.executable]
             for requirement in entry["pip"]:
                 layered.extend(["--with", requirement])

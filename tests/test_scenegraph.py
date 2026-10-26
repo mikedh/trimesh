@@ -408,6 +408,28 @@ def test_falsy_base_frame():
     for name, ok in checks.items():
         assert ok, name
 
+    # an edge which isn't in the graph is never added: it raises in
+    # strict mode and is otherwise skipped with the rest still set
+    nodes = set(s.graph.nodes)
+    missing = [("nowhere", "ghost"), (0, "child")]
+    with g.pytest.raises(ValueError):
+        s.graph.update_matrices(missing, [shift, shift])
+    g.trimesh.tol.strict = False
+    try:
+        s.graph.update_matrices(missing, [shift, 2.0 * shift])
+    finally:
+        g.trimesh.tol.strict = True
+    checks = {
+        "no node added": set(s.graph.nodes) == nodes,
+        "no edge added": set(s.graph.transforms.edge_data) == edges,
+        "no parent added": "ghost" not in s.graph.transforms.parents,
+        "present edge still set": g.np.array_equal(
+            s.graph.transforms.edge_data[(0, "child")].get("matrix"), 2.0 * shift
+        ),
+    }
+    for name, ok in checks.items():
+        assert ok, name
+
 
 def test_reconstruct():
     original = g.get_mesh("cycloidal.3DXML")

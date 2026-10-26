@@ -11,7 +11,6 @@ import numpy as np
 from .. import caching, convex, inertia, transformations, units, util
 from ..constants import log
 from ..exchange import export
-from ..interfaces.ffmpeg import VideoSettings
 from ..parent import Geometry, Geometry3D
 from ..registration import procrustes
 from ..typed import (
@@ -86,8 +85,9 @@ class Scene(Geometry3D):
         self.animations: list[Animation] = []
         # {scene graph node : Skin} for nodes whose mesh their joints move
         self.skins: dict[Hashable, Skin] = {}
-        # cameras riding scene graph nodes, the first is `Scene.camera`
-        self._cameras: list[Camera] = []
+        # cameras riding scene graph nodes named after them, where the
+        # first is the one `Scene.camera` looks through
+        self.cameras: list[Camera] = []
         # lights riding scene graph nodes, or None for the defaults
         self._lights = None
 
@@ -796,32 +796,6 @@ class Scene(Geometry3D):
         """
         self.graph[self.camera.name] = matrix
 
-    def camera_project(self, points: ArrayLike) -> NDArray[float64]:
-        """
-        Project world-space points through the camera to normalized
-        device coordinates, the opposite of `camera_rays`. A point is in
-        view if every coordinate is within `[-1, 1]`.
-
-        Parameters
-        ----------
-        points : (n, 3) float
-          World-space points.
-
-        Returns
-        --------
-        ndc : (n, 3) float
-          Normalized device coordinates: x and y span the framebuffer
-          left-to-right and bottom-to-top, z spans `z_near` to `z_far`.
-        """
-        points = np.asarray(points, dtype=np.float64)
-        homogeneous = np.column_stack([points, np.ones(len(points))])
-        clip = (
-            homogeneous
-            @ np.linalg.inv(self.camera_transform).T
-            @ self.camera.projection.T
-        )
-        return clip[:, :3] / clip[:, 3:4]
-
     def camera_rays(self) -> tuple[NDArray[float64], NDArray[float64], NDArray[int64]]:
         """
         Calculate the trimesh.scene.Camera origin and ray
@@ -851,32 +825,6 @@ class Scene(Geometry3D):
         )
         origins = transformations.transform_points(origins, transform)
         return origins, vectors, pixels
-
-    @property
-    def cameras(self) -> list[Camera]:
-        """
-        Every camera in the scene, each named after the scene graph
-        node it rides like `Scene.lights`, where the first is the one
-        `Scene.camera` looks through.
-
-        Returns
-        ----------
-        cameras : [trimesh.scene.Camera]
-          Cameras in the scene, which may be empty.
-        """
-        return self._cameras
-
-    @cameras.setter
-    def cameras(self, values: Sequence[Camera]):
-        """
-        Assign every camera in the scene.
-
-        Parameters
-        -----------
-        values : [trimesh.scene.Camera]
-          Cameras named after the nodes they ride.
-        """
-        self._cameras = list(values)
 
     @property
     def camera(self) -> Camera:
@@ -982,12 +930,10 @@ class Scene(Geometry3D):
             self.graph.update_matrices(animation.edges, animation.at(at))
 
     @property
-    def lights(self) -> list[lighting.Light] | tuple[lighting.Light, ...]:
+    def lights(self) -> list[lighting.Light]:
         """
-        Get a list of the lights in the scene. If nothing is set
-        these are the lights a render would use, which aren't part of
-        the scene until they are assigned, as a tuple so editing them
-        raises rather than silently doing nothing.
+        Get a list of the lights in the scene. If nothing is
+        set it will generate some automatically.
 
         Returns
         -------------
@@ -995,7 +941,13 @@ class Scene(Geometry3D):
           Lights in the scene.
         """
         if self._lights is None:
-            return tuple(lighting.autolight(self)[0])
+            # do some automatic lighting
+            lights, transforms = lighting.autolight(self)
+            # assign the transforms to the scene graph
+            for L, T in zip(lights, transforms):
+                self.graph[L.name] = T
+            # set the lights
+            self._lights = lights
         return self._lights
 
     @lights.setter
@@ -1230,29 +1182,29 @@ class Scene(Geometry3D):
         resolution : (2,) int
           Resolution to render image
         **kwargs
-          Passed to SceneViewer constructor
+          Passed to `Scene.render`
 
         Returns
         -----------
         png : bytes
           Render of scene as a PNG
         """
-        from ..viewer.windowed import render_scene
+        from ..viewer.render import window_keywords
 
-        return render_scene(
-            scene=self, resolution=resolution, fullscreen=False, resizable=False, **kwargs
-        )
+        # a render never opens a window, which these were for
+        kwargs = window_keywords(kwargs, "save_image")
+        return self.render(file_type="png", resolution=resolution, **kwargs)
 
     def render(
         self,
         file_obj=None,
         file_type: str | None = None,
         resolution=None,
-        engine: str = "opengl",
         duration: Number | None = None,
-        settings: VideoSettings | None = None,
+        fps: Number = 30.0,
+        engine: str = "opengl",
         **kwargs,
-    ) -> bytes:
+    ) -> bytes | None:
         """
         Render the scene to an image, or to an animation or video of
         `Scene.animations` or of a turntable if it isn't animated.
@@ -1266,44 +1218,42 @@ class Scene(Geometry3D):
           extension of `file_obj` if not passed, or "png" without either.
         resolution : (2,) int or None
           Size in pixels, defaults to `scene.camera.resolution`.
+        duration : float or None
+          Seconds of animation, defaults to `scene.duration` or a
+          four second turntable if it isn't animated.
+        fps : float
+          Frames per second of an animation.
         engine : str
           "opengl" for the built in renderer or "blender".
-        duration : float or None
-          Seconds of animation, defaults to `scene.duration` or 4.0.
-        settings : VideoSettings or None
-          Frame rate and encoder for animations.
         **kwargs
-          Passed to `trimesh.viewer.render.render_scene`
+          Passed to the OpenGL `SceneViewer`, or to Blender like `samples=64`.
 
         Returns
         -----------
-        data : bytes
-          The encoded image or video, also written to `file_obj`.
+        data : bytes or None
+          The encoded image or video if `file_obj` is None.
         """
         from ..viewer.render import render_scene
 
         if util.is_pathlib(file_obj):
             file_obj = str(file_obj.absolute())
+        if isinstance(file_obj, str):
+            file_obj = os.path.abspath(os.path.expanduser(file_obj))
         if file_type is None:
             if isinstance(file_obj, str):
                 file_type = file_obj.split(".")[-1]
             else:
                 file_type = "png"
-        data = render_scene(
+        return render_scene(
             self,
             resolution=resolution,
+            file_obj=file_obj,
             file_type=file_type.strip().lower().lstrip("."),
-            engine=engine,
             duration=duration,
-            settings=settings,
+            fps=fps,
+            engine=engine,
             **kwargs,
         )
-        if hasattr(file_obj, "write"):
-            file_obj.write(data)
-        elif isinstance(file_obj, str):
-            with open(os.path.abspath(os.path.expanduser(file_obj)), "wb") as file_out:
-                file_out.write(data)
-        return data
 
     @property
     def units(self) -> str | None:

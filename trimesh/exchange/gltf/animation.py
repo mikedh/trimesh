@@ -15,15 +15,9 @@ from collections import defaultdict
 
 import numpy as np
 
-from ... import util
 from ...constants import log, tol
-from ...transformations import (
-    keyframe_interval,
-    quaternion_slerp,
-    trs_from_matrix,
-    trs_matrix,
-)
-from ...typed import ArrayLike, NDArray, NDArray1D, NDArray3D, float64
+from ...transformations import sample_channel, trs_from_matrix, trs_matrix
+from ...typed import NDArray3D, float64
 
 # the value of each channel a node doesn't store, in glTF order
 DEFAULTS = {
@@ -32,38 +26,15 @@ DEFAULTS = {
     "scale": [1.0, 1.0, 1.0],
 }
 
-# samples per second taken of a cubic spline when it is loaded
+# quaternion components reordered between glTF `x, y, z, w` and
+# trimesh `w, x, y, z`
+WXYZ_FROM_XYZW = [3, 0, 1, 2]
+XYZW_FROM_WXYZ = [1, 2, 3, 0]
+
+# samples per second taken of a cubic spline when it is loaded: the
+# 60 Hz refresh rate of a typical display, as a player can't show
+# motion finer than the frames it draws
 SPLINE_RATE = 60.0
-
-
-def trs_from_node(
-    node: dict,
-) -> tuple[NDArray1D[float64], NDArray1D[float64], NDArray1D[float64]]:
-    """
-    The translation, rotation, and scale a glTF node is at rest.
-
-    Parameters
-    ------------
-    node : dict
-      A glTF node which stores a `matrix` or any of its channels.
-
-    Returns
-    ------------
-    translation : (3,) float
-      Translation of the node.
-    quaternion : (4,) float
-      Rotation ordered `w, x, y, z`.
-    scale : (3,) float
-      Scale of the node.
-    """
-    if "matrix" in node:
-        # glTF matrices are column-major
-        return trs_from_matrix(np.reshape(node["matrix"], (4, 4)).T)
-    translation, rotation, scale = (
-        np.array(node.get(key, value), dtype=np.float64)
-        for key, value in DEFAULTS.items()
-    )
-    return translation, rotation[[3, 0, 1, 2]], scale
 
 
 def node_matrices(nodes: list) -> NDArray3D[float64]:
@@ -87,7 +58,7 @@ def node_matrices(nodes: list) -> NDArray3D[float64]:
         )
         for key, value in DEFAULTS.items()
     )
-    matrices = trs_matrix(translation, rotation[:, [3, 0, 1, 2]], scale)
+    matrices = trs_matrix(translation, rotation[:, WXYZ_FROM_XYZW], scale)
     # a node which stores a `matrix` stores no channels
     explicit = [index for index, node in enumerate(nodes) if "matrix" in node]
     # glTF matrices are column-major
@@ -97,73 +68,6 @@ def node_matrices(nodes: list) -> NDArray3D[float64]:
         .transpose((0, 2, 1))
     )
     return matrices
-
-
-def sample_channel(
-    times: ArrayLike,
-    values: ArrayLike,
-    tangent_in: ArrayLike | None,
-    tangent_out: ArrayLike | None,
-    mode: str,
-    query: ArrayLike,
-    rotation: bool,
-) -> NDArray[float64]:
-    """
-    Sample glTF channels which share keyframe times at any times,
-    holding their first and last keyframe outside of them.
-
-    Parameters
-    ------------
-    times : (k,) float
-      Keyframe times in seconds.
-    values : (k, d) or (k, c, d) float
-      Value at each keyframe of one or `c` channels, quaternions
-      ordered `w, x, y, z`.
-    tangent_in : (k, d) or (k, c, d) float or None
-      Arriving cubic tangents, only used by "CUBICSPLINE".
-    tangent_out : (k, d) or (k, c, d) float or None
-      Leaving cubic tangents, only used by "CUBICSPLINE".
-    mode : str
-      glTF interpolation: "LINEAR", "STEP", or "CUBICSPLINE".
-    query : (m,) float
-      Times to sample at.
-    rotation : bool
-      If the values are quaternions.
-
-    Returns
-    ------------
-    sampled : (m, d) or (m, c, d) float
-      The channels at each time.
-    """
-    values = np.asanyarray(values, dtype=np.float64)
-    lower, upper, width, fraction = keyframe_interval(times, query)
-    # one weight per query broadcast across every channel and component
-    column = (-1,) + (1,) * (values.ndim - 1)
-    if mode == "STEP":
-        return values[np.where(fraction >= 1.0, upper, lower)]
-    if mode == "CUBICSPLINE":
-        # glTF's cubic Hermite spline, with tangents per second
-        step, span = fraction.reshape(column), width.reshape(column)
-        squared, cubed = step**2, step**3
-        sampled = (
-            (2.0 * cubed - 3.0 * squared + 1.0) * values[lower]
-            + span * (cubed - 2.0 * squared + step) * tangent_out[lower]
-            + (-2.0 * cubed + 3.0 * squared) * values[upper]
-            + span * (cubed - squared) * tangent_in[upper]
-        )
-        if rotation:
-            # the spec blends quaternion components and then normalizes
-            sampled = util.unitize(sampled.reshape((-1, 4))).reshape(sampled.shape)
-        return sampled
-    if rotation:
-        # every channel's quaternions slerp at the same fractions
-        count = values[0].size // 4
-        return quaternion_slerp(
-            values[lower].reshape((-1, 4)),
-            values[upper].reshape((-1, 4)),
-            np.repeat(fraction, count),
-        ).reshape(values[lower].shape)
-    return values[lower] + (values[upper] - values[lower]) * fraction.reshape(column)
 
 
 def parse_animations(header: dict, access: list, names: dict, edges: dict) -> list:
@@ -219,7 +123,7 @@ def parse_animations(header: dict, access: list, names: dict, edges: dict) -> li
                 log.warning(f"unable to load animation `{name}`", exc_info=True)
                 continue
             if path == "rotation":
-                values = values[..., [3, 0, 1, 2]]
+                values = values[..., WXYZ_FROM_XYZW]
             # the value is in the middle, which is all there is unless cubic
             middle = values.shape[1] // 2
             curves[node][path] = (
@@ -250,10 +154,11 @@ def parse_animations(header: dict, access: list, names: dict, edges: dict) -> li
         }
         # {(path, mode, keyframe times) : [(column, curve)]}
         groups = defaultdict(list)
-        for column, (node, curve) in enumerate(curves.items()):
-            # a channel the file doesn't animate holds the rest pose
-            for part, rest in zip(parts.values(), trs_from_node(nodes[node])):
-                part[:, column] = rest
+        # a channel the file doesn't animate holds the rest pose
+        rests = trs_from_matrix(node_matrices([nodes[node] for node in curves]))
+        for part, rest in zip(parts.values(), rests):
+            part[:] = rest
+        for column, curve in enumerate(curves.values()):
             for path, channel in curve.items():
                 groups[(path, channel[4], channel[0].tobytes())].append((column, channel))
         # channels with the same keyframes and interpolation sample at once
@@ -320,7 +225,12 @@ def append_animations(
     # imported here as this module is imported by `gltf/__init__.py`
     from . import _data_append, float32
 
+    if len(animations) == 0:
+        return
     parents = graph.transforms.parents
+    # the rest pose of every node, as the channels of a node without a
+    # `matrix` and the decomposed `matrix` of one with it
+    rests = trs_from_matrix(node_matrices(tree["nodes"]))
     # {name : glTF animation} which every animation of the name adds to
     result = {}
     animated = set()
@@ -338,8 +248,8 @@ def append_animations(
                 # glTF animates a node relative to its parent node
                 log.warning(f"can't export animation of `{frame_from} -> {frame_to}`")
                 continue
-            rest = trs_from_node(tree["nodes"][index])
-            for (path, values), resting in zip(parts.items(), rest):
+            for (path, values), rest in zip(parts.items(), rests):
+                resting = rest[index]
                 values = values[:, column]
                 # skip a channel which never leaves the rest pose in the
                 # float32 that is written, where a quaternion and its
@@ -348,7 +258,7 @@ def append_animations(
                 still = (written == resting.astype(float32)).all()
                 if path == "rotation":
                     still = still or (written == -resting.astype(float32)).all()
-                    values = values[:, [1, 2, 3, 0]]
+                    values = values[:, XYZW_FROM_WXYZ]
                 if still:
                     continue
                 if times is None:
@@ -359,7 +269,7 @@ def append_animations(
                         data=animation.times.astype(float32),
                     )
                 interpolation = mode
-                if spline and mode == "LINEAR":
+                if spline and mode == "LINEAR" and len(animation.times) > 1:
                     from scipy.interpolate import CubicSpline
 
                     # a spline through every keyframe, written with its
@@ -409,10 +319,10 @@ def append_animations(
         node = tree["nodes"][index]
         if "matrix" not in node:
             continue
-        translation, quaternion, scale = trs_from_node(node)
         node.pop("matrix")
+        translation, quaternion, scale = (rest[index] for rest in rests)
         for (path, default), value in zip(
-            DEFAULTS.items(), (translation, quaternion[[1, 2, 3, 0]], scale)
+            DEFAULTS.items(), (translation, quaternion[XYZW_FROM_WXYZ], scale)
         ):
             if not np.allclose(value, default):
                 node[path] = value.tolist()

@@ -40,10 +40,6 @@ def __getattr__(name: str):
     return getattr(windowed, name)
 
 
-# this is only standard library imports
-
-# explicitly list imports in __all__
-# as otherwise flake8 gets mad
 __all__ = [
     "SceneViewer",
     "in_notebook",

@@ -3,20 +3,26 @@ try:
 except BaseException:
     import generic as g
 
-from trimesh.scene.lighting import DirectionalLight, PointLight, SpotLight
-from trimesh.scene.metadata import (
+from trimesh.scene.lighting import (
+    DirectionalLight,
+    EnvironmentLight,
+    PointLight,
+    SpotLight,
+)
+from trimesh.viewer.conversion import (
     DIFFUSE_SHARPNESS,
-    SPECULAR_SHARPNESS,
-    Environment,
-    RenderSettings,
-    Softbox,
+    environment_light,
+    ground_light,
+    occlusion_radius,
+    render_lights,
+    shadow_floor,
 )
 
 tf = g.trimesh.transformations
 # a straight line segment along X through the origin
 SEGMENT = [[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]
 # an environment with no light at all
-DARK = Environment()
+DARK = EnvironmentLight(name="environment")
 # lights in these tests are white, rather than the default dim gray
 WHITE = [255, 255, 255, 255]
 # a sun at an angle, so a box's shadow falls beside it
@@ -63,7 +69,7 @@ def mean_color(image):
 
 def ambient(color):
     """A constant environment, which is an ambient light."""
-    return Environment(sky=color, ground=color)
+    return EnvironmentLight(name="environment", sky=color, ground=color)
 
 
 def clear_glass(thickness, height, roughness):
@@ -96,7 +102,8 @@ def round_trip_checks(name, scene):
 
 def test_conversion():
     # converting geometry to arrays needs no OpenGL so runs everywhere
-    from trimesh.viewer.conversion import ALPHA_MODES, geometry_to_arrays
+    from trimesh.viewer.conversion import geometry_to_arrays
+    from trimesh.viewer.opengl.shaders import ALPHA_MODES, MATERIAL, SEGMENT, SKIN, VERTEX
 
     box = colored_box([255, 0, 0, 255])
     sphere = g.trimesh.creation.icosphere()
@@ -114,6 +121,33 @@ def test_conversion():
     painted.visual.vertex_attributes["color"] = g.np.tile(
         [200, 150, 40, 255], (len(painted.vertices), 1)
     ).astype(g.np.uint8)
+    # every material value the shader reads, which lands in the record exactly
+    glass = g.trimesh.creation.box()
+    glass.visual = g.trimesh.visual.TextureVisuals(
+        material=g.trimesh.visual.material.PBRMaterial(
+            baseColorFactor=[255, 0, 0, 255],
+            emissiveFactor=[0.25, 0.5, 0.75],
+            metallicFactor=0.25,
+            roughnessFactor=0.75,
+            alphaMode="MASK",
+            alphaCutoff=0.375,
+            doubleSided=True,
+            transmissionFactor=0.5,
+            diffuseTransmissionFactor=0.125,
+            diffuseTransmissionColorFactor=[0.5, 0.25, 1.0],
+        )
+    )
+    expected = g.np.zeros((), dtype=MATERIAL)
+    expected["base_color"] = [1.0, 0.0, 0.0, 0.5]
+    expected["emissive"] = [0.25, 0.5, 0.75, 0.0]
+    expected["factors"] = [0.25, 0.75, 0.375, 0.125]
+    expected["transmission_color"] = [0.5, 0.25, 1.0, 0.0]
+    expected["flags"] = [ALPHA_MODES["BLEND"], 0, 0, 1]
+    # a skinned mesh keeps which joints move each corner
+    skinned = g.trimesh.creation.box()
+    joints = g.np.tile(g.np.arange(4.0), (len(skinned.vertices), 1))
+    weights = g.random((len(skinned.vertices), 4))
+    skinned.vertex_attributes.update({"joints": joints, "weights": weights})
     voxels = g.trimesh.voxel.VoxelGrid(g.np.ones((2, 2, 2), dtype=bool))
     box_arrays, sphere_arrays, fuze_arrays = (
         geometry_to_arrays(geometry) for geometry in [box, sphere, fuze]
@@ -121,8 +155,11 @@ def test_conversion():
     wrench_arrays, point_arrays, painted_arrays = (
         geometry_to_arrays(geometry) for geometry in [wrench, points, painted]
     )
+    glass_arrays, skinned_arrays = (
+        geometry_to_arrays(geometry) for geometry in [glass, skinned]
+    )
     blend_modes = {
-        geometry_to_arrays(geometry).material.alpha_mode
+        int(geometry_to_arrays(geometry).material["flags"][0])
         for geometry in blend.geometry.values()
     }
     # the expected number of segments from discretizing every entity
@@ -130,41 +167,69 @@ def test_conversion():
         len(entity.discrete(wrench.vertices, scale=wrench.scale)) - 1
         for entity in wrench.entities
     )
+    # converted once and cached on the mesh until its colors change
+    cached = geometry_to_arrays(box) is box_arrays
+    box.visual.face_colors = [0, 0, 255, 255]
+    recolored = geometry_to_arrays(box)
 
+    rows = box_arrays.rows
     checks = {
+        "mesh rows": all(
+            item.rows.dtype == VERTEX
+            for item in [box_arrays, sphere_arrays, fuze_arrays, painted_arrays]
+        ),
+        "segment rows": all(
+            item.rows.dtype == SEGMENT for item in [wrench_arrays, point_arrays]
+        ),
         "box is indexed triangles": box_arrays.faces.shape == (12, 3),
-        "box face colors in order": (
-            box_arrays.face_colors == box.visual.face_colors
-        ).all(),
+        "box face colors in order": (box_arrays.face_colors == [255, 0, 0, 255]).all(),
+        "box has face colors": box_arrays.material["has_textures"][1] == 1,
+        "sphere has no face colors": sphere_arrays.material["has_textures"][1] == 0,
         "box triangles unchanged": g.np.allclose(
-            box_arrays.vertices[box_arrays.faces], box.vertices[box.faces]
+            rows["position"][box_arrays.faces], box.vertices[box.faces]
+        ),
+        "box normals are its face normals": g.np.allclose(
+            rows["normal"][box_arrays.faces],
+            box.face_normals[:, None, :].repeat(3, axis=1),
         ),
         "sphere vertex colors carried": (
-            sphere_arrays.vertex_colors[sphere_arrays.faces]
+            sphere_arrays.rows["color"][sphere_arrays.faces]
             == sphere.visual.vertex_colors[sphere.faces]
         ).all(),
-        "translucent vertex colors blend": sphere_arrays.material.alpha_mode
+        "translucent vertex colors blend": sphere_arrays.material["flags"][0]
         == ALPHA_MODES["BLEND"],
-        "opaque box": box_arrays.material.alpha_mode == ALPHA_MODES["OPAQUE"],
+        "opaque box": box_arrays.material["flags"][0] == ALPHA_MODES["OPAQUE"],
         "fuze uv carried": g.np.allclose(
-            fuze_arrays.uv[fuze_arrays.faces], fuze.visual.uv[fuze.faces]
+            fuze_arrays.rows["uv"][fuze_arrays.faces], fuze.visual.uv[fuze.faces]
         ),
-        "fuze has a texture": fuze_arrays.material.base_color_texture is not None,
-        "obj materials are not metal": fuze_arrays.material.metallic == 0.0,
+        "fuze has a texture": "base_color_texture" in fuze_arrays.textures,
+        "obj materials are not metal": fuze_arrays.material["factors"][0] == 0.0,
         "material keeps vertex colors": (
-            painted_arrays.vertex_colors == [200, 150, 40, 255]
+            painted_arrays.rows["color"] == [200, 150, 40, 255]
         ).all()
-        and painted_arrays.material.metallic == 0.5,
+        and painted_arrays.material["factors"][0] == 0.5,
+        "every material value": glass_arrays.material.tobytes() == expected.tobytes(),
         "every glTF alpha mode": blend_modes == set(ALPHA_MODES.values()),
-        "wrench segment count": wrench_arrays.vertices.shape == (segment_count, 2, 3),
+        "unskinned has no skin": box_arrays.skin is None,
+        "skin rows": skinned_arrays.skin.dtype == SKIN,
+        "skin follows corners": g.np.allclose(
+            skinned_arrays.skin["weights"][skinned_arrays.faces],
+            weights[skinned.faces],
+        )
+        and g.np.allclose(
+            skinned_arrays.skin["joints"][skinned_arrays.faces], joints[skinned.faces]
+        ),
+        "wrench segment count": len(wrench_arrays.rows) == segment_count,
         "wrench colors per segment": (
-            wrench_arrays.vertex_colors == [10, 20, 30, 255]
+            wrench_arrays.rows["color"] == [10, 20, 30, 255]
         ).all(),
         "points are zero length segments": g.np.allclose(
-            point_arrays.vertices[:, 0], point_arrays.vertices[:, 1]
+            point_arrays.rows["segment_start"], point_arrays.rows["segment_end"]
         ),
         "points kind": point_arrays.kind == "points",
         "voxels become boxes": geometry_to_arrays(voxels).kind == "mesh",
+        "converted once": cached,
+        "recolored": (recolored.face_colors == [0, 0, 255, 255]).all(),
     }
     for name, ok in checks.items():
         assert ok, name
@@ -238,29 +303,42 @@ layout(std140, row_major) uniform Frame {
     vec4 occlusion_radius;
     vec4 exposure;
     vec4 bloom;
+    vec4 line_widths;
+    ivec4 smooth_shading;
 } frame;
+"""
+    material_block = """
+layout(std140, row_major) uniform Material {
+    vec4 base_color;
+    vec4 emissive;
+    vec4 factors;
+    vec4 transmission_color;
+    ivec4 flags;
+    ivec4 has_textures;
+} material;
 """
     checks = {
         "mesh inputs": inputs.strip() in shaders.shader_source("mesh.vert"),
         "frame block": block.strip() in shaders.shader_source("mesh.frag"),
+        "material block": material_block.strip() in shaders.shader_source("mesh.frag"),
     }
-    # a frame field std140 would pad differently than numpy is refused
-    frame = shaders.FRAME
-    for name, dtype in {
-        "vec3": [("padded", "<f4", 3)],
-        "offset": [("scalar", "<f4"), ("vector", "<f4", 4)],
-        "mat3": [("matrix", "<f4", (3, 3))],
-    }.items():
-        shaders.FRAME = g.np.dtype(dtype)
-        shaders._SHADER_SOURCE.clear()
-        checks[f"std140 refuses {name}"] = False
-        try:
-            shaders.shader_source("mesh.frag")
-        except ValueError:
-            checks[f"std140 refuses {name}"] = True
-        finally:
-            shaders.FRAME = frame
+    # a block field std140 would pad differently than numpy is refused
+    for block_name, original in shaders.BLOCKS.items():
+        for name, dtype in {
+            "vec3": [("padded", "<f4", 3)],
+            "offset": [("scalar", "<f4"), ("vector", "<f4", 4)],
+            "mat3": [("matrix", "<f4", (3, 3))],
+        }.items():
+            shaders.BLOCKS[block_name] = g.np.dtype(dtype)
             shaders._SHADER_SOURCE.clear()
+            checks[f"std140 {block_name} refuses {name}"] = False
+            try:
+                shaders.shader_source("mesh.frag")
+            except ValueError:
+                checks[f"std140 {block_name} refuses {name}"] = True
+            finally:
+                shaders.BLOCKS[block_name] = original
+                shaders._SHADER_SOURCE.clear()
 
     # the filled shaders pass the reference compiler, which is stricter
     # than drivers, as the programs `create_context` compiles validated
@@ -293,17 +371,21 @@ layout(std140, row_major) uniform Frame {
             checks[f"{vertex} and {fragment} validate"] = result.returncode == 0
 
     g.require_rendering()
-    from trimesh.viewer.opengl import gl
+    from trimesh.viewer.opengl.resources import gl
 
     viewer = g.offscreen_viewer(g.trimesh.creation.box().scene())
     viewer.to_array()
     context = viewer.context
-    for program, dtypes in [
-        (context.mesh_program.program, (shaders.VERTEX, shaders.SKIN, shaders.INSTANCE)),
-        (context.line_program.program, (shaders.SEGMENT,)),
+    for program, dtypes, blocks in [
+        (
+            context.mesh_program.program,
+            (shaders.VERTEX, shaders.SKIN, shaders.INSTANCE),
+            ("Frame", "Material"),
+        ),
+        (context.line_program.program, (shaders.SEGMENT,), ("Frame",)),
         # full screen passes have no inputs but read the frame
-        (context.occlusion_program.program, ()),
-        (context.blur_program.program, ()),
+        (context.occlusion_program.program, (), ("Frame",)),
+        (context.blur_program.program, (), ("Frame",)),
     ]:
         # every input is where `shaders.attribute_locations` put it
         for name, location in shaders.attribute_locations(*dtypes).items():
@@ -312,14 +394,20 @@ layout(std140, row_major) uniform Frame {
             )
             checks[f"{program} {name} location"] = found == location
 
-        # the block is the size of the dtype and every member is where numpy put it
-        block = gl.glGetUniformBlockIndex(program, ctypes.create_string_buffer(b"Frame"))
-        size = gl.GLint()
-        gl.glGetActiveUniformBlockiv(
-            program, block, gl.GL_UNIFORM_BLOCK_DATA_SIZE, ctypes.byref(size)
-        )
-        checks[f"{program} frame size"] = size.value == shaders.FRAME.itemsize
-        for name, offset in block_offsets("Frame", shaders.FRAME).items():
+        # each block is the size of its dtype and every member is where numpy put it
+        offsets = {}
+        for block_name in blocks:
+            block = gl.glGetUniformBlockIndex(
+                program, ctypes.create_string_buffer(block_name.encode())
+            )
+            size = gl.GLint()
+            gl.glGetActiveUniformBlockiv(
+                program, block, gl.GL_UNIFORM_BLOCK_DATA_SIZE, ctypes.byref(size)
+            )
+            dtype = shaders.BLOCKS[block_name]
+            checks[f"{program} {block_name} size"] = size.value == dtype.itemsize
+            offsets.update(block_offsets(block_name, dtype))
+        for name, offset in offsets.items():
             names = (ctypes.c_char_p * 1)(name.encode())
             index, found = gl.GLuint(), gl.GLint()
             gl.glGetUniformIndices(
@@ -346,18 +434,20 @@ def rgb(scene, **kwargs):
     return g.render(scene, **kwargs).color[..., :3].astype(g.np.float64)
 
 
-def shade_reference(scene, normal=None, studio=None):
+def shade_reference(scene, normal=None, lights=None):
     """
     The sRGB 0-255 image the viewer should draw for opaque `PBRMaterial`
     meshes, NaN where no ray hits, evaluated independently from camera
     rays and the glTF and `KHR_lights_punctual` specs, optionally with a
-    constant tangent space `normal` map and lights from `studio`.
+    constant tangent space `normal` map and `(lights, transforms)` from
+    `render_lights` ending with the environment.
     """
+    from trimesh.viewer.opengl.shaders import SPECULAR_SHARPNESS
+
     np = g.np
-    if studio is None:
-        studio = RenderSettings.from_metadata(scene.metadata).resolve(
-            scene, scene.camera_transform
-        )
+    if lights is None:
+        lights = render_lights(scene, scene.camera_transform)
+    lights, transforms = lights
     width, height = scene.camera.resolution
     meshes = [mesh.smooth_shaded for mesh in scene.dump()]
     hits = g.camera_hits(scene, meshes)
@@ -403,7 +493,7 @@ def shade_reference(scene, normal=None, studio=None):
     normal_dot_view = np.maximum((surface * view).sum(axis=1, keepdims=True), 1e-4)
 
     color = np.zeros_like(points)
-    for light, pose in zip(studio.lights, studio.transforms):
+    for light, pose in zip(lights[:-1], transforms[:-1]):
         # lights shine down their -Z, and only directional lights have
         # no position, falloff or range
         backwards = g.trimesh.util.unitize(pose[:3, 2])
@@ -468,12 +558,12 @@ def shade_reference(scene, normal=None, studio=None):
     # reflection blurred by a spherical Gaussian as wide as the GGX lobe
     reflected = 2.0 * (surface * view).sum(axis=1, keepdims=True) * surface - view
     # the library's environment, which `test_light` checks against brute force
-    environment_light = studio.environment.light
-    above = environment_light(surface, DIFFUSE_SHARPNESS)
-    below = environment_light(-surface, DIFFUSE_SHARPNESS)
+    environment = (lights[-1], transforms[-1])
+    above = environment_light(*environment, surface, DIFFUSE_SHARPNESS)
+    below = environment_light(*environment, -surface, DIFFUSE_SHARPNESS)
     color += diffuse_color * above + transmission_color * below
     blur = np.exp(np.polyval(SPECULAR_SHARPNESS, np.log(roughness[:, 0])))
-    reflection = environment_light(reflected, blur)
+    reflection = environment_light(*environment, reflected, blur)
     color += reflection * (
         reflectance * (-1.04 * bias + fit[:, 2:3]) + 1.04 * bias + fit[:, 3:4]
     )
@@ -536,24 +626,12 @@ def lit_scene(lights=(), poses=(), plane=False, environment=DARK, **material):
 def brighter(scene, factor, emissive=(0.1, 0.05, 0.0)):
     """
     A copy of a scene glowing `emissive` with its lights, including the
-    default studio, its environment and its glow `factor` times as bright.
+    default lights and environment, and its glow `factor` times as bright.
     """
-    studio = studio_of(scene)
-    environment = studio.environment
-    copy = g.set_render(
-        scene.copy(),
-        environment=Environment(
-            up=environment.up,
-            sky=g.np.multiply(environment.sky, factor),
-            ground=g.np.multiply(environment.ground, factor),
-            softboxes=[
-                Softbox(box.direction, box.sharpness, g.np.multiply(box.color, factor))
-                for box in environment.softboxes
-            ],
-        ),
-    )
-    copy.lights = g.copy.deepcopy(studio.lights)
-    for light, pose in zip(copy.lights, studio.transforms):
+    lights, transforms = render_lights(scene, scene.camera_transform)
+    copy = scene.copy()
+    copy.lights = g.copy.deepcopy(lights)
+    for light, pose in zip(copy.lights, transforms):
         light.intensity *= factor
         copy.graph[light.name] = pose
     for geometry in copy.geometry.values():
@@ -575,16 +653,24 @@ def lighting_cases():
         name="spot", color=WHITE, intensity=20.0, innerConeAngle=0.2, outerConeAngle=0.5
     )
     lamp = PointLight(name="lamp", color=WHITE, intensity=40.0)
-    # bright, as plastic only reflects 4% of light head on
-    softbox = Softbox(direction=[0.6, 0.6, 0.5], sharpness=30.0, color=[40.0] * 3)
-    window = Environment(sky=[0.05] * 3, ground=[0.05] * 3, softboxes=[softbox])
-    gradient = Environment(sky=[0.9, 0.8, 0.7], ground=[0.05, 0.05, 0.1])
-    # twice a unit vector, which every engine reads as a direction
-    near = Softbox(direction=[1.4, 1.0, 1.0], sharpness=20.0, color=[4] * 3)
-    reflected = Environment(
-        sky=[0.8, 0.7, 0.6], ground=[0.05, 0.08, 0.1], softboxes=[near]
+    # a softbox which is bright, as plastic only reflects 4% of light head on
+    window = EnvironmentLight(
+        name="environment",
+        sky=[0.05] * 3,
+        ground=[0.05] * 3,
+        softboxes=[([0.6, 0.6, 0.5], 30.0, [40.0] * 3)],
     )
-    below = Environment(sky=[0.02] * 3, ground=[0.3, 0.2, 0.4])
+    gradient = EnvironmentLight(
+        name="environment", sky=[0.9, 0.8, 0.7], ground=[0.05, 0.05, 0.1]
+    )
+    # a softbox twice a unit vector away, which every engine reads as a direction
+    reflected = EnvironmentLight(
+        name="environment",
+        sky=[0.8, 0.7, 0.6],
+        ground=[0.05, 0.08, 0.1],
+        softboxes=[([1.4, 1.0, 1.0], 20.0, [4.0] * 3)],
+    )
+    below = EnvironmentLight(name="environment", sky=[0.02] * 3, ground=[0.3, 0.2, 0.4])
     metal = {"metallic": 1.0, "roughness": 0.3}
     semi = {"metallic": 0.5, "roughness": 0.3}
     dim = ambient([0.1] * 3)
@@ -704,13 +790,25 @@ def test_lighting():
         image = rgb(scene, resolution=scene.camera.resolution)
         reference = shade_reference(scene)
         # stay away from the antialiased silhouette
-        interior = ndimage.binary_erosion(~g.np.isnan(reference[..., 0]), iterations=2)
+        # a pixel past which a shaded edge is not antialiased into this one
+        interior = ndimage.binary_erosion(g.ray_reference(scene).covered)
         radius = g.np.linalg.norm(floor_points(scene)[interior], axis=-1)
         checks[f"{name} matches reference"] = (
             g.np.abs(image - reference)[interior].max() <= 2.0
         )
         checks[f"{name} is not flat"] = g.np.ptp(reference[interior]) > 40
-        checks[f"{name} silhouette"] = all(g.silhouette_checks(scene, image).values())
+        checks.update(
+            g.ray_checks(
+                scene,
+                g.render(
+                    scene,
+                    include_depth=True,
+                    include_segmentation=True,
+                    resolution=scene.camera.resolution,
+                ),
+                f"{name} ",
+            )
+        )
         for check, predicate in extra.get(name, {}).items():
             checks[f"{name} {check}"] = predicate(image[interior], radius)
         # exposure scales all light before tone mapping, which is the same
@@ -725,10 +823,9 @@ def test_lighting():
         checks[f"{name} exposure doubles light"] = g.np.abs(exposed - doubled).max() <= 1
         checks[f"{name} exposure brightens"] = (exposed - image)[interior].mean() > 10
 
-    # everything a render uses is scene content which survives glTF, but
-    # no lights at all can't be stored and loads as the default lights
-    lit = {name: scene for name, scene in cases.items() if len(scene.lights) > 0}
-    for name, scene in lit.items():
+    # everything a render uses is scene content which survives glTF, and
+    # the default lights are the same after loading a scene without lights
+    for name, scene in cases.items():
         checks.update(round_trip_checks(name, scene))
 
     # the camera can see the environment behind the scene: a constant one
@@ -742,7 +839,7 @@ def test_lighting():
             lambda image: g.np.abs(image[:3, :3] - expected).max() <= 1,
         ),
         "background sky is up": (
-            Environment(up=[0, 1, 0], sky=[0.8] * 3, ground=[0.0] * 3),
+            EnvironmentLight(name="environment", sky=[0.8] * 3, ground=[0.0] * 3),
             lambda image: image[0, 0].mean() > image[-1, 0].mean() + 40,
         ),
     }.items():
@@ -802,10 +899,11 @@ def test_lighting():
     # sees what glTF says: the same image with its planes in its own units,
     # so a near plane which would cut the sphere doesn't once scaled, and
     # the scale moves nothing else: geometry fixed to the camera, or a scroll
-    gradient = Environment(
+    gradient = EnvironmentLight(
+        name="environment",
         sky=[0.8, 0.7, 0.6],
         ground=[0.05, 0.05, 0.1],
-        softboxes=[Softbox(direction=[0.6, 0.6, 0.5], sharpness=30.0, color=[2.0] * 3)],
+        softboxes=[([0.6, 0.6, 0.5], 30.0, [2.0] * 3)],
     )
     for projection, magnification in [
         ("perspective", None),
@@ -974,7 +1072,8 @@ def test_shadows():
         scene = box_shadow(light, pose)
         image = rgb(scene, resolution=scene.camera.resolution)
         unshadowed = shade_reference(scene)
-        scene.lights = []
+        # only the environment, which `set_render` puts last
+        scene.lights = scene.lights[-1:]
         ambient_only = rgb(scene, resolution=scene.camera.resolution)
         floor, blocked = floor_shadow(scene, pose, axis)
 
@@ -1011,7 +1110,7 @@ def test_shadows():
     from unittest import mock
 
     from trimesh.scene.animation import Skin
-    from trimesh.viewer.opengl import read_framebuffer
+    from trimesh.viewer.opengl.resources import read_framebuffer
 
     scene = box_shadow(sun, SUN_POSE)
     box_node = scene.graph.nodes_geometry[-1]
@@ -1059,7 +1158,6 @@ def test_shadows():
 
 def test_depth_segmentation():
     """Depth and segmentation are what each camera ray hits, for any lens and scale."""
-    from scipy import ndimage
 
     def instanced():
         """One box drawn by three nodes, so instancing can't merge ids, and a sphere."""
@@ -1118,53 +1216,33 @@ def test_depth_segmentation():
             scene.bounds, rotation=tf.euler_matrix(0.4, 0.3, 0.0)
         )
         scene.camera.magnification = magnification(scene.scale)
-        color, depth, index = g.render(
+        arrays = g.render(
             scene, include_depth=True, include_segmentation=True, resolution=[160, 120]
         )
-        reference_depth, reference = g.camera_ray_reference(scene)
+        depth, index = arrays.depth, arrays.segmentation
         # a camera's planes are lengths which scale with the scene
         rescaled = scene.scaled(7.0).camera
-        checks[f"{name} {lens} {scale} planes scale"] = g.np.allclose(
+        label = f"{name} {lens} {scale}"
+        checks[f"{label} planes scale"] = g.np.allclose(
             [rescaled.z_near, rescaled.z_far],
             [scene.camera.z_near * 7.0, scene.camera.z_far * 7.0],
         )
-        # pixels whose 3x3 neighborhood all hit the same thing
-        interior = ndimage.maximum_filter(reference, 3) == ndimage.minimum_filter(
-            reference, 3
-        )
-        covered = interior & (reference >= 0)
-        label = f"{name} {lens} {scale}"
         checks[f"{label} shapes"] = depth.shape == index.shape == (120, 160)
         checks[f"{label} dtypes"] = (
             depth.dtype == g.np.float32 and index.dtype == g.np.int64
         )
-        checks[f"{label} segmentation is rays"] = (index == reference)[interior].all()
-        checks[f"{label} depth is rays"] = g.np.allclose(
-            depth[covered], reference_depth[covered], rtol=1e-4
-        )
         checks[f"{label} background depth zero"] = (depth[index < 0] == 0.0).all()
         checks[f"{label} foreground depth positive"] = (depth[index >= 0] > 0.0).all()
-        checks[f"{label} not vacuous"] = (
-            covered.sum() > 0.5 * (reference >= 0).sum() > 500
-        )
-        checks[f"{label} color silhouette"] = all(
-            g.silhouette_checks(scene, color).values()
-        )
+        checks.update(g.ray_checks(scene, arrays, f"{label} "))
         # including every node sharing one geometry
         checks[f"{label} every node has an id"] = set(
             range(len(scene.graph.nodes_geometry))
         ) <= set(g.np.unique(index))
 
-    # pixels are read one way: each part only when asked for, and the
-    # depth and segmentation both come from one more draw
+    # each part is returned only when asked for
     viewer = g.offscreen_viewer(instanced(), resolution=[80, 60])
-    draws = []
-    draw = viewer.draw
-    viewer.draw = lambda *args: draws.append(args) or draw(*args)
     color_only = viewer.to_array()
-    single = len(draws)
     everything = viewer.to_array(include_depth=True, include_segmentation=True)
-    both = len(draws) - single
     depth_only = viewer.to_array(include_depth=True)
     # hiding a node hides that instance but not others sharing its geometry
     viewer.hide_geometry("small_0")
@@ -1178,7 +1256,6 @@ def test_depth_segmentation():
     checks["parts agree"] = (everything.color == color_only.color).all() and (
         everything.depth == depth_only.depth
     ).all()
-    checks["one more draw for both"] = single == 1 and both == 2
     checks["hide one instance"] = (
         nodes.index("small_0") not in seen
         and {nodes.index("small_1"), nodes.index("small_2")} <= seen
@@ -1230,12 +1307,6 @@ def test_depth_segmentation():
         assert ok, name
 
 
-def studio_of(scene):
-    """The default lights and environment a viewer of `scene` starts with."""
-    settings = RenderSettings.from_metadata(scene.metadata)
-    return settings.resolve(scene, scene.camera_transform)
-
-
 def box_on_floor(sun=None, ground=False, light=1.0):
     """A white box on a white or the invisible `ground` floor, seen from above."""
     white = [235, 235, 235, 255]
@@ -1256,8 +1327,12 @@ def box_on_floor(sun=None, ground=False, light=1.0):
     scene.camera_transform = tf.rotation_matrix(1.4, [0, 0, 1]) @ tf.translation_matrix(
         [0, 0, 9.0]
     )
-    environment = Environment(up=[0, 0, 1], sky=[light] * 3, ground=[light] * 3)
-    return g.set_render(scene, environment=environment, ground_shadow=ground)
+    environment = EnvironmentLight(
+        name="environment", sky=[light] * 3, ground=[light] * 3
+    )
+    # with +Z up
+    up = tf.rotation_matrix(g.np.pi / 2.0, [1, 0, 0])
+    return g.set_render(scene, environment=environment, pose=up, ground_shadow=ground)
 
 
 def occlusion_reference(scene, radius, count=64):
@@ -1302,7 +1377,7 @@ def test_studio_floor():
         for enabled in [False, True]
     )
     darkening = off.mean(axis=-1) - on.mean(axis=-1)
-    reference = occlusion_reference(scene, studio_of(scene).occlusion_radius)
+    reference = occlusion_reference(scene, occlusion_radius(scene))
     covered = ndimage.binary_erosion(~g.np.isnan(reference), iterations=2)
     open_surface = covered & ndimage.binary_erosion(reference == 0.0, iterations=3)
     crease = covered & (reference >= 0.3)
@@ -1313,6 +1388,7 @@ def test_studio_floor():
         g.render(
             sunny,
             include_depth=True,
+            include_segmentation=True,
             flags={"ambient_occlusion": enabled},
             resolution=[240, 180],
         )
@@ -1328,30 +1404,29 @@ def test_studio_floor():
         "direct light untouched": (
             g.np.abs(off.color.astype(int) - on.color.astype(int)).max() <= 1
         ),
-        "depth untouched": g.np.allclose(
-            on.depth, g.camera_ray_reference(sunny)[0], rtol=1e-3
-        ),
     }
+    checks.update(g.ray_checks(sunny, on, "ambient occlusion "))
 
     # the invisible floor under a sun
     scene = box_on_floor(sun=SUN_POSE, ground=True, light=0.3)
     options = {"studio": True, "flags": {"ambient_occlusion": False}}
-    color, depth, index = g.render(
+    arrays = g.render(
         scene,
         include_depth=True,
         include_segmentation=True,
         resolution=[240, 180],
         **options,
     )
-    studio = studio_of(scene)
+    color = arrays.color
+    lights, transforms = render_lights(scene, scene.camera_transform)
+    ground = shadow_floor(scene, transforms[-1])
     image = color[..., :3].astype(g.np.float64)
-    box_depth, box_index = g.camera_ray_reference(scene)
-    floor, blocked = floor_shadow(scene, SUN_POSE, 2, height=studio.ground[:, 2].mean())
+    floor, blocked = floor_shadow(scene, SUN_POSE, 2, height=ground[:, 2].mean())
     shaded = floor & (image.mean(axis=-1) < 250)
     umbra = ndimage.binary_erosion(blocked, iterations=3)
     lit = ndimage.binary_erosion(floor & ~blocked, iterations=3)
     # the floor loses the sun and keeps the environment
-    umbra_value = 255.0 * (0.3 / studio.ground_light)
+    umbra_value = 255.0 * (0.3 / ground_light(lights, transforms))
     checks.update(
         {
             "has a shadow": umbra.sum() > 300,
@@ -1361,12 +1436,11 @@ def test_studio_floor():
             ).max()
             <= 3,
             "lit floor invisible": g.np.abs(image[lit] - 255.0).max() <= 1,
-            "not in depth": g.np.allclose(depth, box_depth, rtol=1e-3),
-            "not in segmentation": (index == box_index).mean() > 0.99,
             "not in bounds": g.np.allclose(scene.bounds, [[-1, -1, 0], [1, 1, 1]]),
             "not dumped": len(scene.dump()) == 1,
         }
     )
+    checks.update(g.ray_checks(scene, arrays, "floor "))
     # from below the floor can't be seen at all
     scene.camera_transform = (
         tf.rotation_matrix(g.np.pi, [1, 0, 0]) @ scene.camera_transform
@@ -1379,7 +1453,7 @@ def test_studio_floor():
 
     # bloom spills light the tone mapper compressed onto its neighbors: a
     # glowing square in the dark lights nothing around it until bloom is on
-    from trimesh.viewer.opengl import BLOOM_SPREAD
+    from trimesh.viewer.opengl.resources import BLOOM_SPREAD
 
     square = pbr_mesh(
         g.trimesh.creation.box(extents=[0.2, 0.2, 0.01]), [0, 0, 0, 255], 0.0, 1.0
@@ -1437,12 +1511,15 @@ def test_export_unchanged():
     """Viewing and rendering never change a scene or the bytes it exports to."""
     from PIL import Image
 
-    from trimesh.interfaces.ffmpeg import VideoSettings
     from trimesh.viewer.opengl.viewer import SceneViewer
-    from trimesh.viewer.render import stage
+    from trimesh.viewer.render import render_frames, stage
 
     g.require_rendering()
-    scenes = {"box": g.trimesh.creation.box().scene()}
+    scenes = {
+        "box": g.trimesh.creation.box().scene(),
+        "box moves": g.dolly_scene("box"),
+        "camera rides": g.dolly_scene("dolly"),
+    }
     for name in sorted(g.os.listdir(g.dir_models)):
         if name.endswith((".glb", ".gltf")):
             scenes[name] = g.trimesh.load_scene(g.os.path.join(g.dir_models, name))
@@ -1469,28 +1546,42 @@ def test_export_unchanged():
             staged.geometry[key] is value for key, value in scene.geometry.items()
         )
 
+        graph = hash(scene.graph)
         scene.render(resolution=[64, 48])
         viewer = SceneViewer(scene, visible=False, start_loop=False, resolution=[64, 48])
         viewer.to_array(include_depth=True)
-        # playing an animation poses the scene only while it is viewed
+        # playing an animation draws it without posing the scene
         viewer.on_animate(0.37)
         viewer.to_array()
+        checks[f"{name} graph unchanged while playing"] = hash(scene.graph) == graph
         viewer.close()
         # an animation has a frame for every tenth of its duration
-        video = VideoSettings(fps=10)
-        gif = scene.render(
-            file_type="gif", resolution=[32, 24], duration=0.2, settings=video
-        )
+        gif = scene.render(file_type="gif", resolution=[32, 24], duration=0.2, fps=10)
         frames = Image.open(g.trimesh.util.wrap_as_stream(gif)).n_frames
         checks[f"{name} gif has every frame"] = frames == 2
 
         checks[f"{name} export unchanged"] = scene.export(file_type="glb") == before
+        checks[f"{name} graph unchanged"] = hash(scene.graph) == graph
         checks[f"{name} state unchanged"] = (
             scene.has_camera,
             scene.has_lights,
             scene.metadata,
             [id(item) for item in [*scene.cameras, *scene.animations]],
         ) == state
+
+    # every frame of a render is exactly a still of the scene posed at its
+    # time, with lights in the scene so both light it from the same place
+    fps = 10
+    for name in ["box moves", "camera rides"]:
+        scene = g.set_render(scenes[name], environment=EnvironmentLight(name="sky"))
+        frames = list(render_frames(scene, resolution=[64, 48], duration=0.5, fps=fps))
+        for index, frame in enumerate(frames):
+            posed = scene.copy()
+            posed.animate(index / fps)
+            (still,) = render_frames(posed, resolution=[64, 48], still=True)
+            difference = g.np.abs(frame.astype(int) - still).max()
+            checks[f"{name} frame {index} is the posed scene"] = difference <= 1
+        checks[f"{name} moves"] = not (frames[0] == frames[-1]).all()
 
     for name, ok in checks.items():
         assert ok, name
@@ -1501,7 +1592,7 @@ def test_viewer():
     g.require_rendering()
     import pyglet
 
-    from trimesh.viewer.opengl import gl
+    from trimesh.viewer.opengl.resources import gl
     from trimesh.viewer.opengl.viewer import SceneViewer
 
     mesh = g.trimesh.creation.box(extents=[3.0, 1.0, 2.0])
@@ -1514,10 +1605,14 @@ def test_viewer():
     for index, resolution in enumerate([(320, 240), (97, 61), (1024, 768)] * 2):
         viewer = g.offscreen_viewer(scene, resolution=resolution)
         for render in range(3):
-            image = viewer.to_array().color
+            arrays = viewer.to_array(include_depth=True, include_segmentation=True)
+            image = arrays.color
             label = f"{resolution} pass {index} render {render}"
             checks[f"{label} shape"] = image.shape == (*resolution[::-1], 4)
-            checks.update(g.silhouette_checks(scene, image, prefix=f"{label} "))
+            if render == 0:
+                checks.update(g.ray_checks(scene, arrays, prefix=f"{label} "))
+                first = image
+            checks[f"{label} repeats"] = (image == first).all()
         windows.add(id(viewer.window))
         uploaded = list(viewer.geometry_buffers.values())
         framebuffers = [viewer.framebuffer, viewer.resolve_framebuffer]
@@ -1548,7 +1643,7 @@ def test_viewer():
     def checked_close():
         """Check what the context still holds just before the window closes."""
         visible.window.switch_to()
-        freed["shadow maps"] = not gl.glIsTexture(context.shadow_maps.texture)
+        freed["shadow maps"] = not gl.glIsTexture(context.shadow_maps.textures["depth"])
         freed["mesh program"] = not gl.glIsProgram(context.mesh_program.program)
         freed["joint buffer"] = not gl.glIsBuffer(context.joint_buffer)
         close_window()
@@ -1559,12 +1654,11 @@ def test_viewer():
     # the image keeps square pixels and the camera's vertical view
     visible.window.get_framebuffer_size = lambda: (97, 61)
     visible.on_resize(97, 61)
-    resized = visible.to_array().color
     scene.camera.fit_resolution((97, 61))
     checks["resize keeps the vertical view"] = g.np.allclose(
         visible.camera.fov, scene.camera.fov
     )
-    checks.update(g.silhouette_checks(scene, resized, prefix="resized "))
+    checks.update(g.ray_checks(scene, visible.to_array(True, True), prefix="resized "))
     visible.close()
     checks["visible window closed"] = len(freed) == 3
     for name, ok in freed.items():
@@ -1590,9 +1684,11 @@ def test_viewer():
         checks[f"{label} size"] = image.shape[:2] == (300, 400)
         after = [*current.camera.resolution, *current.camera.fov]
         checks[f"{label} camera unchanged"] = g.np.allclose(after, before)
-        # cast the reference rays through the camera the image used
-        current.camera.fit_resolution((400, 300))
-        checks.update(g.silhouette_checks(current, image, f"{label} "))
+        # and an odd size, which catches off by one pixel
+        arrays = g.render(
+            current, include_depth=True, include_segmentation=True, resolution=[257, 193]
+        )
+        checks.update(g.ray_checks(current, arrays, f"{label} "))
     # the hidden window isn't one of the user's, which would keep
     # `pyglet.app.run` from ever returning
     checks["no windows left open"] = len(pyglet.app.windows) == 0
@@ -1637,9 +1733,8 @@ def test_viewer():
     # without breaking the rest of the scene
     flat = g.trimesh.Scene(mesh)
     flat.add_geometry(g.trimesh.creation.box(), transform=g.np.diag([0.0, 0.0, 0.0, 1.0]))
-    checks.update(
-        g.silhouette_checks(flat, g.render(flat).color, prefix="zero scale node ")
-    )
+    arrays = g.render(flat, include_depth=True, include_segmentation=True)
+    checks.update(g.ray_checks(flat, arrays, "zero scale node "))
 
     # a render must not depend on what was rendered before it
     translucent = colored_box([0, 0, 255, 100]).scene()
@@ -1743,7 +1838,11 @@ def test_methods():
     scene = framed(points)
     image = g.render(scene, point_size=8).color
     width, height = scene.camera.resolution
-    ndc = scene.camera_project(points.vertices)
+    # normalized device coordinates of every point through the camera
+    homogeneous = g.np.column_stack((points.vertices, g.np.ones(len(points.vertices))))
+    world_to_clip = scene.camera.projection @ g.np.linalg.inv(scene.camera_transform)
+    clip = homogeneous @ world_to_clip.T
+    ndc = clip[:, :3] / clip[:, 3:]
     columns = ((ndc[:, 0] + 1) / 2 * width).astype(int)
     rows = ((1 - ndc[:, 1]) / 2 * height).astype(int)
     checks["points drawn at projections"] = (image[rows, columns, 0] > 200).all() and (
@@ -1798,9 +1897,9 @@ def test_methods():
     viewer = g.offscreen_viewer(box.scene(), flags={"cull": False})
     before = viewer.to_array().color
     box.update_faces(box.face_normals[:, 2] < 0.5)
-    after = viewer.to_array().color
-    checks["update faces"] = (after != before).any()
-    checks.update(g.silhouette_checks(viewer.scene, after, prefix="after update "))
+    arrays = viewer.to_array(include_depth=True, include_segmentation=True)
+    checks["update faces"] = (arrays.color != before).any()
+    checks.update(g.ray_checks(viewer.scene, arrays, "after update "))
     viewer.close()
 
     # keys toggle state and change the image
@@ -1848,11 +1947,11 @@ def test_video():
         g.pytest.skip("rendering video requires ffmpeg")
     g.require_rendering()
     resolution = (160, 120)
-    settings = ffmpeg.VideoSettings(fps=10)
+    fps = 10
 
     def animated_camera(scene, camera, index, count):
         """The scene's camera at frame `index`, which may ride an animated node."""
-        scene.animate(index / settings.fps)
+        scene.animate(index / fps)
         return scene.camera_transform
 
     def turntable_camera(scene, camera, index, count):
@@ -1878,7 +1977,7 @@ def test_video():
         ("riding", g.dolly_scene("dolly"), 10, animated_camera),
     ]:
         camera = scene.camera_transform.copy()
-        video = scene.render(file_type="mkv", resolution=resolution, settings=settings)
+        video = scene.render(file_type="mkv", resolution=resolution, fps=fps)
         with g.TemporaryDirectory() as directory:
             path = g.os.path.join(directory, "video.mkv")
             with open(path, "wb") as video_file:
@@ -1903,11 +2002,13 @@ def test_video():
     with g.serve_meshes() as address, g.TemporaryDirectory() as directory:
         path = g.os.path.join(directory, "film.mp4")
         returned = g.trimesh.load_remote(f"{address}/fuze.obj").render(
-            path, resolution=resolution, settings=settings
+            path, resolution=resolution, fps=fps
         )
         film = g.decode_video(path, resolution)
         with open(path, "rb") as written:
-            checks["one-liner returns what it wrote"] = returned == written.read()
+            checks["one-liner writes the path and returns nothing"] = (
+                returned is None and len(written.read()) > 0
+            )
     checks["one-liner turntable"] = len(film) == 40 and film.std(axis=(1, 2, 3)).min() > 1
 
     for name, ok in checks.items():
@@ -1951,13 +2052,16 @@ def test_interaction():
     for _ in range(10):
         viewer.on_draw()
     checks["idle draws nothing"] = viewer.frame_count == count
-    lights = viewer.studio.transforms.copy()
+    lights = viewer.light_transforms.copy()
     viewer.on_mouse_press(100, 75, mouse.LEFT, 0)
     viewer.on_mouse_drag(160, 95, 60, 20, mouse.LEFT, 0)
     checks["drag moves camera"] = not g.np.allclose(viewer.camera_transform, initial)
     dragged = viewer.camera_transform.copy()
     image = viewer.to_array().color[..., :3].astype(g.np.float64)
-    started = viewer.studio
+    started = (
+        [*viewer.lights, viewer.environment],
+        g.np.concatenate((viewer.light_transforms, [viewer.environment_transform])),
+    )
     viewer.on_key_press(symbol=key.Z, modifiers=0)
     count = viewer.frame_count
     viewer.on_draw()
@@ -1973,10 +2077,10 @@ def test_interaction():
     # the default lights are fixed in the world where the viewer started,
     # so moving the camera shows the same lighting from somewhere else
     scene.camera_transform = dragged
-    fixed = shade_reference(scene, studio=started)
-    moved = shade_reference(scene, studio=studio_of(scene))
+    fixed = shade_reference(scene, lights=started)
+    moved = shade_reference(scene)
     interior = ndimage.binary_erosion(~g.np.isnan(fixed[..., 0]), iterations=2)
-    checks["lights stay put"] = g.np.allclose(started.transforms, lights)
+    checks["lights stay put"] = g.np.allclose(started[1][:-1], lights)
     checks["lit from where it started"] = g.np.abs(image - fixed)[interior].max() <= 2.0
     checks["not lit from the new camera"] = g.np.abs(image - moved)[interior].max() > 10.0
 

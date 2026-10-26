@@ -174,6 +174,25 @@ def test_path_to_gltf_with_line():
         "segments and colors": g.np.allclose(*colored),
         "polylines stay joined": len(loaded.entities) == len(path.entities),
     }
+    # each segment is labeled with the entity which discretizes to it, in
+    # either order of asking for the two cached values
+    reference = g.trimesh.util.vstack_empty(
+        [
+            g.trimesh.util.stack_lines(e.discrete(path.vertices, scale=path.scale))
+            for e in path.entities
+        ]
+    ).reshape((-1, 2, path.vertices.shape[1]))
+    for order, fresh in enumerate([path.copy(), path.copy()]):
+        if order == 0:
+            labels = fresh.segments_entity
+        else:
+            _ = fresh.segments
+            labels = fresh.segments_entity
+        checks[f"order {order} entity per segment"] = (
+            len(labels) == len(fresh.segments)
+            and g.np.array_equal(fresh.segments, reference)
+            and (g.np.diff(labels) >= 0).all()
+        )
     for name, ok in checks.items():
         assert ok, name
 

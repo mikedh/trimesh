@@ -13,7 +13,7 @@ glTF viewer shows the same lights, camera and materials.
 | `scene.add(mesh, pose=pose)`      | `scene.add_geometry(mesh, transform=pose)` |
 | `DirectionalLight`, `SpotLight`   | `trimesh.scene.lighting.*Light`            |
 | `PerspectiveCamera(yfov=...)`     | `trimesh.scene.Camera(fov=...)`            |
-| `Scene(ambient_light=...)`        | `RenderSettings(environment=...)`          |
+| `Scene(ambient_light=...)`        | `EnvironmentLight(sky=..., ground=...)`    |
 | `OffscreenRenderer.render(scene)` | `SceneViewer(...).to_array(...)`           |
 
 Usage: `python pyrender_scene.py [output directory]`
@@ -28,8 +28,6 @@ from PIL import Image
 import trimesh
 from trimesh.resolvers import WebResolver
 from trimesh.scene import lighting
-from trimesh.scene.animation import Animation
-from trimesh.scene.metadata import Environment, RenderSettings
 from trimesh.viewer.opengl.viewer import SceneViewer
 
 # pyrender's models, which are loaded with the files they reference
@@ -98,7 +96,9 @@ def build(resolver, seed=0):
     ]:
         scene.add_geometry(mesh, node_name=name, transform=pose)
 
-    # both lights are where the camera is, in glTF units like pyrender
+    # pyrender's ambient light is the same color in every direction
+    ambient = [0.02, 0.02, 0.02]
+    # all lights are where the camera is, in glTF units like pyrender
     scene.lights = [
         lighting.DirectionalLight(name="sun", intensity=1.0),
         lighting.SpotLight(
@@ -107,6 +107,7 @@ def build(resolver, seed=0):
             innerConeAngle=np.pi / 16,
             outerConeAngle=np.pi / 6,
         ),
+        lighting.EnvironmentLight(name="ambient", sky=ambient, ground=ambient),
     ]
     for light in scene.lights:
         scene.graph.update(frame_to=light.name, matrix=CAMERA_POSE)
@@ -117,41 +118,8 @@ def build(resolver, seed=0):
     )
     scene.camera_transform = CAMERA_POSE
 
-    # pyrender's ambient light is the same color in every direction, and
     # the wood is the floor so there is no need for a shadow catcher
-    ambient = [0.02, 0.02, 0.02]
-    scene.metadata.update(
-        RenderSettings(
-            environment=Environment(sky=ambient, ground=ambient), ground_shadow=False
-        ).to_metadata()
-    )
-    return scene
-
-
-def orbit(scene, seconds=4.0):
-    """
-    Circle the camera once around the table's vertical axis like
-    pyrender's own page, in place.
-
-    Parameters
-    ------------
-    scene : trimesh.Scene
-      From `build`.
-    seconds : float
-      How long one turn takes.
-
-    Returns
-    ------------
-    scene : trimesh.Scene
-      The same scene with the camera animation.
-    """
-    times = np.linspace(0.0, seconds, 121)
-    turns = trimesh.transformations.rotation_matrix(
-        2.0 * np.pi * times / seconds, [0, 0, 1]
-    )
-    scene.animations.append(
-        Animation([(None, scene.camera.name)], times, np.matmul(turns, CAMERA_POSE))
-    )
+    scene.metadata["render"] = {"ground_shadow": False}
     return scene
 
 
@@ -179,11 +147,5 @@ if __name__ == "__main__":
     # every node a different gray like pyrender's example
     gray = ((segmentation + 1) * 20 % 256).astype(np.uint8)
     Image.fromarray(gray).save(os.path.join(directory, "pyrender_segmentation.png"))
-    # and orbiting the table like pyrender's own page, with only Pillow
-    orbit(scene)
+    # and as a turntable gif, with only Pillow
     scene.render(os.path.join(directory, "pyrender_scene.gif"), resolution=[640, 480])
-    if trimesh.interfaces.ffmpeg.exists:
-        # and as a 4K video when ffmpeg is installed
-        scene.render(
-            os.path.join(directory, "pyrender_scene_4k.mp4"), resolution=[2880, 2160]
-        )

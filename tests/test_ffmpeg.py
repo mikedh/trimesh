@@ -11,18 +11,32 @@ LEVELS = {
     42: (8704, 522240),
     51: (36864, 983040),
     52: (36864, 2073600),
+    60: (139264, 4177920),
+    61: (139264, 8355840),
+    62: (139264, 16711680),
 }
 # and the bits a second and bits of buffer of High profile level 4.2,
 # which every player decodes in real time at any size
 PLAYABLE = (62.5e6, 78.125e6)
 
 
-def write(path, frames, settings):
-    """Encode frames into a video at `path` and return the closed writer."""
-    with ffmpeg.VideoWriter(path, settings) as video:
-        for frame in frames:
-            video.write(frame)
+def write(path, frames, fps, profile=None):
+    """
+    Encode frames into a video at `path` with only `profile` to choose
+    from, or the automatic pick, and return the closed writer.
+    """
+    with g.pytest.MonkeyPatch.context() as patch:
+        if profile is not None:
+            patch.setattr(ffmpeg, "PROFILES", (profile,))
+        with ffmpeg.VideoWriter(path, fps) as video:
+            for frame in frames:
+                video.write(frame)
     return video
+
+
+def profiles(width, height, fps):
+    """Every profile which works on this machine for a size and frame rate."""
+    return [p for p in ffmpeg.PROFILES if ffmpeg.profile_works(p, width, height, fps)]
 
 
 def particle_burst(width, height, fps, random):
@@ -94,18 +108,40 @@ def test_without_ffmpeg():
     solid = g.np.zeros((6, 32, 24, 4), dtype=g.np.uint8)
     solid[..., 0] = (g.np.arange(6) * 40)[:, None, None]
     solid[..., 3] = 255
-    settings = ffmpeg.VideoSettings(fps=30)
+    fps = 30
     # the milliseconds each format counts a frame's duration in: GIF's
     # are hundredths of a second, so 30 fps can't be 33 ms every frame
     ticks = {"gif": 10, "webp": 1, "avif": 1}
     # when each frame should end, which a whole number of ticks can be
     # within half a tick of without drifting
-    exact = g.np.arange(1, len(solid) + 1) * 1000.0 / settings.fps
+    exact = g.np.arange(1, len(solid) + 1) * 1000.0 / fps
     checks = {}
+    # the smallest level of H.264 table A-1 which fits, up to 8K at 120 fps
+    for width, height, rate in [
+        (640, 360, 30),
+        (1920, 1080, 60),
+        (3840, 2160, 60),
+        (7680, 4320, 30),
+        (7680, 4320, 60),
+        (7680, 4320, 120),
+    ]:
+        macroblocks = -(-width // 16) * -(-height // 16)
+        fits = [
+            level
+            for level, (frame, second) in LEVELS.items()
+            if macroblocks <= frame and macroblocks * rate <= second
+        ]
+        checks[f"{width}x{height} {rate}fps level"] = (
+            ffmpeg.h264_level(width, height, rate) == f"{min(fits) / 10:g}"
+        )
+    checks["levels are table A-1"] = {
+        round(float(level) * 10): tuple(values[:2])
+        for level, values in ffmpeg.H264_LEVELS.items()
+    } == LEVELS
     with g.pytest.MonkeyPatch.context() as patch:
         patch.setattr(ffmpeg, "exists", False)
         for file_type, tick in ticks.items():
-            data = render.encode(solid, file_type, settings)
+            data = render.encode(solid, None, file_type, fps)
             image = Image.open(g.trimesh.util.wrap_as_stream(data))
             frames, durations = [], []
             for frame in ImageSequence.Iterator(image):
@@ -125,7 +161,7 @@ def test_without_ffmpeg():
                 range(len(solid))
             )
         with g.pytest.raises(ImportError) as missing:
-            render.encode(solid, "mp4", settings)
+            render.encode(solid, None, "mp4", fps)
     words = ["ffmpeg", "install", "webp", "gif"]
     checks["missing ffmpeg is explained"] = all(w in str(missing.value) for w in words)
     for name, ok in checks.items():
@@ -151,9 +187,8 @@ def test_video():
             padded = (width + width % 2, height + height % 2)
             frames = g.np.full((24, height, width, channels), 255, g.np.uint8)
             frames[..., :3] = colors[:, None, None, :]
-            encoders = [None, *(p.split()[0] for p in ffmpeg.profiles(*padded))]
-            for encoder in encoders:
-                video = write(mkv, frames, ffmpeg.VideoSettings(fps=24, encoder=encoder))
+            for profile in [None, *profiles(*padded, 24)]:
+                video = write(mkv, frames, 24, profile)
                 decoded = g.decode_video(mkv, padded)[:, :height, :width]
                 name = f"{video.encoder} {width}x{height}x{channels}"
                 checks[f"{name} frame count"] = len(decoded) == len(colors)
@@ -166,9 +201,9 @@ def test_video():
         # which need a keyframe partway through
         gray = random.integers(0, 256, (360, 640, 1), dtype=g.np.uint8).repeat(3, 2)
         sliding = g.np.array([g.np.roll(gray, 16 * i, axis=1) for i in range(12)])
-        for profile in ffmpeg.profiles(640, 360):
+        for profile in profiles(640, 360, 4):
             encoder = profile.split()[0]
-            write(mp4, sliding, ffmpeg.VideoSettings(fps=4, encoder=encoder))
+            write(mp4, sliding, 4, profile)
             decoded = g.decode_video(mp4, (640, 360)).astype(g.np.int64)
             checks[f"{encoder} keeps detail"] = g.np.abs(decoded - sliding).mean() < 6.0
             checks.update(playback(mp4, 640, 360, 4, f"{encoder} 4fps"))
@@ -179,34 +214,32 @@ def test_video():
         # decodes, which NVENC's constant quality alone overshoots at 4K
         sizes = [(1920, 1080, 30), (1920, 1080, 60), (2560, 1600, 30), (3840, 2160, 30)]
         for width, height, fps in sizes:
-            settings = ffmpeg.VideoSettings(fps=fps)
-            for profile in ffmpeg.profiles(width, height, settings):
+            for profile in profiles(width, height, fps):
                 encoder = profile.split()[0]
                 frames = particle_burst(width, height, fps, g.np.random.default_rng(1))
-                write(mp4, frames, ffmpeg.VideoSettings(fps=fps, encoder=encoder))
+                write(mp4, frames, fps, profile)
                 prefix = f"{encoder} {width}x{height} {fps}fps"
                 checks.update(playback(mp4, width, height, fps, prefix))
 
         # ffmpeg's log is read once it exits, so more of it than a pipe
         # holds, from a verbose log or a warning every frame, can't block
-        verbose = ffmpeg.VideoSettings(arguments=("-v", "debug"))
-        write(mkv, g.np.zeros((300, 144, 256, 3), g.np.uint8), verbose)
+        arguments = ffmpeg.PLAYBACK_ARGUMENTS
+        with g.pytest.MonkeyPatch.context() as patch:
+            patch.setattr(ffmpeg, "PLAYBACK_ARGUMENTS", (*arguments, "-v", "debug"))
+            write(mkv, g.np.zeros((300, 144, 256, 3), g.np.uint8), 30)
+            # a profile which can't take the arguments is skipped when
+            # choosing, rather than chosen and then failing on the real video
+            patch.setattr(ffmpeg, "PLAYBACK_ARGUMENTS", (*arguments, "-bogus", "1"))
+            checks["bad arguments rejected by the probe"] = not profiles(256, 256, 30)
         checks["verbose log never blocks"] = len(g.decode_video(mkv, (256, 144))) == 300
-
-        # a profile which can't take the arguments is skipped when choosing,
-        # rather than chosen and then failing on the real video
-        bogus = ffmpeg.VideoSettings(arguments=("-bogus", "1"))
-        checks["bad arguments rejected by the probe"] = not ffmpeg.profiles(
-            settings=bogus
-        )
         with g.pytest.MonkeyPatch.context() as patch:
             patch.setattr(ffmpeg, "PROFILES", ("h264_not_an_encoder", "libx264"))
-            fallback = write(mp4, sliding[:1], None).encoder
+            fallback = write(mp4, sliding[:1], 30).encoder
             # and with none working says which ffmpeg, what it tried, and
             # what to export instead
             patch.setattr(ffmpeg, "PROFILES", ("h264_not_an_encoder", "h264_nor_this"))
             with g.pytest.raises(ValueError) as none_work:
-                write(mp4, sliding[:1], None)
+                write(mp4, sliding[:1], 30)
         checks["falls back to the next encoder"] = fallback == "libx264"
         words = [ffmpeg._ffmpeg_executable, "h264_not_an_encoder", "h264_nor_this"]
         checks["no encoder is explained"] = all(
@@ -216,7 +249,7 @@ def test_video():
         # a frame of the wrong size is an error rather than a corrupt video
         wrong = [g.np.zeros((64, 64, 4), g.np.uint8), g.np.zeros((64, 32, 4), g.np.uint8)]
         with g.pytest.raises(ValueError, match="but video is"):
-            write(mp4, wrong, None)
+            write(mp4, wrong, 30)
     for name, ok in checks.items():
         assert ok, name
 

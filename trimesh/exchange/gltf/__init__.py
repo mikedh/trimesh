@@ -30,6 +30,7 @@ from .animation import (
     parse_skins,
 )
 from .extensions import handle_extensions, unregistered
+from .lights import ENVIRONMENT as _ENVIRONMENT
 from .lights import NAME as _LIGHTS
 from .lights import append_lights, parse_lights
 
@@ -81,10 +82,6 @@ DIFFUSE_TRANSMISSION = (
     "diffuseTransmissionTexture",
     "diffuseTransmissionColorTexture",
 )
-
-# viewers draw texture pixels as sRGB whatever color profile an image
-# file has, so images are exported without one as glTF says
-COLOR_PROFILES = ("icc_profile", "gamma", "srgb", "chromaticity")
 
 # GL geometry modes
 _GL_LINES = 1
@@ -749,6 +746,8 @@ def _create_gltf_structure(
 
     # store materials as {hash : index} to avoid duplicates
     mat_hashes = {}
+    # and textures as {content : index} so equal images are stored once
+    texture_hashes = {}
     # store data from geometries
     buffer_items = IndexedDict()
 
@@ -768,6 +767,7 @@ def _create_gltf_structure(
                 include_normals=include_normals,
                 unitize_normals=unitize_normals,
                 mat_hashes=mat_hashes,
+                texture_hashes=texture_hashes,
                 extension_webp=extension_webp,
                 extension_draco=extension_draco,
             )
@@ -871,6 +871,7 @@ def _append_mesh(
     include_normals: bool | None,
     unitize_normals: bool,
     mat_hashes: dict,
+    texture_hashes: dict,
     extension_webp: bool,
     extension_draco: bool = False,
 ):
@@ -896,6 +897,8 @@ def _append_mesh(
 
     mat_hashes : dict
       Which materials have already been added
+    texture_hashes : dict
+      Which images have already been added
     extension_webp : bool
       Export textures as webP (using glTF's EXT_texture_webp extension).
     extension_draco : bool
@@ -1008,15 +1011,14 @@ def _append_mesh(
         material = mesh.visual.material
         if not has_uv:
             # a texture can't be looked up without coordinates
-            material = material.to_pbr().copy()
-            for name in PBR_TEXTURES:
-                setattr(material, name, None)
+            material = material.to_pbr().copy(textures=False)
         # append the material and then set from returned index
         current_material = _append_material(
             mat=material,
             tree=tree,
             buffer_items=buffer_items,
             mat_hashes=mat_hashes,
+            texture_hashes=texture_hashes,
             extension_webp=extension_webp,
         )
 
@@ -1071,6 +1073,9 @@ def _append_mesh(
         # both or neither, as joints without weights are kept as an extra
         joints, weights = attributes["joints"], attributes["weights"]
         del attributes["joints"], attributes["weights"]
+        shape = (len(mesh.vertices), 4)
+        if np.shape(joints) != shape or np.shape(weights) != shape:
+            raise ValueError(f"joints and weights must be {shape} to export as VEC4")
         primitive = current["primitives"][0]["attributes"]
         primitive["JOINTS_0"] = _data_append(
             acc=tree["accessors"],
@@ -1086,6 +1091,11 @@ def _append_mesh(
         )
     except KeyError:
         pass
+    except ValueError:
+        # skinning that isn't one set of four per vertex isn't exportable
+        if tol.strict:
+            raise
+        log.warning("skipping skinning attributes", exc_info=True)
 
     # for each attribute with a leading underscore, assign them to trimesh
     # vertex_attributes
@@ -1479,9 +1489,6 @@ def _parse_textures(header, views, resolver=None):
             try:
                 # load the buffer into a PIL image
                 images[i] = PIL.Image.open(util.wrap_as_stream(blob))
-                # keep the file so an unchanged image can be stored as it
-                # was, which `copy` and every new image leave behind
-                images[i].encoded = blob
             except Exception:
                 if tol.strict:
                     raise
@@ -2046,7 +2053,7 @@ def _read_buffers(
     # kwargs for scene graph loader
     while len(queue) > 0:
         # (int, int) pair of node indexes
-        edge = queue.pop()
+        edge = queue.popleft()
 
         # avoid looping forever if someone specified
         # recursive nodes
@@ -2084,8 +2091,13 @@ def _read_buffers(
                 log.warning("unable to load camera", exc_info=True)
 
         # treat node metadata similarly to mesh metadata
+        # less an environment light, which is loaded into `Scene.lights`
         if isinstance(child.get("extras"), dict):
-            kwargs["metadata"] = child["extras"]
+            kwargs["metadata"] = {
+                key: value
+                for key, value in child["extras"].items()
+                if key != _ENVIRONMENT
+            }
 
         # put any node extensions in a field of the metadata, less the
         # light collected above: unlike the camera the node stays in the
@@ -2131,6 +2143,9 @@ def _read_buffers(
             # if the node doesn't have any geometry just add
             graph.append(kwargs)
 
+    # animations only drive nodes of the loaded scene, not those of
+    # other scenes in the file which aren't in the graph
+    edges = {edge["frame_to"]: edge["frame_from"] for edge in graph}
     # kwargs for load_kwargs
     result = {
         "class": "Scene",
@@ -2147,8 +2162,8 @@ def _read_buffers(
         "animations": parse_animations(
             header=header,
             access=access,
-            names=names,
-            edges={edge["frame_to"]: edge["frame_from"] for edge in graph},
+            names={index: name for index, name in names.items() if name in edges},
+            edges=edges,
         ),
     }
     skins = parse_skins(header=header, access=access, names=names)
@@ -2247,11 +2262,13 @@ def _convert_camera(camera):
         }
     half = np.tan(np.radians(camera.fov) / 2.0)
     perspective = {
-        # width over height is the ratio of the half angle tangents
-        "aspectRatio": float(half[0] / half[1]),
         "yfov": float(np.radians(camera.fov[1])),
         "znear": float(camera.z_near),
     }
+    # width over height is the ratio of the half angle tangents, and a
+    # square view is how a camera without one loads: it is the viewport's
+    if not np.isclose(half[0], half[1]):
+        perspective["aspectRatio"] = float(half[0] / half[1])
     # without `zfar` a glTF camera has an infinite projection
     if np.isfinite(camera.z_far):
         perspective["zfar"] = float(camera.z_far)
@@ -2293,28 +2310,12 @@ def _append_image(img, tree, buffer_items, extension_webp):
         # for everything else just use PNG
         save_as = "png"
 
-    from PIL import Image
-
-    data = None
-    try:
-        # an image loaded from a file which still has the same pixels is
-        # stored as that file, which is much faster than encoding it
-        with Image.open(util.wrap_as_stream(img.encoded)) as original:
-            if (
-                original.format == save_as.upper()
-                and original.mode == img.mode
-                and not any(key in original.info for key in COLOR_PROFILES)
-                and original.tobytes() == img.tobytes()
-            ):
-                data = img.encoded
-    except AttributeError:
-        pass
-    if data is None:
-        # get the image data into a bytes object
-        with util.BytesIO() as f:
-            img.save(f, format=save_as, icc_profile=None)
-            f.seek(0)
-            data = f.read()
+    # get the image data into a bytes object: glTF viewers ignore embedded
+    # color profiles and the validator flags them, so they're dropped
+    with util.BytesIO() as f:
+        img.save(f, format=save_as, icc_profile=None)
+        f.seek(0)
+        data = f.read()
 
     index = _buffer_append(buffer_items, data)
     # append buffer index and the GLTF-acceptable mimetype
@@ -2324,7 +2325,7 @@ def _append_image(img, tree, buffer_items, extension_webp):
     return len(tree["images"]) - 1
 
 
-def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
+def _append_material(mat, tree, buffer_items, mat_hashes, texture_hashes, extension_webp):
     """
     Add passed PBRMaterial as GLTF 2.0 specification JSON
     serializable data:
@@ -2342,8 +2343,10 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
       Binary blobs with various data
     mat_hashes : dict
       Which materials have already been added
-      Stored as { hashed : material index }, and which
-      images as { ("texture", id(image)) : texture index }
+      Stored as { hashed : material index }
+    texture_hashes : dict
+      Which images have already been added, stored as
+      { (mode, size, profile, hash of pixels) : texture index }
     extension_webp : bool
       Export textures as webP using EXT_texture_webp extension.
 
@@ -2423,7 +2426,16 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
             continue
         # an image used by more than one material or slot is stored once
         try:
-            result[key] = {"index": mat_hashes[("texture", id(img))]}
+            content = (
+                img.mode,
+                img.size,
+                hash_fast(img.tobytes()),
+            )
+        except AttributeError:
+            # not a PIL image so `_append_image` skips it
+            content = None
+        try:
+            result[key] = {"index": texture_hashes[content]}
             continue
         except KeyError:
             pass
@@ -2436,7 +2448,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
         if index is not None:
             # add a reference to the base color texture
             result[key] = {"index": len(tree["textures"])}
-            mat_hashes[("texture", id(img))] = len(tree["textures"])
+            texture_hashes[content] = len(tree["textures"])
 
             # add texture object, optionally using EXT_texture_webp
             if extension_webp:

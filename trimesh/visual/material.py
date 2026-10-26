@@ -788,12 +788,27 @@ class PBRMaterial(Material):
         else:
             self._data["name"] = value
 
-    def copy(self):
+    def copy(self, textures: bool = True):
+        """
+        Get a copy of the material.
+
+        Parameters
+        ----------
+        textures
+          Copy the images too, otherwise only the scalar fields.
+
+        Returns
+        ----------
+        copied
+          A new material.
+        """
         # doing a straight deepcopy fails due to PIL images
         kwargs = {}
         # collect stored values as kwargs
         for k, v in self._data.items():
             if v is None:
+                continue
+            if not textures and k.endswith("Texture"):
                 continue
             if hasattr(v, "copy"):
                 # use an objects explicit copy if available

@@ -3,7 +3,7 @@ import copy
 import numpy as np
 
 from .. import util
-from ..typed import Integer, NDArray, Sequence
+from ..typed import ArrayLike, Integer, NDArray, Sequence
 
 # the field of view of a camera made to frame a scene, in degrees
 DEFAULT_FOV = (60.0, 45.0)
@@ -323,25 +323,13 @@ class Camera:
         projection_matrix : (4, 4) float
           Projection matrix for the camera
         """
-        z_near, z_far = self.z_near, self.z_far
-        if self.magnification is not None:
-            # glTF's orthographic projection
-            x_mag, y_mag = self.magnification
-            projection = np.diag([1.0 / x_mag, 1.0 / y_mag, 2.0 / (z_near - z_far), 1.0])
-            projection[2, 3] = (z_far + z_near) / (z_near - z_far)
-            return projection
-        # both fields of view are used, as `look_at` frames with both
-        focal = 1.0 / np.tan(np.radians(self.fov) / 2.0)
-        # the `gluPerspective` matrix: the last row makes `w = -z`
-        projection = np.diag([*focal, -1.0, 0.0])
-        projection[2, 3] = -2.0 * z_near
-        projection[3, 2] = -1.0
-        if np.isfinite(z_far):
-            projection[2, 2] = (z_far + z_near) / (z_near - z_far)
-            projection[2, 3] = (2.0 * z_far * z_near) / (z_near - z_far)
-        # otherwise it is glTF's infinite projection, which is the limit
-        # of the finite one as `z_far` goes to infinity
-        return projection
+        orthographic = self.magnification is not None
+        if orthographic:
+            scale = 1.0 / np.asarray(self.magnification, dtype=np.float64)
+        else:
+            # both fields of view are used, as `look_at` frames with both
+            scale = 1.0 / np.tan(np.radians(self.fov) / 2.0)
+        return projection_matrices(scale, self.z_near, self.z_far, orthographic)[0]
 
     def to_rays(self):
         """
@@ -404,6 +392,60 @@ class Camera:
         if self.magnification is not None:
             lens = f"magnification: {self.magnification}"
         return f"<trimesh.scene.Camera> {lens} Resolution: {self.resolution}"
+
+
+def projection_matrices(
+    scale: ArrayLike, z_near: ArrayLike, z_far: ArrayLike, orthographic: ArrayLike
+) -> NDArray[np.float64]:
+    """
+    Camera to clip space matrices of glTF cameras looking down -Z,
+    which are symmetric around that axis.
+
+    Parameters
+    --------------
+    scale : (2,) or (n, 2) float
+      How X and Y are scaled into clip space: the focal length
+      `1 / tan(fov / 2)` of a perspective camera, or one over the
+      `magnification` half width and height of an orthographic one.
+    z_near : float or (n,) float
+      Distance to the near plane.
+    z_far : float or (n,) float
+      Distance to the far plane, which may be infinite for perspective.
+    orthographic : bool or (n,) bool
+      Orthographic rather than perspective.
+
+    Returns
+    --------------
+    projection : (n, 4, 4) float
+      Camera to clip space.
+    """
+    scale = np.reshape(np.asarray(scale, dtype=np.float64), (-1, 2))
+    count = len(scale)
+    z_near, z_far = (
+        np.broadcast_to(np.asarray(value, dtype=np.float64), (count,))
+        for value in (z_near, z_far)
+    )
+    orthographic = np.broadcast_to(orthographic, (count,))
+    projection = np.zeros((count, 4, 4))
+    projection[:, [0, 1], [0, 1]] = scale
+    # the `gluPerspective` matrix divided through by `z_far`, so an infinite
+    # far plane is glTF's infinite projection, which is its limit
+    ratio = z_near / z_far
+    with np.errstate(divide="ignore", invalid="ignore"):
+        depth = np.where(
+            orthographic, 2.0 / (z_near - z_far), (1.0 + ratio) / (ratio - 1.0)
+        )
+        offset = np.where(
+            orthographic,
+            (z_far + z_near) / (z_near - z_far),
+            2.0 * z_near / (ratio - 1.0),
+        )
+    projection[:, 2, 2] = depth
+    projection[:, 2, 3] = offset
+    # an orthographic `w` is one and a perspective one is `-z`
+    projection[:, 3, 2] = np.where(orthographic, 0.0, -1.0)
+    projection[:, 3, 3] = orthographic
+    return projection
 
 
 def look_at(points, fov, rotation=None, distance=None, center=None, pad=None):

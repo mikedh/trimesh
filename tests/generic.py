@@ -200,7 +200,7 @@ def random(*args, **kwargs):
     return state.random_sample(*args, **kwargs)
 
 
-def random_transforms(count, translate=1000, seed=0):
+def random_transforms(count, translate=1000, seed=0, rigid=True):
     """
     Deterministic generation of random transforms so unit
     tests have limited levels of flake.
@@ -213,6 +213,9 @@ def random_transforms(count, translate=1000, seed=0):
       The scale of translation to apply.
     seed : int
       Seed the generator these are drawn from.
+    rigid : bool
+      If False every fifth transform is mirrored and all are
+      scaled differently along each axis between 0.2 and 4.
 
     Yields
     ------------
@@ -224,9 +227,14 @@ def random_transforms(count, translate=1000, seed=0):
     with RandomSeed(seed) as r:
         quaternion = r.random((count, 3))
         translate = (r.random((count, 3)) - 0.5) * float(translate)
+        # drawn last so rigid transforms don't change with the option
+        scale = r.uniform(0.2, 4.0, (count, 3))
+    scale[::5, 0] *= -1.0
 
-    for quat, trans in zip(quaternion, translate):
+    for quat, trans, stretch in zip(quaternion, translate, scale):
         matrix = tf.random_rotation_matrix(rand=quat)
+        if not rigid:
+            matrix[:3, :3] *= stretch
         matrix[:3, 3] = trans
         yield matrix
 
@@ -692,14 +700,31 @@ def require_rendering():
         raise unittest.SkipTest(f"unable to create an OpenGL context: {E}")
 
 
-def set_render(scene, **settings):
-    """Change `RenderSettings` fields stored in a scene, returning it."""
-    from dataclasses import replace
+def set_render(scene, environment=None, pose=None, **settings):
+    """
+    Change the settings in `scene.metadata["render"]`, and with an
+    `EnvironmentLight` light the scene with it on a node at `pose` and
+    the scene's own lights or the default key and rim lights, returning it.
+    """
+    from trimesh.scene.lighting import EnvironmentLight, autolight
 
-    from trimesh.scene.metadata import RenderSettings
-
-    stored = RenderSettings.from_metadata(scene.metadata)
-    scene.metadata.update(replace(stored, **settings).to_metadata())
+    if len(settings) > 0:
+        scene.metadata["render"] = {**scene.metadata.get("render", {}), **settings}
+    if environment is None:
+        return scene
+    if scene.has_lights:
+        lights = [
+            light for light in scene.lights if not isinstance(light, EnvironmentLight)
+        ]
+    else:
+        lights, transforms = autolight(scene)
+        lights = lights[:-1]
+        for light, transform in zip(lights, transforms):
+            scene.graph[light.name] = transform
+    if pose is None:
+        pose = np.eye(4)
+    scene.graph[environment.name] = pose
+    scene.lights = [*lights, environment]
     return scene
 
 
@@ -741,28 +766,53 @@ def iou(a, b):
     return (a & b).sum() / max((a | b).sum(), 1)
 
 
-def camera_hits(scene, meshes=None):
+def camera_hits(scene, meshes=None, corner=(0.0, 0.0)):
     """
-    Where every pixel's camera ray first hits `meshes`, which default
-    to each geometry node's mesh in `nodes_geometry` order.
+    Where every pixel's camera ray first hits `meshes`, which default to
+    each mesh of `scene.dump()`, i.e. as posed and skinned. `corner` moves
+    every ray across its pixel, in pixels: (0.5, 0.5) is a pixel's corner.
     """
     if meshes is None:
-        meshes = [
-            scene.geometry[name].copy(include_visual=False).apply_transform(transform)
-            for transform, name in (scene.graph[n] for n in scene.graph.nodes_geometry)
-        ]
+        # bare triangles are all a ray needs, and `node` is `nodes_geometry` order
+        nodes = scene.graph.nodes_geometry
+        dumped = [m for m in scene.dump() if isinstance(m, trimesh.Trimesh)]
+        meshes = [trimesh.Trimesh(m.vertices, m.faces, process=False) for m in dumped]
+        node = np.array([nodes.index(m.metadata["node"]) for m in dumped])
+    else:
+        node = np.arange(len(meshes))
     combined = trimesh.util.concatenate(meshes)
     origins, vectors, pixels = scene.camera_rays()
+    if any(corner):
+        # the same rays through another point of each pixel
+        camera = scene.camera
+        coordinates = trimesh.scene.cameras.ray_pixel_coords(camera)[0]
+        step = np.ptp(coordinates, axis=0) / (np.array(camera.resolution) - 1)
+        coordinates = coordinates + np.array(corner) * step
+        to_world = scene.camera_transform
+        if camera.magnification is None:
+            directions = np.column_stack((coordinates, -np.ones(len(coordinates))))
+        else:
+            directions = np.tile([0.0, 0.0, -1.0], (len(coordinates), 1))
+            origins = trimesh.transformations.transform_points(
+                np.column_stack((coordinates, np.zeros(len(coordinates)))), to_world
+            )
+        vectors = trimesh.util.unitize(
+            trimesh.transformations.transform_points(
+                directions, to_world, translate=False
+            )
+        )
     points, ray, face = combined.ray.intersects_location(
         origins, vectors, multiple_hits=False
     )
+    mesh = np.repeat(np.arange(len(meshes)), [len(m.faces) for m in meshes])[face]
     return types.SimpleNamespace(
         combined=combined,
         points=points,
         ray=ray,
         face=face,
-        # which of `meshes` each hit is on
-        mesh=np.repeat(np.arange(len(meshes)), [len(m.faces) for m in meshes])[face],
+        # which of `meshes` each hit is on, and which node that is
+        mesh=mesh,
+        node=node[mesh],
         origins=origins,
         vectors=vectors,
         # camera ray pixels have the first row at the bottom
@@ -771,55 +821,75 @@ def camera_hits(scene, meshes=None):
     )
 
 
-def silhouette_checks(scene, image, prefix: str = "") -> dict:
-    """A render covers exactly the pixels whose camera ray hits the scene."""
+def ray_reference(scene):
+    """
+    What the camera sees by casting rays: the `node` index (-1 for nothing)
+    and view `depth` (0 for nothing) of each pixel's center ray, and `agreed`
+    where the center ray and the 4 rays through the corners of the pixel
+    all hit the same node, i.e. no silhouette or node edge crosses the pixel.
+    """
+    width, height = scene.camera.resolution
+    forward = trimesh.util.unitize(-scene.camera_transform[:3, 2])
+    nodes, depths = [], []
+    for corner in [(0, 0), (-0.5, -0.5), (-0.5, 0.5), (0.5, -0.5), (0.5, 0.5)]:
+        hits = camera_hits(scene, corner=corner)
+        node = np.full((height, width), -1)
+        node[hits.rows, hits.columns] = hits.node
+        nodes.append(node)
+        # perspective depth is from the camera and orthographic from its plane
+        depth = np.zeros((height, width))
+        depth[hits.rows, hits.columns] = (hits.points - hits.origins[hits.ray]) @ forward
+        depths.append(depth)
+    nodes, depths = np.array(nodes), np.array(depths)
+    agreed = (nodes == nodes[0]).all(axis=0)
+    return types.SimpleNamespace(
+        node=nodes[0],
+        depth=depths[0],
+        # how far the depth changes across each pixel
+        span=np.ptp(depths, axis=0),
+        agreed=agreed,
+        covered=agreed & (nodes[0] >= 0),
+    )
+
+
+def ray_checks(scene, arrays, prefix: str = ""):
+    """
+    A render of `scene` (`color`, `depth` and `segmentation` as from
+    `to_array`) is exactly what its camera's rays hit: where the center
+    and corner rays of a pixel agree the segmentation is that node and the
+    depth is the ray's distance along the view axis, and pixels where they
+    don't are only along the edges between nodes and the background.
+    """
     from scipy import ndimage
 
-    rendered = (image[..., :3] < 250).any(axis=-1)
-    # the whole scene as drawn, including skinning
-    hits = camera_hits(scene, [scene.to_mesh()])
-    reference = np.zeros(rendered.shape, dtype=bool)
-    reference[hits.rows, hits.columns] = True
+    reference = ray_reference(scene)
+    node, agreed = reference.node, reference.agreed
+    covered = reference.covered
+    # depth is float32 so it is rounded to half an epsilon of its own size,
+    # which is at most the farthest hit: allow 4 times that. The viewport
+    # transform is float32 too so a sample can sit a sliver of a pixel from
+    # its center, which moves depth by that fraction of the depth across the
+    # pixel: allow 1% where the worst case measured on these scenes is 0.25%
+    tolerance = 4.0 * np.finfo(np.float32).eps * reference.depth.max()
+    tolerance = tolerance + 0.01 * reference.span
+    # an edge is any pixel whose neighbors' center rays hit something else
+    edge = ndimage.maximum_filter(node, 3) != ndimage.minimum_filter(node, 3)
+    edge = ndimage.binary_dilation(edge, structure=np.ones((3, 3)))
+    # nothing is known past the border so a boundary can hide just outside it
+    edge[[0, -1], :] = True
+    edge[:, [0, -1]] = True
+    # and one agreeing pixel next to a disagreeing one can be sampled on the
+    # wrong side of a steep surface, so only the deep interior is exact
+    deep = ndimage.binary_erosion(agreed, structure=np.ones((3, 3)))
     checks = {
-        "reference is not empty": reference.any(),
-        # antialiased edges may touch any of the 8 neighbors
-        "rendered inside reference": not (
-            rendered & ~ndimage.binary_dilation(reference, structure=np.ones((3, 3)))
-        ).any(),
-        "reference inside rendered": not (
-            ndimage.binary_erosion(reference) & ~rendered
-        ).any(),
-        "silhouette IoU": iou(reference, rendered) > 0.9,
+        "rays hit the scene": covered.any(),
+        "ambiguity only on edges": not (~agreed & ~edge).any(),
+        "segmentation is rays": (arrays.segmentation == node)[agreed].all(),
+        "depth is rays": (np.abs(arrays.depth - reference.depth) <= tolerance)[
+            deep
+        ].all(),
     }
-    return {f"{prefix}{name}": ok for name, ok in checks.items()}
-
-
-def camera_ray_reference(scene):
-    """The view depth and node index each pixel's camera ray hits, or 0 and -1."""
-    width, height = scene.camera.resolution
-    hits = camera_hits(scene)
-    forward = -scene.camera_transform[:3, 2]
-    # perspective depth is from the camera and orthographic from its plane
-    eye = scene.camera_transform[:3, 3]
-    if scene.camera.magnification is not None:
-        eye = hits.origins[hits.ray]
-    depth = np.zeros((height, width))
-    index = np.full((height, width), -1)
-    depth[hits.rows, hits.columns] = (hits.points - eye) @ forward
-    index[hits.rows, hits.columns] = hits.mesh
-    return depth, index
-
-
-def affine(count, seed=0, rigid=False):
-    """Random transforms, mirrored and non-uniformly scaled unless `rigid`."""
-    random = np.random.default_rng(seed)
-    matrices = trimesh.transformations.random_rotation_matrix(num=count, seed=seed)
-    if not rigid:
-        scale = random.uniform(0.2, 4.0, (count, 3))
-        scale[::5, 0] *= -1.0
-        matrices[:, :3, :3] *= scale.reshape((-1, 1, 3))
-    matrices[:, :3, 3] = random.uniform(-10.0, 10.0, (count, 3))
-    return matrices
+    return {f"{prefix}{name}": bool(ok) for name, ok in checks.items()}
 
 
 def glb_chunks(export):

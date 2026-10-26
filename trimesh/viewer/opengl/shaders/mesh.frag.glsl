@@ -19,42 +19,27 @@ flat in float fragment_node_index;
 // per-frame values from `shaders.FRAME`, including the lights
 $frame_block
 
-// linear RGBA multiplied into every pixel
-uniform vec4 base_color_factor;
-uniform float metallic_factor;
-uniform float roughness_factor;
-uniform vec3 emissive_factor;
-// `KHR_materials_diffuse_transmission`: the fraction of diffuse light a
-// thin surface scatters out of its other side, and its linear color
-uniform float diffuse_transmission_factor;
-uniform vec3 diffuse_transmission_color_factor;
-// how alpha is used, from `conversion.ALPHA_MODES` which explains them
+// this mesh's material from `shaders.MATERIAL`
+$material_block
+
+// how alpha is used, from `shaders.ALPHA_MODES` which explains them
 $alpha_modes
-uniform int alpha_mode;
-uniform float alpha_cutoff;
 // missing textures are a 1x1 white texture so they change nothing,
-// except a normal map which `has_normal_texture` skips entirely
+// except a normal map which `material.has_textures.x` skips entirely
 uniform sampler2D base_color_texture;
 uniform sampler2D metallic_roughness_texture;
 uniform sampler2D emissive_texture;
 uniform sampler2D normal_texture;
-uniform bool has_normal_texture;
 uniform sampler2D occlusion_texture;
-// alpha multiplies `diffuse_transmission_factor` and color multiplies
-// `diffuse_transmission_color_factor`
+// alpha multiplies the diffuse transmission factor and color multiplies
+// `material.transmission_color`
 uniform sampler2D diffuse_transmission_texture;
 uniform sampler2D diffuse_transmission_color_texture;
 // how much of the environment nearby surfaces leave visible, per pixel
 uniform sampler2D ambient_occlusion;
-// one RGBA color per triangle looked up with `gl_PrimitiveID`
+// one RGBA color per triangle looked up with `gl_PrimitiveID`, if
+// `material.has_textures.y` is one
 uniform samplerBuffer face_colors;
-uniform bool has_face_colors;
-// false shades every triangle flat with its exact face normal
-uniform bool smooth_shading;
-// an invisible floor which is only as dark as the shadows on it
-uniform bool shadow_catcher;
-// `KHR_materials_unlit`: the base color is the final color
-uniform bool unlit;
 // the depth each shadow casting light sees, one layer per light
 uniform sampler2DArrayShadow shadow_maps;
 
@@ -111,17 +96,21 @@ vec3 perturb_normal(vec3 normal) {
 }
 
 void main() {
+    int alpha_mode = material.flags.x;
+    bool unlit = material.flags.y == 1;
+    // an invisible floor which is only as dark as the shadows on it
+    bool shadow_catcher = material.flags.z == 1;
     // the floor can't be seen from below
     if (shadow_catcher && !gl_FrontFacing) {
         discard;
     }
     // vertex and face colors are sRGB so convert them to linear
     vec4 face_color = vec4(1.0);
-    if (has_face_colors) {
+    if (material.has_textures.y == 1) {
         face_color = texelFetch(face_colors, gl_PrimitiveID);
     }
     vec4 srgb_color = vertex_color * face_color;
-    vec4 base_color = base_color_factor
+    vec4 base_color = material.base_color
         * texture(base_color_texture, texture_uv)
         * vec4(srgb_to_linear(srgb_color.rgb), srgb_color.a);
 
@@ -129,7 +118,7 @@ void main() {
     if (alpha_mode == ALPHA_OPAQUE) {
         alpha = 1.0;
     }
-    if (alpha_mode == ALPHA_MASK && alpha < alpha_cutoff) {
+    if (alpha_mode == ALPHA_MASK && alpha < material.factors.z) {
         discard;
     }
     // depth along the view axis and which node this is, for depth
@@ -145,11 +134,12 @@ void main() {
     }
 
     vec2 roughness_metallic = texture(metallic_roughness_texture, texture_uv).gb;
-    float roughness = clamp(roughness_factor * roughness_metallic.x, 0.04, 1.0);
-    float metallic = clamp(metallic_factor * roughness_metallic.y, 0.0, 1.0);
+    float roughness = clamp(material.factors.y * roughness_metallic.x, 0.04, 1.0);
+    float metallic = clamp(material.factors.x * roughness_metallic.y, 0.0, 1.0);
 
     vec3 surface_normal;
-    if (smooth_shading) {
+    // or every triangle flat with its exact face normal
+    if (frame.smooth_shading.x == 1) {
         surface_normal = normalize(view_normal);
         // light the back of a triangle as if it were the front
         if (!gl_FrontFacing) {
@@ -160,7 +150,7 @@ void main() {
         // neighboring pixels, which always faces the camera
         surface_normal = normalize(cross(dFdx(view_position), dFdy(view_position)));
     }
-    if (has_normal_texture) {
+    if (material.has_textures.x == 1) {
         surface_normal = perturb_normal(surface_normal);
     }
     // the camera is at the view space origin, or for an orthographic
@@ -178,9 +168,9 @@ void main() {
     // sees, which a thin surface scatters out of the front instead of
     // reflecting: the glTF spec mixes the reflected and transmitted
     // Lambert lobes by this fraction, and only for the dielectric part
-    float transmission = clamp(diffuse_transmission_factor
+    float transmission = clamp(material.factors.w
         * texture(diffuse_transmission_texture, texture_uv).a, 0.0, 1.0);
-    vec3 transmission_color = diffuse_transmission_color_factor
+    vec3 transmission_color = material.transmission_color.rgb
         * texture(diffuse_transmission_color_texture, texture_uv).rgb
         * (1.0 - metallic) * transmission;
     diffuse_color *= 1.0 - transmission;
@@ -275,7 +265,7 @@ void main() {
     diffuse_light += (diffuse_color * environment_diffuse
         + transmission_color * environment_light(-surface_normal, DIFFUSE_SHARPNESS))
         * occlusion;
-    diffuse_light += emissive_factor * texture(emissive_texture, texture_uv).rgb;
+    diffuse_light += material.emissive.rgb * texture(emissive_texture, texture_uv).rgb;
     specular_light += environment_specular * occlusion;
 
     if (shadow_catcher) {

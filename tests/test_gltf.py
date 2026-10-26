@@ -105,6 +105,66 @@ class GLTFTest(g.unittest.TestCase):
             "one texture": len(header["textures"]) == 1,
             "both materials": len(header["materials"]) == 2,
         }
+
+        # a distinct image object with the same pixels is stored once too,
+        # and an embedded color profile is dropped as glTF viewers ignore it
+        from PIL import ImageCms
+
+        profile = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+        image.info["icc_profile"] = profile
+        twin = g.trimesh.Scene()
+        for index, texture in enumerate([image, image.copy()]):
+            box = g.trimesh.creation.box()
+            box.visual = g.trimesh.visual.TextureVisuals(
+                uv=box.vertices[:, :2] + 0.5,
+                material=g.trimesh.visual.material.PBRMaterial(
+                    baseColorTexture=texture, roughnessFactor=0.25 * (index + 1)
+                ),
+            )
+            twin.add_geometry(box, f"twin_{index}", transform=tm([index * 2, 0, 0]))
+        export = twin.export(file_type="glb")
+        # an image with a color profile is flagged by the validator
+        g.validate_glb(export)
+        reloaded = g.roundtrip(export, "glb")
+        textures = [
+            geom.visual.material.baseColorTexture for geom in reloaded.geometry.values()
+        ]
+        header = g.glb_chunks(export)[0]
+        checks.update(
+            {
+                "twin images stored once": len(header["images"]) == 1,
+                "twin textures stored once": len(header["textures"]) == 1,
+                "twin materials differ": len(header["materials"]) == 2,
+                "profile dropped": not any(
+                    "icc_profile" in texture.info for texture in textures
+                ),
+                "pixels survive": all(
+                    g.np.array_equal(g.np.asarray(texture), g.np.asarray(image))
+                    for texture in textures
+                ),
+                "no encoded attribute": not any(
+                    hasattr(texture, "encoded") for texture in textures
+                ),
+            }
+        )
+        # a mesh without UVs can't look a texture up so stores only the
+        # scalars of its material and leaves the source material alone
+        box = g.trimesh.creation.box()
+        material = g.trimesh.visual.material.PBRMaterial(
+            baseColorTexture=image, roughnessFactor=0.5, metallicFactor=0.25
+        )
+        box.visual = g.trimesh.visual.TextureVisuals(material=material)
+        header = g.json.loads(box.export(file_type="gltf")["model.gltf"])
+        stored = header["materials"][0]["pbrMetallicRoughness"]
+        checks.update(
+            {
+                "no uv stores no image": "images" not in header,
+                "no uv scalars kept": stored["roughnessFactor"] == 0.5
+                and stored["metallicFactor"] == 0.25,
+                "no uv source untouched": box.visual.material is material
+                and material.baseColorTexture is image,
+            }
+        )
         for name, ok in checks.items():
             assert ok, name
 
@@ -612,6 +672,11 @@ class GLTFTest(g.unittest.TestCase):
                 ),
                 "finite zfar written": finite["perspective"]["zfar"]
                 == riding.camera.z_far,
+                "missing aspectRatio not invented": all(
+                    "aspectRatio" not in camera["perspective"]
+                    for camera in again["cameras"]
+                ),
+                "given aspectRatio written": "aspectRatio" in finite["perspective"],
             }
         )
         for name, ok in checks.items():
@@ -854,6 +919,12 @@ class GLTFTest(g.unittest.TestCase):
         reloaded = g.from_glb_bytes(box.export(file_type="glb"))
         kept = next(iter(reloaded.geometry.values())).vertex_attributes["_joints"]
         assert g.np.array_equal(kept, joints)
+
+        # joints and weights which aren't (n, 4) can't be written as VEC4,
+        # which raises when strict and otherwise drops the skinning
+        box.vertex_attributes["weights"] = g.np.ones((len(box.vertices), 3))
+        with g.pytest.raises(ValueError):
+            box.export(file_type="glb")
 
     def test_extras(self):
         # if GLTF extras are defined, make sure they survive a round trip
@@ -1492,6 +1563,31 @@ class GLTFTest(g.unittest.TestCase):
             ),
             "alpha exact": (diffuse[:, 3] == 255).all(),
         }
+        # the factor is the textbook sRGB decoding of the diffuse, stored
+        # in 8 bits so within half a level of it, alpha is never decoded
+        rgba = g.np.column_stack([levels, levels[::-1], levels // 2, levels])
+        srgb = rgba[:, :3] / 255.0
+        exact = g.np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4)
+        converted = [material.SimpleMaterial(diffuse=row).to_pbr() for row in rgba]
+        factor = g.np.array([current.baseColorFactor for current in converted])
+        checks = {
+            "factor is linear": (
+                g.np.abs(factor[:, :3] / 255.0 - exact) <= 0.5 / 255.0 + 1e-9
+            ).all(),
+            "alpha untouched": g.np.array_equal(factor[:, 3], rgba[:, 3]),
+        }
+        # an OBJ style material survives GLB with the linear value, not the sRGB one
+        box = g.trimesh.creation.box()
+        box.visual = g.trimesh.visual.TextureVisuals(
+            material=material.SimpleMaterial(diffuse=[188, 92, 24, 255])
+        )
+        expected = box.visual.material.to_pbr().baseColorFactor
+        loaded = next(
+            iter(g.roundtrip(box.export(file_type="glb"), "glb").geometry.values())
+        )
+        checks["linear factor in glb"] = g.np.array_equal(
+            loaded.visual.material.baseColorFactor, expected
+        ) and not g.np.array_equal(expected[:3], [188, 92, 24])
         for name, ok in checks.items():
             assert ok, name
 
@@ -1722,8 +1818,6 @@ def test_lights_gltf():
     `KHR_lights_punctual` stores lights once in a document array with
     each node referencing one by index, so both halves have to agree.
     """
-    from trimesh.scene.metadata import Environment, RenderSettings, Softbox
-
     lighting = g.trimesh.scene.lighting
     scene = g.trimesh.Scene(g.trimesh.creation.box())
     scene.lights = [
@@ -1781,34 +1875,38 @@ def test_lights_gltf():
         not in reloaded.metadata.get("gltf_extensions", {}),
     }
 
-    # a scene which never had lights set shouldn't grow the extension, as
-    # `scene.lights` would happily invent a default pair on being asked
+    # an environment light lives on its light only: not also in the metadata
+    # of the edge it sits on, so writing it again is byte identical
+    sky = g.trimesh.Scene(g.trimesh.creation.box())
+    sky.lights = [lighting.EnvironmentLight(name="sky", sky=[0.5, 0.6, 0.7])]
+    sky.graph["sky"] = g.trimesh.transformations.translation_matrix([0, 0, 3])
+    first = sky.export(file_type="glb")
+    again = g.roundtrip(first, "glb")
+    checks["environment not edge metadata"] = all(
+        g.trimesh.exchange.gltf.lights.ENVIRONMENT
+        not in (again.graph.transforms.node_data.get(node) or {}).get("metadata", {})
+        for node in again.graph.nodes
+    )
+    # loading adds mesh metadata so the first export isn't the fixed point
+    second = again.export(file_type="glb")
+    checks["environment re-export identical"] = (
+        g.roundtrip(second, "glb").export(file_type="glb") == second
+    )
+
+    # a scene which never had lights set shouldn't grow the extension
     plain = g.trimesh.Scene(g.trimesh.creation.box())
     checks["plain has no lights"] = not plain.has_lights
-    checks["plain gltf has no lights"] = (
-        b"KHR_lights_punctual" not in plain.export(file_type="gltf")["model.gltf"]
-    )
-    # asking for the default lights doesn't make them scene content
-    checks["default lights"] = len(plain.lights) == 2
     plain_header = g.glb_chunks(plain.export(file_type="glb"))[0]
-    checks["default lights not exported"] = "KHR_lights_punctual" not in plain_header.get(
-        "extensions", {}
-    ) and "render" not in plain_header["scenes"][0].get("extras", {})
+    checks["plain gltf has no lights"] = b"KHR_lights_punctual" not in plain.export(
+        file_type="gltf"
+    )["model.gltf"] and "render" not in plain_header["scenes"][0].get("extras", {})
 
     # changed render settings are scene content which round trips exactly
-    settings = RenderSettings(
-        environment=Environment(
-            sky=[0.1, 0.2, 0.3],
-            ground=[0.0, 0.0, 0.05],
-            softboxes=[Softbox(direction=[0, 1, 0], sharpness=6.0, color=[1, 1, 1])],
-        ),
-        ground_shadow=False,
-    )
-    plain.metadata.update(settings.to_metadata())
+    plain.metadata["render"] = {"ground_shadow": False, "exposure": 1.5}
     export = plain.export(file_type="glb")
     g.validate_glb(export, "render settings")
     checks["settings round trip"] = (
-        RenderSettings.from_metadata(g.roundtrip(export, "glb").metadata) == settings
+        g.roundtrip(export, "glb").metadata["render"] == plain.metadata["render"]
     )
 
     # a light which doesn't store a color is white per the spec

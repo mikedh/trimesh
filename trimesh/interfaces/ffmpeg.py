@@ -13,17 +13,15 @@ with VideoWriter("animation.mp4") as video:
 ```
 """
 
-import queue
 import shutil
 import subprocess
 import tempfile
-import threading
-from dataclasses import dataclass, field
 
 import numpy as np
 
 from ..constants import log
 from ..typed import Number
+from .generic import HIDDEN_CONSOLE
 
 _ffmpeg_executable = shutil.which("ffmpeg")
 exists = _ffmpeg_executable is not None
@@ -38,6 +36,9 @@ H264_LEVELS = {
     "4.2": (8704, 522240, 62500000, 78125000),
     "5.1": (36864, 983040, 300000000, 300000000),
     "5.2": (36864, 2073600, 300000000, 300000000),
+    "6": (139264, 4177920, 300000000, 300000000),
+    "6.1": (139264, 8355840, 600000000, 600000000),
+    "6.2": (139264, 16711680, 1000000000, 1000000000),
 }
 
 # The most bits a second and bits of buffer of level 4.2, which every
@@ -86,26 +87,8 @@ VIDEO_TYPES = ("mp4", "mkv", "mov")
 # frame channels to the ffmpeg name for those pixels
 INPUT_FORMATS = {3: "rgb24", 4: "rgba"}
 
-# the milliseconds an animated image format counts frame durations in,
-# where GIF's are hundredths of a second and the rest whole milliseconds
-DURATION_TICKS = {"gif": 10}
-
 # (profile, width, height, arguments) to whether it encoded a test frame
 _FFMPEG_PROFILE_WORKS = {}
-
-
-@dataclass
-class VideoSettings:
-    """
-    How to encode a video, where the defaults are already good, and
-    `profiles(width, height, settings)` lists which encoders work here.
-    """
-
-    fps: Number = 30.0
-    # an encoder from `PROFILES` like "libx264", or None for the fastest working
-    encoder: str | None = None
-    # any other ffmpeg output arguments
-    arguments: tuple = field(default_factory=tuple)
 
 
 def h264_level(width: int, height: int, fps: Number) -> str:
@@ -131,35 +114,7 @@ def h264_level(width: int, height: int, fps: Number) -> str:
     raise ValueError(f"{width}x{height} at {fps} fps is too large for H.264")
 
 
-def frame_durations(count: int, fps: Number, file_type: str) -> list[int]:
-    """
-    How long each frame of an animated image shows, in whole ticks of
-    its format, so every frame ends within half a tick of when it should
-    rather than a rounded duration drifting: 30 fps in a GIF is 30, 40
-    and 30 milliseconds rather than 30 every frame, which plays 11% fast.
-
-    Parameters
-    ------------
-    count : int
-      Frames in the animation.
-    fps : float
-      Frames per second.
-    file_type : str
-      The format, i.e. "gif", whose ticks are in `DURATION_TICKS`.
-
-    Returns
-    ------------
-    durations : list[int]
-      Milliseconds for each frame.
-    """
-    tick = DURATION_TICKS.get(file_type, 1)
-    ends = np.round(np.arange(count + 1) * 1000.0 / (fps * tick)).astype(np.int64)
-    return (np.diff(ends) * tick).tolist()
-
-
-def output_arguments(
-    profile: str, width: int, height: int, settings: VideoSettings
-) -> list[str]:
+def output_arguments(profile: str, width: int, height: int, fps: Number) -> list[str]:
     """
     The ffmpeg output arguments for one of `PROFILES` at a size, which
     write H.264 that plays everywhere.
@@ -170,8 +125,8 @@ def output_arguments(
       An encoder and its arguments, i.e. "libx264 -preset veryfast -crf 18".
     width, height : int
       Frame size in pixels, which is even.
-    settings : VideoSettings
-      The frame rate and any extra arguments.
+    fps : float
+      Frames per second.
 
     Returns
     ------------
@@ -179,7 +134,7 @@ def output_arguments(
       Everything between the input and the output file.
     """
     encoder, *quality = profile.split()
-    level = h264_level(width, height, settings.fps)
+    level = h264_level(width, height, fps)
     if "-cq" in quality and H264_LEVELS[level][2] > PEAK_BITRATE:
         # NVENC's constant quality overshoots the peak on bursts of detail
         # where the level allows more, which a target holds: measured on 4K
@@ -194,12 +149,12 @@ def output_arguments(
     words = (
         f"-c:v {encoder} {' '.join(quality)} -profile:v high -level:v {level} "
         + f"-maxrate {PEAK_BITRATE} -bufsize {PEAK_BUFFER} "
-        + f"-g {max(round(2 * settings.fps), 1)}"
+        + f"-g {max(round(2 * fps), 1)}"
     )
-    return [*words.split(), *PLAYBACK_ARGUMENTS, *settings.arguments]
+    return [*words.split(), *PLAYBACK_ARGUMENTS]
 
 
-def profile_works(profile: str, width: int, height: int, settings: VideoSettings) -> bool:
+def profile_works(profile: str, width: int, height: int, fps: Number) -> bool:
     """
     Check if a profile can encode a frame of a size on this machine
     with the arguments a video would use: hardware encoders need the
@@ -211,15 +166,15 @@ def profile_works(profile: str, width: int, height: int, settings: VideoSettings
       An encoder and its arguments from `PROFILES`.
     width, height : int
       Frame size in pixels, which is even.
-    settings : VideoSettings
-      How the video will be encoded.
+    fps : float
+      Frames per second.
 
     Returns
     ------------
     works : bool
       If the profile encoded a test frame.
     """
-    arguments = output_arguments(profile, width, height, settings)
+    arguments = output_arguments(profile, width, height, fps)
     key = (profile, width, height, tuple(arguments))
     try:
         return _FFMPEG_PROFILE_WORKS[key]
@@ -228,57 +183,31 @@ def profile_works(profile: str, width: int, height: int, settings: VideoSettings
     source = f"-v error -f lavfi -i testsrc=size={width}x{height}:rate=1 -frames:v 1"
     command = [_ffmpeg_executable, *source.split(), *arguments, "-f", "null", "-"]
     try:
-        works = subprocess.run(command, capture_output=True, timeout=30).returncode == 0
+        result = subprocess.run(
+            command, capture_output=True, timeout=30, **HIDDEN_CONSOLE
+        )
+        works = result.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
         works = False
     _FFMPEG_PROFILE_WORKS[key] = works
     return works
 
 
-def profiles(
-    width: int = 256, height: int = 256, settings: VideoSettings | None = None
-) -> list[str]:
-    """
-    Every profile which works on this machine, fastest first.
-
-    Parameters
-    ------------
-    width, height : int
-      Frame size in pixels, which is even.
-    settings : VideoSettings or None
-      How the video will be encoded, defaults to `VideoSettings()`.
-
-    Returns
-    ------------
-    working : list[str]
-      Profiles from `PROFILES`.
-    """
-    if settings is None:
-        settings = VideoSettings()
-    return [
-        profile
-        for profile in PROFILES
-        if profile_works(profile, width=width, height=height, settings=settings)
-    ]
-
-
 class VideoWriter:
     """
-    Encode frames into a video file with the system ffmpeg.
-
-    Frames are written to ffmpeg from a background thread so the next
-    frame can be rendered while the last one is being encoded. The size
-    is taken from the first frame and every frame after has to match.
+    Encode frames into a video file with the system ffmpeg, which
+    reads each frame as it is written. The size is taken from the
+    first frame and every frame after has to match.
     """
 
-    def __init__(self, path: str, settings: VideoSettings | None = None):
+    def __init__(self, path: str, fps: Number = 30.0):
         """
         Parameters
         ------------
         path : str
           Output file, whose extension picks the container: `.mp4`, `.mkv`...
-        settings : VideoSettings or None
-          How to encode, defaults to `VideoSettings()`.
+        fps : float
+          Frames per second.
         """
         if not exists:
             raise ImportError(
@@ -287,20 +216,14 @@ class VideoWriter:
                 + "animated `webp`, `avif` or `gif` which only need Pillow"
             )
         self.path = path
-        if settings is None:
-            settings = VideoSettings()
-        self.settings = settings
+        self.fps = fps
         # one of `PROFILES` and its encoder, picked when the first frame
-        # gives the size unless an encoder was named
+        # gives the size
         self.profile = None
-        self.encoder = settings.encoder
+        self.encoder = None
         self.shape = None
         self.process = None
-        self.thread = None
         self.log = None
-        # a few frames of slack so rendering and encoding overlap
-        self.frames = queue.Queue(maxsize=4)
-        self.error = None
         self.frame_count = 0
 
     def command(self, width: int, height: int, channels: int) -> list[str]:
@@ -319,7 +242,6 @@ class VideoWriter:
         command : list[str]
           Arguments to run ffmpeg with.
         """
-        settings = self.settings
         container = []
         if self.path.lower().endswith((".mp4", ".mov")):
             # the index at the front so a player starts without reading it all
@@ -327,14 +249,14 @@ class VideoWriter:
         # raw frames in on stdin
         source = (
             f"-v error -y -f rawvideo -pix_fmt {INPUT_FORMATS[channels]} "
-            + f"-s {width}x{height} -r {settings.fps}"
+            + f"-s {width}x{height} -r {self.fps}"
         )
         return [
             _ffmpeg_executable,
             *source.split(),
             *INPUT_COLOR,
             *("-i", "-"),
-            *output_arguments(self.profile, width, height, settings),
+            *output_arguments(self.profile, width, height, self.fps),
             *container,
             self.path,
         ]
@@ -348,8 +270,6 @@ class VideoWriter:
         frame : (height, width, 3 or 4) uint8
           RGB or RGBA pixels with the first row at the top.
         """
-        if self.error is not None:
-            raise self.error
         frame = np.asarray(frame, dtype=np.uint8)
         if self.shape is None:
             if frame.ndim != 3 or frame.shape[2] not in INPUT_FORMATS:
@@ -360,12 +280,18 @@ class VideoWriter:
         # 4:2:0 color needs an even size so an odd last row or column is
         # repeated, which also copies the frame into one contiguous block
         height, width = frame.shape[:2]
-        self.frames.put(np.pad(frame, ((0, height % 2), (0, width % 2), (0, 0)), "edge"))
+        padded = np.pad(frame, ((0, height % 2), (0, width % 2), (0, 0)), "edge")
+        try:
+            self.process.stdin.write(memoryview(padded))
+        except OSError:
+            # ffmpeg exited, which closing explains
+            self.close()
+            raise
         self.frame_count += 1
 
     def start(self, shape: tuple) -> None:
         """
-        Start ffmpeg and the thread feeding it for frames of a shape.
+        Start ffmpeg for frames of a shape.
 
         Parameters
         ------------
@@ -376,56 +302,33 @@ class VideoWriter:
         height, width, channels = shape
         # frames are padded to an even size
         width, height = width + width % 2, height + height % 2
-        settings = self.settings
-        # a named encoder uses its profile, or is used as it is
-        named = {profile.split()[0]: profile for profile in PROFILES}
-        self.profile = named.get(self.encoder, self.encoder)
+        # the fastest profile which works for this size on this machine,
+        # trying each in turn so the ones after it are never run
+        self.profile = next(
+            (
+                profile
+                for profile in PROFILES
+                if profile_works(profile, width, height, self.fps)
+            ),
+            None,
+        )
         if self.profile is None:
-            # the fastest profile which works for this size on this machine,
-            # trying each in turn so the ones after it are never run
-            self.profile = next(
-                (
-                    profile
-                    for profile in PROFILES
-                    if profile_works(profile, width, height, settings)
-                ),
-                None,
+            tried = ", ".join(profile.split()[0] for profile in PROFILES)
+            raise ValueError(
+                f"no H.264 encoder works for {width}x{height} in "
+                + f"`{_ffmpeg_executable}`, which tried: {tried}. Export "
+                + "an animated `webp`, `avif` or `gif` instead, which "
+                + "only need Pillow"
             )
-            if self.profile is None:
-                tried = ", ".join(profile.split()[0] for profile in PROFILES)
-                raise ValueError(
-                    f"no H.264 encoder works for {width}x{height} in "
-                    + f"`{_ffmpeg_executable}`, which tried: {tried}. Export "
-                    + "an animated `webp`, `avif` or `gif` instead, which "
-                    + "only need Pillow"
-                )
         self.encoder = self.profile.split()[0]
         command = self.command(width=width, height=height, channels=channels)
         log.debug(f"running `{' '.join(command)}`")
         # ffmpeg's log goes to a file read once it exits: a pipe nobody
         # reads until then fills and blocks ffmpeg, and so every `write`
         self.log = tempfile.TemporaryFile()
-        self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=self.log)
-        self.thread = threading.Thread(target=self.feed, daemon=True)
-        self.thread.start()
-
-    def feed(self) -> None:
-        """
-        Write queued frames to ffmpeg until a None arrives. After an error
-        frames are still taken off the queue, so `close` can't block on it.
-        """
-        while (frame := self.frames.get()) is not None:
-            if self.error is not None:
-                continue
-            try:
-                self.process.stdin.write(memoryview(frame))
-            except OSError as E:
-                # ffmpeg exited: surfaced by the next `write` or `close`
-                self.error = E
-        try:
-            self.process.stdin.close()
-        except OSError:
-            pass
+        self.process = subprocess.Popen(
+            command, stdin=subprocess.PIPE, stderr=self.log, **HIDDEN_CONSOLE
+        )
 
     def close(self) -> None:
         """
@@ -433,8 +336,11 @@ class VideoWriter:
         """
         if self.process is None:
             return
-        self.frames.put(None)
-        self.thread.join()
+        try:
+            self.process.stdin.close()
+        except OSError:
+            # ffmpeg already exited, which its return code explains
+            pass
         returncode = self.process.wait()
         self.log.seek(0)
         message = self.log.read().decode("utf-8", errors="replace")
@@ -442,8 +348,6 @@ class VideoWriter:
         self.process = None
         if returncode != 0:
             raise RuntimeError(f"ffmpeg failed with `{self.encoder}`:\n{message}")
-        if self.error is not None:
-            raise self.error
 
     def __enter__(self):
         """

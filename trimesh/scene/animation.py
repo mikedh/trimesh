@@ -10,8 +10,7 @@ import numpy as np
 
 from .. import caching
 from ..transformations import (
-    keyframe_interval,
-    quaternion_slerp,
+    sample_channel,
     skin_points,
     trs_from_matrix,
     trs_matrix,
@@ -184,26 +183,35 @@ class Animation:
           Transform of every edge at each time.
         """
         query = np.asanyarray(time, dtype=np.float64)
-        times = np.asarray(self.times)
-        lower, upper, _, fraction = keyframe_interval(times, query.reshape(-1))
-
+        shared = {"times": self.times, "query": query.reshape(-1)}
         if self.interpolation == "step":
             # hold each keyframe until the next one is reached
-            sampled = np.asarray(self.matrices)[np.where(fraction >= 1.0, upper, lower)]
+            sampled = sample_channel(
+                values=self.matrices,
+                tangent_in=None,
+                tangent_out=None,
+                mode="step",
+                rotation=False,
+                **shared,
+            )
         else:
-            translation, quaternion, scale = self.trs
+            translation, quaternion, scale = (
+                sample_channel(
+                    values=values,
+                    tangent_in=None,
+                    tangent_out=None,
+                    mode="linear",
+                    rotation=rotation,
+                    **shared,
+                )
+                for values, rotation in zip(self.trs, (False, True, False))
+            )
             count = len(self.edges)
-            blend = fraction[:, None, None]
-            translation, scale = (
-                (part[lower] + (part[upper] - part[lower]) * blend).reshape((-1, 3))
-                for part in (translation, scale)
-            )
-            rotation = quaternion_slerp(
-                quaternion[lower].reshape((-1, 4)),
-                quaternion[upper].reshape((-1, 4)),
-                np.repeat(fraction, count),
-            )
-            sampled = trs_matrix(translation, rotation, scale).reshape((-1, count, 4, 4))
+            sampled = trs_matrix(
+                translation.reshape((-1, 3)),
+                quaternion.reshape((-1, 4)),
+                scale.reshape((-1, 3)),
+            ).reshape((-1, count, 4, 4))
 
         if query.ndim == 0:
             return sampled[0]

@@ -39,16 +39,6 @@ jobs:
       run: |
         pip install --no-cache-dir .
         python tests/test_minimal.py
-    - name: Install ffmpeg (Linux)
-      if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y ffmpeg
-    - name: Install ffmpeg (macOS)
-      if: runner.os == 'macOS'
-      run: brew install ffmpeg
-    - name: Install ffmpeg (Windows)
-      if: runner.os == 'Windows'
-      # chocolatey shims land on PATH for later steps
-      run: choco install ffmpeg -y
     - name: Install Trimesh
       run: pip install --no-cache-dir .[easy,test]
     - name: Run Pytest
@@ -60,8 +50,17 @@ jobs:
     timeout-minutes: 30
     steps:
     - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
     - name: Run Pytest In Docker
-      run: make tests
+      # `make tests` with layers cached between runs, so the Blender
+      # archives in the `trimesh-setup --fetch-only` layer download once
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: .
+        file: helpers/Dockerfile
+        target: tests
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
   arch:
     name: Architecture Tests (s390x + i386)

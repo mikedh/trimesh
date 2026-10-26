@@ -6,6 +6,7 @@ import numpy as np
 
 from .. import caching, util
 from ..caching import hash_fast
+from ..constants import log, tol
 from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
 from ..typed import ArrayLike, Floating, Hashable, NDArray, Sequence
 
@@ -106,7 +107,9 @@ class SceneGraph:
         animation drives, keeping each edge's geometry and metadata.
         This is the same as calling `update` with the matrix and the
         rest of the edge's data for every edge, but only clears the
-        cache once.
+        cache once. It never adds a node or an edge: one which isn't in
+        the graph raises a ValueError if `tol.strict` and is otherwise
+        skipped with a warning.
 
         Parameters
         ------------
@@ -117,18 +120,23 @@ class SceneGraph:
         """
         edge_data = self.transforms.edge_data
         matrices = np.asanyarray(matrices, dtype=np.float64)
-        for (frame_from, frame_to), matrix in zip(edges, matrices):
-            # falsy frames like `0` or `""` are valid node names
-            if frame_from is None:
-                frame_from = self.base_frame
-            key = (frame_from, frame_to)
-            if key in edge_data:
-                edge_data[key]["matrix"] = matrix
-            else:
-                # a new edge changes the tree rather than only a matrix
-                self.update(frame_to=frame_to, frame_from=frame_from, matrix=matrix)
-        # every matrix changed in place so the hash has to be recomputed
-        self.transforms.invalidate()
+        try:
+            for (frame_from, frame_to), matrix in zip(edges, matrices):
+                # falsy frames like `0` or `""` are valid node names
+                if frame_from is None:
+                    frame_from = self.base_frame
+                key = (frame_from, frame_to)
+                if key in edge_data:
+                    edge_data[key]["matrix"] = matrix
+                    continue
+                # setting a matrix must never change the tree
+                message = f"can't set the matrix of `{frame_from} -> {frame_to}`"
+                if tol.strict:
+                    raise ValueError(message)
+                log.warning(message)
+        finally:
+            # every matrix changed in place so the hash has to be recomputed
+            self.transforms.invalidate()
 
     def get(
         self, frame_to: Hashable, frame_from: Hashable | None = None

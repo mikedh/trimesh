@@ -8,6 +8,14 @@ from tempfile import NamedTemporaryFile
 from .. import exchange
 from ..util import log
 
+# keyword arguments for `subprocess` which keep a console window from
+# flashing up on Windows, and nothing at all everywhere else
+HIDDEN_CONSOLE = {}
+if platform.system() == "Windows":
+    _startupinfo = subprocess.STARTUPINFO()
+    _startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    HIDDEN_CONSOLE["startupinfo"] = _startupinfo
+
 
 class MeshScript:
     def __init__(self, meshes, script, exchange="stl", debug=False, **kwargs):
@@ -65,18 +73,12 @@ class MeshScript:
             Template(part).substitute(self.replacement) for part in command.split()
         ]
         # run the binary
-        startupinfo = None
-        if platform.system() == "Windows":
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
         if self.debug:
             log.info("executing: {}".format(" ".join(command_run)))
 
         try:
-            output = check_output(
-                command_run, stderr=subprocess.STDOUT, startupinfo=startupinfo
-            )
+            output = check_output(command_run, stderr=subprocess.STDOUT, **HIDDEN_CONSOLE)
         except CalledProcessError as E:
             # raise with the output from the process
             raise RuntimeError(E.output.decode())

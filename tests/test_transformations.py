@@ -140,7 +140,7 @@ def test_trs():
     """TRS round trips any unsheared transform and batched quaternions match single."""
     tf = g.trimesh.transformations
     # a mirror on every fifth and a vanishing axis on the last
-    matrices = g.affine(50, seed=1)
+    matrices = g.np.array(list(g.random_transforms(50, 20.0, seed=1, rigid=False)))
     matrices[-1, :3, 2] = 0.0
     translation, quaternion, recovered = tf.trs_from_matrix(matrices)
     rebuilt = tf.trs_matrix(translation, quaternion, recovered)
@@ -165,6 +165,14 @@ def test_trs():
     fraction = g.np.random.default_rng(0).uniform(0, 1, 50)
     slerps = [tf.quaternion_slerp(*pair) for pair in zip(start, end, fraction)]
     quaternions = [tf.quaternion_from_matrix(matrix) for matrix in matrices]
+
+    # the angle between two rotations, where q and -q are the same one
+    def arc(a, b):
+        return 2.0 * g.np.arccos(g.np.clip(g.np.abs((a * b).sum(axis=-1)), 0.0, 1.0))
+
+    batched = tf.quaternion_slerp(start, end, fraction)
+    # (n, 4) with a single pair is a stack of one, not a single result
+    stacked_one = tf.quaternion_slerp(start[10:11], end[10:11], fraction[10:11])
 
     checks = {
         "round trip": g.np.allclose(rebuilt, matrices),
@@ -191,7 +199,16 @@ def test_trs():
         "batched from_matrix": g.np.allclose(
             tf.quaternion_from_matrix(matrices), quaternions
         ),
-        "batched slerp": g.np.allclose(tf.quaternion_slerp(start, end, fraction), slerps),
+        "batched slerp": g.np.allclose(batched, slerps),
+        # the strongest slerp predicate: constant speed along the shortest
+        # arc, unit length, and the whole arc is traveled by the end
+        "slerp arc": g.np.allclose(
+            arc(start[10:], batched[10:]), fraction[10:] * arc(start[10:], end[10:])
+        ),
+        "slerp unit": g.np.allclose(g.np.linalg.norm(batched, axis=1), 1.0),
+        "single slerp is a single": g.np.shape(slerps[10]) == (4,),
+        "stack of one slerp": stacked_one.shape == (1, 4)
+        and g.np.allclose(stacked_one[0], slerps[10]),
     }
     for name, ok in checks.items():
         assert ok, name
@@ -202,7 +219,7 @@ def test_skin_points():
     tf = g.trimesh.transformations
     random = g.np.random.default_rng(4)
     points = random.uniform(-2.0, 2.0, (200, 3))
-    matrices = g.affine(6, seed=8)
+    matrices = g.np.array(list(g.random_transforms(6, 20.0, seed=8, rigid=False)))
     joints = random.integers(0, 6, (200, 4))
     weights = random.random((200, 4))
     weights /= weights.sum(axis=1, keepdims=True)

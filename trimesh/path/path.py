@@ -711,6 +711,32 @@ class Path(parent.Geometry):
         ]
 
     @cache_decorator
+    def segments_indexed(self) -> tuple[NDArray[float64], NDArray[np.int64]]:
+        """
+        Every entity discretized into line segments along with
+        which entity each segment came from.
+
+        Returns
+        ---------
+        segments : (n, 2, dimension) float
+          The two endpoints of every line segment.
+        entity : (n,) int
+          Index of `self.entities` for every segment.
+        """
+        scale = self.scale
+        vertices = self.vertices
+        # entities are polymorphic so they discretize one at a time
+        stacked = [
+            util.stack_lines(entity.discrete(vertices, scale=scale))
+            for entity in self.entities
+        ]
+        lines = util.vstack_empty(stacked).reshape((-1, 2, vertices.shape[1]))
+        entity = np.repeat(
+            np.arange(len(stacked)), [len(lines) // 2 for lines in stacked]
+        )
+        return lines, entity
+
+    @property
     def segments(self) -> NDArray[float64]:
         """
         Every entity discretized into line segments, including
@@ -721,20 +747,9 @@ class Path(parent.Geometry):
         segments : (n, 2, dimension) float
           The two endpoints of every line segment.
         """
-        scale = self.scale
-        vertices = self.vertices
-        # entities are polymorphic so they discretize one at a time
-        stacked = [
-            util.stack_lines(entity.discrete(vertices, scale=scale))
-            for entity in self.entities
-        ]
-        # store which entity every segment came from
-        self._cache["segments_entity"] = np.repeat(
-            np.arange(len(stacked)), [len(lines) // 2 for lines in stacked]
-        )
-        return util.vstack_empty(stacked).reshape((-1, 2, vertices.shape[1]))
+        return self.segments_indexed[0]
 
-    @cache_decorator
+    @property
     def segments_entity(self) -> NDArray[np.int64]:
         """
         The index of the entity every segment came from.
@@ -744,9 +759,7 @@ class Path(parent.Geometry):
         segments_entity : (len(self.segments),) int
           Index of `self.entities` for every segment.
         """
-        # the value is computed and stored by `self.segments`
-        _ = self.segments
-        return self._cache["segments_entity"]
+        return self.segments_indexed[1]
 
     def export(self, file_obj=None, file_type=None, **kwargs):
         """

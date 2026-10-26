@@ -8,10 +8,15 @@ from trimesh.scene.animation import Animation, Skin
 tf = g.trimesh.transformations
 
 
+def transforms(count, seed=0, rigid=False):
+    """An array of `count` random transforms, mirrored and stretched unless `rigid`."""
+    return g.np.array(list(g.random_transforms(count, 20.0, seed, rigid)))
+
+
 def test_sample():
     """Sampling hits keyframes, clamps, keeps edges apart, slerps, steps and edits."""
     times = g.np.linspace(0.0, 4.0, 12)
-    matrices = g.np.stack((g.affine(12), g.affine(12, seed=1)), axis=1)
+    matrices = g.np.stack((transforms(12), transforms(12, seed=1)), axis=1)
     edges = [(None, "a"), ("a", "b")]
     query = g.np.linspace(-1.0, 5.0, 37)
     spun = tf.rotation_matrix(0.7, [0, 0, 1])
@@ -46,7 +51,7 @@ def test_sample():
 
     # a rotation travels the arc between keyframes: the angle away from
     # the first keyframe grows exactly linearly with time
-    ends = g.affine(2, seed=7, rigid=True)
+    ends = transforms(2, seed=7, rigid=True)
     fraction = g.np.linspace(0.0, 1.0, 21)
     sampled = Animation([(None, "a")], [0, 1], ends).at(fraction)[:, 0]
     trace = g.np.trace((g.np.linalg.inv(ends[0]) @ sampled)[:, :3, :3], axis1=1, axis2=2)
@@ -63,7 +68,7 @@ def test_sample():
 
     # editing the matrices in place is seen by the next sample, which
     # requires the cached decomposition to be thrown away
-    current = Animation([(None, "a")], times[:8], g.affine(8))
+    current = Animation([(None, "a")], times[:8], transforms(8))
     middle = 0.5 * (times[3] + times[4])
     before = current.at(middle)
     current.matrices[3, 0, :3, 3] = [9.0, 9.0, 9.0]
@@ -104,15 +109,18 @@ def test_scene():
         parent_node_name="parent",
         transform=tf.translation_matrix([5, 0, 0]),
     )
-    local = g.affine(9, seed=3, rigid=True)
+    local = transforms(9, seed=3, rigid=True)
     animation = Animation(
         # `parent` hangs from the base frame by name, `solo` by None
         edges=[("parent", "child"), (None, "solo"), ("world", "parent")],
         times=g.np.linspace(0.0, 1.0, 9),
-        matrices=g.np.stack((local, local, g.affine(9, seed=6, rigid=True)), axis=1),
+        matrices=g.np.stack((local, local, transforms(9, seed=6, rigid=True)), axis=1),
         name="spin",
     )
     scene.animations.append(animation)
+    # an animation only moves nodes the graph has, it never adds them
+    for node in ("parent", "solo"):
+        scene.graph.update(frame_to=node)
     graph = scene.graph
     edge_data = graph.transforms.edge_data
 
@@ -165,7 +173,7 @@ def test_scene():
     slow = Animation(
         edges=[(None, "slow")],
         times=g.np.linspace(0.0, 3.0, 7),
-        matrices=g.affine(7, seed=9, rigid=True)[:, None],
+        matrices=transforms(7, seed=9, rigid=True)[:, None],
         name="slow",
     )
     looped = scene.copy()
@@ -211,6 +219,23 @@ def test_scene():
     scene.units = "mm"
     checks["convert units"] = "parent" in scene.convert_units("m").graph.nodes
 
+    # a cubic spline needs two keyframes, so a lone one exports as a
+    # held value rather than crashing the spline fit
+    lone = g.trimesh.Scene()
+    lone.add_geometry(g.trimesh.creation.box(), node_name="mover")
+    pose = tf.translation_matrix([1.0, 2.0, 3.0]) @ tf.rotation_matrix(0.5, [0, 0, 1])
+    lone.animations.append(Animation([(None, "mover")], [0.5], pose[None, None]))
+    exported = lone.export(file_type="glb", animation_spline=True)
+    header, _ = g.glb_chunks(exported)
+    held = g.roundtrip(exported, "glb").animations[0]
+    checks["lone keyframe not spline"] = all(
+        sampler["interpolation"] != "CUBICSPLINE"
+        for sampler in header["animations"][0]["samplers"]
+    )
+    checks["lone keyframe round trip"] = g.np.allclose(
+        held.at([0.0, 0.5, 9.0])[:, 0], pose, atol=1e-6
+    )
+
     for name, ok in checks.items():
         assert ok, name
 
@@ -234,7 +259,7 @@ def bent_tube():
         frame_from="hip", frame_to="knee", matrix=tf.translation_matrix([0, 0, 1])
     )
     # glTF says the transform of a skinned mesh's own node must not move it
-    scene.graph.update(frame_to="holder", matrix=g.affine(2, seed=11)[0])
+    scene.graph.update(frame_to="holder", matrix=transforms(2, seed=11)[0])
     scene.add_geometry(
         tube, geom_name="tube", node_name="tube", parent_node_name="holder"
     )
@@ -345,7 +370,7 @@ def test_skin():
     checks["bind pose"] = g.np.allclose(tube_at(scene, 0.0), rest, atol=1e-12)
     # the skinned mesh's own node doesn't move it
     moved = scene.copy()
-    moved.graph.update(frame_to="holder", matrix=g.affine(2, seed=99)[0])
+    moved.graph.update(frame_to="holder", matrix=transforms(2, seed=99)[0])
     checks["node transform ignored"] = g.np.allclose(
         tube_at(moved, 0.6), tube_at(scene, 0.6), atol=1e-12
     )
@@ -419,17 +444,16 @@ def test_skin_render():
     scene.camera_transform = scene.camera.look_at(
         scene.bounds, rotation=tf.euler_matrix(0.2, 1.2, 0.0)
     )
-    image = g.render(scene, resolution=[200, 150]).color
-    checks = g.silhouette_checks(scene, image)
+    arrays = g.render(
+        scene, resolution=[200, 150], include_depth=True, include_segmentation=True
+    )
+    checks = g.ray_checks(scene, arrays)
 
     # and it isn't what an unskinned tube would look like
     unskinned = scene.copy()
     unskinned.skins = {}
-    hits = g.camera_hits(unskinned, [unskinned.to_mesh()])
-    static = g.np.zeros(image.shape[:2], dtype=bool)
-    static[hits.rows, hits.columns] = True
-    rendered = (image[..., :3] < 250).any(axis=-1)
-    checks["not the unskinned tube"] = g.iou(rendered, static) < 0.8
+    static = g.ray_reference(unskinned).node >= 0
+    checks["not the unskinned tube"] = g.iou(arrays.segmentation >= 0, static) < 0.8
 
     # one mesh drawn by two nodes with their own skins bending opposite ways
     twin = scene.copy()
@@ -445,8 +469,10 @@ def test_skin_render():
         inverse_bind_matrices=[tf.translation_matrix([-1.5, 0, z]) for z in [0, -1]],
     )
     twin.camera_transform = twin.camera.look_at(twin.bounds)
-    image = g.render(twin, resolution=[200, 150]).color
-    checks.update(g.silhouette_checks(twin, image, "twins "))
+    arrays = g.render(
+        twin, resolution=[200, 150], include_depth=True, include_segmentation=True
+    )
+    checks.update(g.ray_checks(twin, arrays, "twins "))
 
     for name, ok in checks.items():
         assert ok, name

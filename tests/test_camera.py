@@ -6,6 +6,32 @@ except BaseException:
 import numpy as np
 
 
+def project(scene, points):
+    """
+    Project world-space points through the scene's camera to normalized
+    device coordinates, the opposite of `Scene.camera_rays`.
+
+    Parameters
+    ----------
+    scene : trimesh.Scene
+      Scene with a camera.
+    points : (n, 3) float
+      World-space points.
+
+    Returns
+    ----------
+    ndc : (n, 3) float
+      Coordinates which are in view if all within [-1, 1].
+    """
+    homogeneous = g.np.column_stack([points, g.np.ones(len(points))])
+    clip = (
+        homogeneous
+        @ g.np.linalg.inv(scene.camera_transform).T
+        @ scene.camera.projection.T
+    )
+    return clip[:, :3] / clip[:, 3:4]
+
+
 class CameraTests(g.unittest.TestCase):
     def test_K(self):
         resolution = (320, 240)
@@ -228,7 +254,7 @@ class CameraTests(g.unittest.TestCase):
                         (column * half[0]) ** 2 + (row * half[1]) ** 2 + 1.0
                     )
                 hits = origins + vectors * distance[:, None]
-                ndc = scene.camera_project(hits)
+                ndc = project(scene, hits)
                 checks.update(
                     {
                         f"{name} unit rays": g.np.allclose(
@@ -259,7 +285,7 @@ class CameraTests(g.unittest.TestCase):
     def test_default_framing(self):
         """The default camera centers a whole assembly inside its frustum."""
         scene = g.get_mesh("cycloidal.3DXML")
-        ndc = scene.camera_project(g.trimesh.bounds.corners(scene.bounds))
+        ndc = project(scene, g.trimesh.bounds.corners(scene.bounds))
         checks = {
             "corners in frustum": (g.np.abs(ndc) <= 1.0 + 1e-6).all(),
             "centered": g.np.linalg.norm(ndc[:, :2].mean(axis=0)) < 0.25,

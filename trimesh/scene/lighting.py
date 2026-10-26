@@ -10,11 +10,29 @@ https://github.com/mmatl/pyrender
 
 import numpy as np
 
-from .. import util, visual
-from ..typed import NDArray, float64
+from .. import caching, util, visual
+from ..geometry import align_vectors
+from ..typed import ArrayLike, NDArray, float64
+from .cameras import current_view
 
 # default light color
 _DEFAULT_RGBA = np.array([60, 60, 60, 255], dtype=np.uint8)
+
+# Rec.709 weights of linear RGB for how bright a color looks
+LUMINANCE = np.array([0.2126, 0.7152, 0.0722])
+
+# the default studio's warm key and cool rim light colors, which glTF
+# stores as linear RGB, and its slightly warm sky and floor: every part
+# of the studio is as bright as white of the luminance it is given
+KEY_COLOR = np.array([255, 219, 178])
+RIM_COLOR = np.array([191, 212, 255])
+SKY_COLOR = np.array([255, 242, 230])
+
+# the default studio's (azimuth, elevation) in degrees of its key light,
+# its rim light, and the softboxes on the key's side and the rim's side:
+# azimuth is around up from towards the camera to its right, and the key
+# is high so its shadow stays short and under the scene
+STUDIO_ANGLES = np.radians([[45.0, 35.0], [210.0, 65.0], [60.0, 20.0], [-70.0, 12.0]])
 
 
 class Light(util.ABC):
@@ -223,26 +241,166 @@ class SpotLight(Light):
         self._outerConeAngle = float(value)
 
 
-def autolight(scene) -> tuple[list[Light], list[NDArray[float64]]]:
+# one large soft light infinitely far away in an `EnvironmentLight`, which
+# is a spherical Gaussian `color * exp(sharpness * (dot(d, direction) - 1))`
+# for every direction `d`: larger `sharpness` is a smaller, harder light
+SOFTBOX = np.dtype(
+    [
+        # unit vector towards the softbox in the frame of the light's node
+        ("direction", "<f8", 3),
+        ("sharpness", "<f8"),
+        # linear RGB radiance at its center
+        ("color", "<f8", 3),
+    ]
+)
+
+
+class EnvironmentLight(Light):
     """
-    The lights a render of a scene without lights uses: a key light
-    and a rim light fixed in the world around the scene's camera, see
-    `trimesh.scene.metadata.RenderSettings.resolve`. They aren't added
-    to the scene.
+    Light arriving from infinitely far away from every direction `d` in
+    the frame of the node carrying it, whose +Y is up: `ground` from
+    straight down to `sky` from straight up linear in `d[1]`, plus large
+    soft lights which are rows of `SOFTBOX`, all multiplied by `color`
+    and `intensity`. `EnvironmentLight(sky=c, ground=c)` is a constant
+    ambient light `c`. glTF has no such light so it is stored in the
+    `extras` of its node.
+
+    Attributes
+    ----------
+    name : str, optional
+        Name of the light.
+    color : (4,) uint8
+        RGBA tint of the whole environment in linear space, white by default.
+    intensity : float
+        Multiplies the whole environment.
+    sky : (3,) float
+        Linear RGB radiance from straight up.
+    ground : (3,) float
+        Linear RGB radiance from straight down.
+    softboxes : (n,) SOFTBOX
+        Each softbox's direction, sharpness and color.
+    """
+
+    def __init__(
+        self,
+        name=None,
+        color=None,
+        intensity=None,
+        sky=None,
+        ground=None,
+        softboxes=None,
+    ):
+        if color is None:
+            # white so `sky`, `ground` and the softboxes are the radiance
+            color = [255, 255, 255, 255]
+        super().__init__(name=name, color=color, intensity=intensity)
+        if sky is None:
+            sky = np.zeros(3)
+        if ground is None:
+            ground = np.zeros(3)
+        if softboxes is None:
+            softboxes = []
+        self.sky = np.array(sky, dtype=np.float64).reshape(3)
+        self.ground = np.array(ground, dtype=np.float64).reshape(3)
+        # a `SOFTBOX` array, or anything it can be made from such as
+        # `[(direction, sharpness, color), ...]`
+        self.softboxes = np.array(softboxes, dtype=SOFTBOX).reshape(-1)
+
+    def __hash__(self) -> int:
+        """
+        A hash of every value, which changes when any of them do.
+
+        Returns
+        ------------
+        hashed : int
+          Hash of the color, intensity, gradient and softboxes.
+        """
+        values = np.concatenate(
+            (self.color / 255.0, [self.intensity], self.sky, self.ground)
+        )
+        return caching.hash_fast(values.tobytes() + self.softboxes.tobytes())
+
+
+def autolight(
+    scene, camera_transform: ArrayLike | None = None
+) -> tuple[list[Light], NDArray[float64]]:
+    """
+    Generate lights for a scene that look decent: a photo studio fixed
+    in the world around the camera, with a warm key light from in front,
+    to the right and above, a cool rim light from high behind which
+    outlines things, and an environment of a dim gradient from a dark
+    floor to a pale sky, a broad light overhead and two softboxes either
+    side of the camera which put window-like highlights on shiny surfaces.
 
     Parameters
     --------------
     scene : trimesh.Scene
       Scene to light, which is not changed.
+    camera_transform : None or (4, 4) float
+      Where the camera is, defaulting to `current_view(scene)`.
 
     Returns
     --------------
     lights : [Light]
-      The scene's own lights or the default ones.
-    transforms : (n, 4, 4) float
+      The key and rim `DirectionalLight` and an `EnvironmentLight`.
+    transforms : (3, 4, 4) float
       World pose of each light.
     """
-    from .metadata import RenderSettings
+    if camera_transform is None:
+        camera_transform = current_view(scene)[1]
+    camera_transform = np.asarray(camera_transform, dtype=np.float64)
+    # the world axis nearest to up on screen
+    axes = np.vstack((np.eye(3), -np.eye(3)))
+    up = axes[np.argmax(axes @ camera_transform[:3, 1])]
+    # the camera's backwards direction made level, which is never
+    # vertical as up is the axis nearest the camera's +Y, then the right
+    # hand rule completes the studio's frame: +X right, +Y up and +Z back
+    backwards = camera_transform[:3, 2]
+    back = util.unitize(backwards - np.dot(backwards, up) * up)
+    frame = np.eye(4)
+    frame[:3, :3] = np.column_stack((np.cross(up, back), up, back))
 
-    studio = RenderSettings.from_metadata(scene.metadata).resolve(scene)
-    return studio.lights, list(studio.transforms)
+    azimuth, elevation = STUDIO_ANGLES.T
+    towards = np.column_stack(
+        (
+            np.sin(azimuth) * np.cos(elevation),
+            np.sin(elevation),
+            np.cos(azimuth) * np.cos(elevation),
+        )
+    )
+    # tints scaled to a luminance so tinting changes color and not how
+    # bright it looks: a white surface facing a directional light of
+    # intensity `I` lux and linear color `C` reflects `C * I / pi`, which is
+    # 0.58 and 0.28 for the key and rim, then the sky and floor, and the
+    # softboxes overhead, on the key's side and on the rim's side
+    tints = np.array(
+        [KEY_COLOR, RIM_COLOR, SKY_COLOR, SKY_COLOR, [255] * 3, KEY_COLOR, RIM_COLOR]
+    )
+    luminance = np.array([0.58 * np.pi, 0.28 * np.pi, 0.31, 0.096, 0.35, 2.0, 1.0])
+    scale = luminance / (tints / 255.0 @ LUMINANCE)
+    radiance = tints / 255.0 * scale[:, None]
+
+    names = set(scene.graph.nodes)
+    lights = [
+        DirectionalLight(
+            name=util.unique_name("key_light", names),
+            color=[*KEY_COLOR, 255],
+            intensity=scale[0],
+        ),
+        DirectionalLight(
+            name=util.unique_name("rim_light", names),
+            color=[*RIM_COLOR, 255],
+            intensity=scale[1],
+        ),
+        EnvironmentLight(
+            name=util.unique_name("environment_light", names),
+            sky=radiance[2],
+            ground=radiance[3],
+            softboxes=list(
+                zip([[0.0, 1.0, 0.0], *towards[2:]], [4.0, 30.0, 30.0], radiance[4:])
+            ),
+        ),
+    ]
+    # a light's +Z points back towards where its light comes from
+    transforms = [align_vectors([0.0, 0.0, 1.0], frame[:3, :3] @ v) for v in towards[:2]]
+    return lights, np.array([*transforms, frame])

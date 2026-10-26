@@ -323,7 +323,7 @@ def _diffuse_transmission(context: MaterialContext) -> dict[str, Any]:
 
 
 @register_handler("KHR_materials_unlit", scope="material")
-def materials_unlit(context: MaterialContext) -> dict[str, Any]:
+def _unlit(context: MaterialContext) -> dict[str, Any]:
     """
     Read that a material's base color is its final color, which is an
     empty object.

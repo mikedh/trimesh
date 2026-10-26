@@ -4,8 +4,8 @@ viewer.py
 
 An OpenGL viewer for `trimesh.Scene` which also renders images
 offscreen. Geometry is converted to numpy arrays in `conversion.py`,
-uploaded and drawn with raw OpenGL in `opengl/`, and shaded by the
-small GLSL programs in `trimesh/viewer/opengl/shaders`.
+uploaded and drawn with raw OpenGL in `resources.py`, and shaded by
+the small GLSL programs in `trimesh/viewer/opengl/shaders`.
 """
 
 import time
@@ -19,7 +19,7 @@ from ... import util
 from ...bounds import corners
 from ...scene import Scene
 from ...scene.cameras import current_view
-from ...scene.metadata import RenderSettings
+from ...transformations import adjugate
 from ...typed import (
     ArrayLike,
     Integer,
@@ -31,15 +31,20 @@ from ...typed import (
     Sequence,
 )
 from ...visual import to_rgba
-from .. import opengl
 from ..conversion import (
-    ALPHA_MODES,
+    RENDER_DEFAULTS,
+    environment_frame,
     geometry_to_arrays,
+    ground_light,
     light_arrays,
+    occlusion_radius,
+    render_lights,
+    shadow_floor,
     shadow_projections,
 )
 from ..trackball import Trackball
-from . import gl, shaders
+from . import resources, shaders
+from .resources import gl
 
 # (input, action) for the help message
 MOUSE_BINDINGS = (
@@ -98,7 +103,7 @@ class ViewerState:
     fullscreen: bool = False
     axis: bool = False
     grid: bool = False
-    # in pixels, or None for the scene's `RenderSettings`
+    # in pixels, or None for the scene's `metadata["render"]`
     line_width: Number | None = None
     point_size: Number | None = None
     # scene graph nodes which aren't drawn
@@ -107,6 +112,9 @@ class ViewerState:
     fixed: Iterable = field(default_factory=set)
     # play `scene.animations` if there are any
     playing: bool = True
+    # the camera rides the node of the scene's camera, as renders do,
+    # rather than staying where the trackball puts it
+    follow_camera: bool = False
     # directional and spot lights cast shadows
     shadows: bool = True
     # nearby surfaces hide the environment from creases and corners
@@ -146,7 +154,7 @@ class DrawTable:
 
     # scene graph node for each row before the axis and grid
     nodes: list
-    # `opengl.GeometryBuffers` for each row
+    # `resources.GeometryBuffers` for each row
     buffers: list
     # rows which stay put relative to the camera
     fixed: np.ndarray
@@ -173,8 +181,11 @@ class DrawTable:
     bound_joints: np.ndarray
     bound_rows: np.ndarray
     # scene graph nodes whose world transform is needed every frame:
-    # `nodes`, then the scene's own lights if it has any, then `joint_nodes`
+    # `nodes`, then the scene's own lights if it has any, then `joint_nodes`,
+    # then the scene's camera if the viewer follows it
     world_nodes: list
+    # how many of `world_nodes` are the scene's own lights
+    scene_light_count: int
     # every edge between the world and those nodes, parents before
     # children, with the row of each edge's parent edge or -1 for the
     # world, the rows of each depth of the tree, and the row of each of
@@ -187,8 +198,14 @@ class DrawTable:
     inverse_binds: np.ndarray
     # (n, 8, 3) corners of the box around each row's vertices
     corners: np.ndarray
-    # `conversion.LightArrays` from `Scene.lights`
-    lights: object = None
+    # `shaders.LIGHT` rows from `conversion.light_arrays`, the scene graph
+    # node of each, and the outer cone angle of spot lights
+    light_rows: np.ndarray
+    light_nodes: list
+    cone_angles: np.ndarray
+    # every animation driving an edge of `chain_edges`, which edges of its
+    # matrices do, and the rows of `chain_edges` they are
+    animated: list
 
 
 class SceneViewer:
@@ -269,7 +286,7 @@ class SceneViewer:
             resolution = self.camera.resolution
 
         if visible:
-            self.context = opengl.create_context(
+            self.context = resources.create_context(
                 width=resolution[0],
                 height=resolution[1],
                 visible=True,
@@ -306,39 +323,27 @@ class SceneViewer:
         self.initial_view = np.linalg.inv(self.initial_camera)
         # the default lights and environment are fixed in the world
         # around the camera the viewer starts at
-        self.studio = RenderSettings.from_metadata(scene.metadata).resolve(
-            scene, self.initial_camera
+        lights, transforms = render_lights(scene, self.initial_camera)
+        self.lights, self.light_transforms = lights[:-1], transforms[:-1]
+        self.environment, self.environment_transform = lights[-1], transforms[-1]
+        self.render_settings = {**RENDER_DEFAULTS, **scene.metadata.get("render", {})}
+        # lines and points are as wide as the scene says unless set here
+        for name in ("line_width", "point_size"):
+            if getattr(self.state, name) is None:
+                setattr(self.state, name, self.render_settings[name])
+        self.ground = None
+        if self.render_settings["ground_shadow"]:
+            self.ground = shadow_floor(scene, self.environment_transform)
+        # what every frame starts from, which only changes with the size:
+        # the environment in world space and the render settings
+        self.frame_constants = environment_frame(
+            self.environment, self.environment_transform
         )
+        self.frame_constants["ground_light"][0, 0] = ground_light(lights, transforms)
+        self.frame_constants["occlusion_radius"][0, 0] = occlusion_radius(scene)
+        self.frame_constants["exposure"][0, 0] = self.render_settings["exposure"]
         self.images = []
         self.allocate(framebuffer_size)
-        # the softboxes as the frame stores them, in world space
-        softboxes = self.studio.environment.softboxes[: shaders.MAX_SOFTBOXES]
-        self.softboxes = np.zeros(len(softboxes), dtype=shaders.FRAME["softboxes"].base)
-        rows = np.reshape(
-            [[*box.direction, box.sharpness, *box.color] for box in softboxes], (-1, 7)
-        )
-        self.softboxes["direction"][:, :3] = util.unitize(rows[:, :3])
-        self.softboxes["direction"][:, 3] = rows[:, 3]
-        self.softboxes["color"][:, :3] = rows[:, 4:]
-        # playing animations poses the scene's own graph, so what they
-        # drive is put back when the viewer closes
-        forest = scene.graph.transforms
-        animated = dict.fromkeys(
-            child for animation in scene.animations for _, child in animation.edges
-        )
-        # every node has one parent, which is the edge an animation drives
-        self.animated_edges = [
-            (forest.parents[child], child)
-            for child in animated
-            if child in forest.parents
-        ]
-        self.animated_matrices = np.reshape(
-            [
-                forest.edge_data[edge].get("matrix", IDENTITY)
-                for edge in self.animated_edges
-            ],
-            (-1, 4, 4),
-        )
         self.state.trackball = self.create_trackball()
         self.update_decorations()
 
@@ -356,9 +361,11 @@ class SceneViewer:
             pyglet.clock.schedule_interval(
                 self.on_callback, callback_period or 1.0 / 30.0
             )
-        # seconds into the animation, advanced by the clock while playing
-        self.animation_time = 0.0
+        # seconds into `scene.animations` which are drawn without posing the
+        # scene, or None to draw the scene graph as it is
+        self.animation_time = None
         if visible and len(scene.animations) > 0:
+            self.animation_time = 0.0
             pyglet.clock.schedule_interval(self.on_animate, 1.0 / 60.0)
         if start_loop and visible:
             self.run()
@@ -416,20 +423,16 @@ class SceneViewer:
         pyglet.clock.unschedule(self.on_callback)
         pyglet.clock.unschedule(self.on_animate)
         self.window.switch_to()
-        for item in (
+        resources.delete(
             *self.geometry_buffers.values(),
             *self.decoration_buffers.values(),
             *self.images,
-        ):
-            item.delete()
+        )
         self.geometry_buffers.clear()
         self.decoration_buffers.clear()
-        if len(self.animated_edges) > 0:
-            # put back the pose the scene had before playing its animations
-            self.scene.graph.update_matrices(self.animated_edges, self.animated_matrices)
         # the hidden window is shared and stays open
         if self.context is not _HIDDEN_CONTEXT.get("context"):
-            self.context.delete()
+            resources.delete(self.context)
             self.window.close()
 
     def allocate(self, size: Sequence[Integer] | NDArray) -> None:
@@ -442,19 +445,24 @@ class SceneViewer:
         size : (2,) int
           Width and height in pixels.
         """
-        for image in self.images:
-            image.delete()
+        resources.delete(*self.images)
         # pixels are square, keeping the camera's vertical field of view
         self.camera.fit_resolution(size)
-        self.framebuffer = opengl.create_framebuffer(*size)
-        self.resolve_framebuffer = opengl.create_framebuffer(*size, samples=0)
-        self.occlusion = opengl.create_ambient_occlusion(*size)
+        self.framebuffer = resources.create_framebuffer(*size)
+        self.resolve_framebuffer = resources.create_framebuffer(*size, samples=0)
+        self.occlusion = resources.create_ambient_occlusion(*size)
         self.images = [self.framebuffer, self.resolve_framebuffer, self.occlusion]
         # images for bloom only if the scene has any
         self.bloom = None
-        if self.studio.bloom > 0.0:
-            self.bloom = opengl.create_bloom(*size)
+        if self.render_settings["bloom"] > 0.0:
+            self.bloom = resources.create_bloom(*size)
             self.images.append(self.bloom)
+            level, spread = resources.bloom_level(size[1])
+            self.frame_constants["bloom"][0, :3] = (
+                self.render_settings["bloom"],
+                spread,
+                level,
+            )
 
     def place_camera(self, camera_transform: ArrayLike) -> None:
         """
@@ -563,20 +571,20 @@ class SceneViewer:
         wanted = {
             "axis": bool(self.state.axis),
             "grid": bool(self.state.grid),
-            "ground": self.studio.ground is not None,
+            "ground": self.ground is not None,
         }
         for name, show in wanted.items():
             if show == (name in self.decoration_buffers):
                 continue
             if not show:
-                self.decoration_buffers.pop(name).delete()
+                resources.delete(self.decoration_buffers.pop(name))
                 continue
             bounds = self.scene.bounds
             if name == "axis":
                 geometry = axis(origin_size=self.scene.scale / 100.0)
             elif name == "ground":
                 geometry = Trimesh(
-                    vertices=self.studio.ground,
+                    vertices=self.ground,
                     faces=[[0, 1, 2], [0, 2, 3]],
                     process=False,
                 )
@@ -591,11 +599,13 @@ class SceneViewer:
                 )
             arrays = geometry_to_arrays(geometry)
             if name == "ground":
-                # a floor which only shows shadows, blended over the background
-                arrays.material.shadow_catcher = True
-                arrays.material.alpha_mode = ALPHA_MODES["BLEND"]
+                # a floor which only shows shadows, blended over the
+                # background, in a copy of the record cached on the mesh
+                material = arrays.material.copy()
+                material["flags"][[0, 2]] = (shaders.ALPHA_MODES["BLEND"], 1)
+                arrays = replace(arrays, material=material)
             self.window.switch_to()
-            self.decoration_buffers[name] = opengl.upload_geometry(arrays)
+            self.decoration_buffers[name] = resources.upload_geometry(arrays)
         self.state.scene_changed = True
 
     def sync_geometry(self) -> bool:
@@ -623,12 +633,12 @@ class SceneViewer:
                 continue
             previous = self.geometry_buffers.pop(name, None)
             if previous is not None:
-                previous.delete()
+                resources.delete(previous)
             arrays = geometry_to_arrays(self.scene.geometry[name])
             if arrays is not None:
-                self.geometry_buffers[name] = opengl.upload_geometry(arrays)
+                self.geometry_buffers[name] = resources.upload_geometry(arrays)
         for name in set(self.geometry_buffers).difference(keys):
-            self.geometry_buffers.pop(name).delete()
+            resources.delete(self.geometry_buffers.pop(name))
         self.geometry_keys = keys
         # every matrix is read every frame, so only the parents and the
         # geometry of every node matter, which only change with the hash
@@ -675,7 +685,8 @@ class SceneViewer:
             [hash(item.material_key) for item in buffers], return_inverse=True
         )
         mesh = np.array([item.kind == "mesh" for item in buffers], dtype=bool)
-        alpha = np.array([item.material.alpha_mode for item in buffers], dtype=np.int64)
+        # every material's alpha mode, unlit, shadow catcher and double sided
+        flags = np.reshape([item.material["flags"] for item in buffers], (-1, 4))
         fixed = np.zeros(len(buffers), dtype=bool)
         fixed[: len(names)] = [name in state.fixed for name in names]
         position = {node: index for index, node in enumerate(graph.nodes_geometry)}
@@ -709,16 +720,20 @@ class SceneViewer:
             dict.fromkeys(joint for skin in skins for joint in skin.joints)
         )
         lookup = {node: index for index, node in enumerate(joint_nodes)}
-        lights = light_arrays(
-            self.studio.lights, limit=shaders.MAX_LIGHTS, shadows=shaders.MAX_SHADOWS
+        light_rows, light_nodes, cone_angles = light_arrays(
+            self.lights, limit=shaders.MAX_LIGHTS, shadows=shaders.MAX_SHADOWS
         )
         # the scene's own lights move with the scene graph, and the
         # default lights stay where the viewer started
         scene_lights = []
         if self.scene.has_lights:
-            scene_lights = lights.nodes
+            scene_lights = light_nodes
+        # a render looks through the scene's camera, which may be animated
+        cameras = []
+        if state.follow_camera and self.scene.has_camera:
+            cameras = [self.scene.camera.name]
         # every node between the world and the ones whose transforms are needed
-        world_nodes = [*nodes, *scene_lights, *joint_nodes]
+        world_nodes = [*nodes, *scene_lights, *joint_nodes, *cameras]
         # and how many of them are above each, so parents come first
         parents = graph.transforms.parents
         depth = {}
@@ -738,20 +753,38 @@ class SceneViewer:
             [row.get(parents[node], -1) for node in ordered], dtype=np.int64
         )
         depth = np.array([depth[node] for node in ordered], dtype=np.int64)
+        # the row of every edge an animation can drive, which names an edge
+        # from the base frame with None as well
+        edge_rows = {edge: index for index, edge in enumerate(chain_edges)}
+        edge_rows.update(
+            {
+                (None, child): index
+                for (parent, child), index in edge_rows.items()
+                if parent == graph.base_frame
+            }
+        )
+        animated = []
+        for animation in self.scene.animations:
+            found = [
+                (column, edge_rows[edge])
+                for column, edge in enumerate(animation.edges)
+                if edge in edge_rows
+            ]
+            if len(found) > 0:
+                columns, rows = np.array(found, dtype=np.int64).T
+                animated.append((animation, columns, rows))
 
         return DrawTable(
             nodes=nodes,
             buffers=buffers,
             fixed=fixed,
-            blended=mesh & (alpha == ALPHA_MODES["BLEND"]),
+            blended=mesh & (flags[:, 0] == shaders.ALPHA_MODES["BLEND"]),
             mesh=mesh,
             geometry_index=geometry_index,
             material_index=material_index,
             centroids=np.reshape([item.centroid for item in buffers], (-1, 3)),
             node_index=node_index,
-            catcher=np.array(
-                [item.material.shadow_catcher for item in buffers], dtype=bool
-            ).reshape(-1),
+            catcher=flags[:, 2] == 1,
             joint_offset=joint_offset,
             joint_nodes=joint_nodes,
             joint_index=np.array(
@@ -763,6 +796,7 @@ class SceneViewer:
             bound_joints=bound_joints,
             bound_rows=bound_rows,
             world_nodes=world_nodes,
+            scene_light_count=len(scene_lights),
             chain_edges=chain_edges,
             chain_parent=chain_parent,
             chain_levels=[
@@ -773,7 +807,10 @@ class SceneViewer:
                 [row.get(node, -1) for node in world_nodes], dtype=np.int64
             ),
             corners=np.reshape([item.corners for item in buffers], (-1, 8, 3)),
-            lights=lights,
+            light_rows=light_rows,
+            light_nodes=light_nodes,
+            cone_angles=cone_angles,
+            animated=animated,
         )
 
     def projection(self, view: np.ndarray) -> np.ndarray:
@@ -805,8 +842,8 @@ class SceneViewer:
             return camera.projection
         # the scene corners, the origin for the axis, and the floor
         points = np.vstack((corners(bounds), np.zeros(3)))
-        if self.studio.ground is not None:
-            points = np.vstack((points, self.studio.ground))
+        if self.ground is not None:
+            points = np.vstack((points, self.ground))
         depth = -(points @ view[:3, :3].T + view[:3, 3])[:, 2]
         # the same as `Scene.scale` without measuring the scene again
         margin = 0.05 * np.linalg.norm(np.ptp(bounds, axis=0))
@@ -819,13 +856,13 @@ class SceneViewer:
             camera.z_near, camera.z_far = near, far
         return camera.projection
 
-    def draw(self, target: opengl.Framebuffer | None = None) -> None:
+    def draw(self, target: resources.Framebuffer | None = None) -> None:
         """
         Draw the scene into `self.framebuffer`.
 
         Parameters
         ------------
-        target : None or opengl.Framebuffer
+        target : None or resources.Framebuffer
           Instead draw the view depth and node index of every pixel
           into this single-sample `GL_RG32F` framebuffer.
         """
@@ -843,11 +880,11 @@ class SceneViewer:
         table = self.table
         graph = self.scene.graph
 
-        view = np.linalg.inv(self.camera_transform)
         # the only per-node work: where every node, light and joint is,
         # which only changes with the scene graph and not the camera
-        if self.placed != hash(graph):
-            self.placed = hash(graph)
+        placement = (hash(graph), self.animation_time)
+        if self.placed != placement:
+            self.placed = placement
             # every edge's matrix, then the world transform of every node
             # from its parent's, one depth of the tree at a time
             edge_data = graph.transforms.edge_data
@@ -855,20 +892,29 @@ class SceneViewer:
                 [edge_data[edge].get("matrix", IDENTITY) for edge in table.chain_edges],
                 (-1, 4, 4),
             )
+            if self.animation_time is not None:
+                # animated edges where they are now, leaving the scene as it is
+                for animation, columns, rows in table.animated:
+                    # an animation shorter than the others loops
+                    seconds = self.animation_time
+                    if animation.duration > 0.0:
+                        seconds = seconds % animation.duration
+                    chain[rows] = animation.at(seconds)[columns]
             for rows in table.chain_levels[1:]:
                 chain[rows] = np.matmul(chain[table.chain_parent[rows]], chain[rows])
             # with the identity for anything which is the world itself
             world = np.concatenate((chain, IDENTITY[None]))[table.world_rows]
             count = len(table.nodes)
-            lit = len(table.world_nodes) - len(table.joint_nodes)
+            lit = count + table.scene_light_count
+            skinned = lit + len(table.joint_nodes)
             # with an identity for the axis and grid
             transforms = np.tile(IDENTITY, (len(table.buffers), 1, 1))
             transforms[:count] = world[:count]
-            lights = self.studio.transforms[: len(table.lights.nodes)]
-            if lit > count:
+            lights = self.light_transforms[: len(table.light_nodes)]
+            if table.scene_light_count > 0:
                 lights = world[count:lit]
             # `world(joint) @ inverse_bind` for every joint of every skin
-            joints = np.matmul(world[lit:][table.joint_index], table.inverse_binds)
+            joints = np.matmul(world[lit:skinned][table.joint_index], table.inverse_binds)
             # where the scene is from the box around every node's geometry,
             # and every skinned row's box under every joint of its skin, which
             # fits the depth range and shadows without touching vertices
@@ -884,12 +930,16 @@ class SceneViewer:
             # a skinned mesh's joints put it in world space
             transforms[table.joint_offset >= 0] = IDENTITY
             self.world = (transforms, lights, joints.astype(np.float32))
+            if len(world) > skinned:
+                # the camera rides its node
+                self.place_camera(world[skinned])
         transforms, lights, joints = self.world
+        view = np.linalg.inv(self.camera_transform)
         # every viewer of the hidden window shares its joint matrices and
         # shadow maps, so they are filled again if anything else filled them
         moved = context.placement is not self.world
         if moved:
-            opengl.upload_array(gl.GL_TEXTURE_BUFFER, context.joint_buffer, joints)
+            resources.upload_array(gl.GL_TEXTURE_BUFFER, context.joint_buffer, joints)
             # until the shadow maps are drawn for these joints too
             context.placement = None
         gl.glActiveTexture(gl.GL_TEXTURE0 + shaders.TEXTURE_UNITS["joint_matrices"])
@@ -898,15 +948,13 @@ class SceneViewer:
         model_view[table.fixed] = np.matmul(self.initial_view, transforms[table.fixed])
 
         # everything every program reads once per frame
-        frame = np.zeros(1, dtype=shaders.FRAME)
+        frame = self.frame_constants.copy()
         frame["projection"] = self.projection(view)
         frame["inverse_projection"] = np.linalg.inv(frame["projection"][0])
-        frame["occlusion_radius"][0, 0] = self.studio.occlusion_radius
-        frame["exposure"][0, 0] = self.studio.exposure
-        if self.bloom is not None:
-            frame["bloom"][0, :3] = self.studio.bloom, self.bloom.spread, self.bloom.level
         frame["viewport_size"][:, :2] = (framebuffer.width, framebuffer.height)
         frame["write_depth_and_index"][:, 0] = write
+        frame["smooth_shading"][:, 0] = state.smooth
+        frame["line_widths"][0, :2] = (state.line_width, state.point_size)
         self.fill_lights(frame, view, lights)
         if state.shadows and not write and not state.fast:
             self.draw_shadows(frame, transforms, lights, self.camera_transform, moved)
@@ -915,9 +963,9 @@ class SceneViewer:
         occlusion = context.white_texture
         if state.ambient_occlusion and not write and not state.fast:
             occlusion = self.draw_ambient_occlusion(frame, model_view)
-        opengl.upload_array(gl.GL_UNIFORM_BUFFER, context.frame_buffer, frame)
+        resources.upload_array(gl.GL_UNIFORM_BUFFER, context.frame_buffer, frame)
         gl.glActiveTexture(gl.GL_TEXTURE0 + shaders.TEXTURE_UNITS["shadow_maps"])
-        gl.glBindTexture(gl.GL_TEXTURE_2D_ARRAY, context.shadow_maps.texture)
+        gl.glBindTexture(gl.GL_TEXTURE_2D_ARRAY, context.shadow_maps.textures["depth"])
         gl.glActiveTexture(gl.GL_TEXTURE0 + shaders.TEXTURE_UNITS["ambient_occlusion"])
         gl.glBindTexture(gl.GL_TEXTURE_2D, occlusion)
 
@@ -927,7 +975,7 @@ class SceneViewer:
         gl.glDepthMask(gl.GL_TRUE)
         gl.glClearColor(*self.background)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
-        if self.studio.show_environment and not write:
+        if self.render_settings["show_environment"] and not write:
             # the environment behind everything, from one triangle
             # covering the screen which writes no depth
             gl.glDisable(gl.GL_DEPTH_TEST)
@@ -973,20 +1021,17 @@ class SceneViewer:
             order = order[np.abs(model_view[order, :3, :3]).max(axis=(1, 2)) > 0.0]
 
             # normals transform by the inverse transpose, which up to a scale
-            # the shader normalizes away is the cofactor matrix: the cross
-            # products of the columns, which unlike an inverse exists even
-            # for a node animated to zero scale. a mirror flips the sign
+            # the shader normalizes away is the cofactor matrix, which unlike
+            # an inverse exists even for a node animated to zero scale, and
+            # a mirror flips the sign
             linear = model_view[order, :3, :3]
-            columns = linear.transpose((0, 2, 1))
-            cofactor = np.cross(
-                np.roll(columns, -1, axis=1), np.roll(columns, -2, axis=1)
-            )
-            cofactor *= np.sign(np.linalg.det(linear))[:, None, None]
             # the per-instance matrices in draw order, stored transposed
-            # for OpenGL: the rows of `cofactor` already are its columns
+            # for OpenGL: the adjugate is the cofactor matrix transposed
             instances = np.zeros(len(order), dtype=shaders.INSTANCE)
             instances["model_view"] = model_view[order].transpose((0, 2, 1))
-            instances["normal_matrix"] = cofactor
+            instances["normal_matrix"] = (
+                adjugate(linear) * np.sign(np.linalg.det(linear))[:, None, None]
+            )
             instances["node_index"] = table.node_index[order]
             instances["joint_offset"] = table.joint_offset[order]
             # start a new draw call whenever the geometry changes and for
@@ -1007,7 +1052,7 @@ class SceneViewer:
                     program = self.bind_geometry(item, bound)
                     bound = item
                 if item.kind == "mesh":
-                    opengl.upload_array(
+                    resources.upload_array(
                         gl.GL_ARRAY_BUFFER, item.instance_buffer, instances[start:end]
                     )
                     gl.glDrawElementsInstanced(
@@ -1036,38 +1081,30 @@ class SceneViewer:
         view : (4, 4) float
           World to camera transform.
         world : (n, 4, 4) float
-          Where each light in `self.table.lights` is.
+          Where each of `self.table.light_rows` is.
         """
-        lights = self.table.lights
-        count = len(lights.nodes)
+        table = self.table
+        count = len(table.light_nodes)
         light_view = np.matmul(view, world)
         # a light shines down its -Z so its +Z points back towards it
         towards = util.unitize(light_view[:, :3, 2])
         rows = frame["lights"][0, :count]
-        rows["position"][:, :3] = np.where(
-            lights.directional[:, None], towards, light_view[:, :3, 3]
-        )
-        rows["position"][:, 3] = ~lights.directional
+        rows[:] = table.light_rows
+        # a position W of zero is a light infinitely far away
+        directional = rows["position"][:, 3:] == 0.0
+        rows["position"][:, :3] = np.where(directional, towards, light_view[:, :3, 3])
         rows["direction"][:, :3] = -towards
-        rows["color"][:, :3] = lights.colors
-        rows["falloff"] = lights.falloffs
         # nothing is shadowed until `draw_shadows` draws the shadows
         rows["shadow"][:, 0] = -1.0
         frame["light_count"][0, 0] = count
 
-        environment = self.studio.environment
-        frame["sky_color"][0, :3] = environment.sky
-        frame["ground_color"][0, :3] = environment.ground
-        frame["up_direction"][0, :3] = view[:3, :3] @ util.unitize(environment.up)
-        count = len(self.softboxes)
+        # the environment, which `frame_constants` has in world space
+        frame["up_direction"][0, :3] = view[:3, :3] @ frame["up_direction"][0, :3]
+        boxes = frame["softboxes"][0]
+        boxes["direction"][:, :3] = boxes["direction"][:, :3] @ view[:3, :3].T
         if self.state.fast:
             # just the gradient, which costs almost nothing per pixel
-            count = 0
-        boxes = frame["softboxes"][0, :count]
-        boxes[:] = self.softboxes[:count]
-        boxes["direction"][:, :3] = boxes["direction"][:, :3] @ view[:3, :3].T
-        frame["softbox_count"][0, 0] = count
-        frame["ground_light"][0, 0] = self.studio.ground_light
+            frame["softbox_count"][0, 0] = 0
 
     def draw_shadows(
         self,
@@ -1090,7 +1127,7 @@ class SceneViewer:
         transforms : (n, 4, 4) float
           Where each row of `self.table` is.
         lights : (m, 4, 4) float
-          Where each light in `self.table.lights` is.
+          Where each of `self.table.light_rows` is.
         pose : (4, 4) float
           Camera to world transform without a scale.
         redraw : bool
@@ -1099,17 +1136,19 @@ class SceneViewer:
         """
         table = self.table
         shadow_maps = self.context.shadow_maps
-        layers = table.lights.layers
+        texture = shadow_maps.textures["depth"]
+        resolution = shadow_maps.sizes["depth"][0]
+        layers = table.light_rows["shadow"][:, 0]
         casting = layers >= 0
         if not casting.any() or self.scene_bounds is None:
             return
         if redraw:
             self.shadow_fit = shadow_projections(
                 lights[casting],
-                table.lights.directional[casting],
-                table.lights.cone_angles[casting],
+                table.light_rows["position"][casting, 3] == 0.0,
+                table.cone_angles[casting],
                 self.scene_bounds,
-                shadow_maps.resolution,
+                resolution,
             )
         clip, texels = self.shadow_fit
         # the shader looks shadows up from view space
@@ -1125,15 +1164,15 @@ class SceneViewer:
         # opaque meshes cast shadows
         casts = table.mesh & ~table.blended & ~table.fixed
         casts[len(table.nodes) :] = False
-        gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, shadow_maps.framebuffer)
-        gl.glViewport(0, 0, shadow_maps.resolution, shadow_maps.resolution)
+        gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, shadow_maps.framebuffers["depth"])
+        gl.glViewport(0, 0, resolution, resolution)
         # push depth away from the light so a lit surface doesn't
         # shadow itself, more where it's seen at a grazing angle
         gl.glEnable(gl.GL_POLYGON_OFFSET_FILL)
         gl.glPolygonOffset(2.0, 4.0)
         for layer, light_clip in enumerate(clip):
             gl.glFramebufferTextureLayer(
-                gl.GL_FRAMEBUFFER, gl.GL_DEPTH_ATTACHMENT, shadow_maps.texture, 0, layer
+                gl.GL_FRAMEBUFFER, gl.GL_DEPTH_ATTACHMENT, texture, 0, layer
             )
             gl.glClear(gl.GL_DEPTH_BUFFER_BIT)
             # the instances are in world space so the light's view is
@@ -1176,7 +1215,7 @@ class SceneViewer:
 
         depth_frame = frame.copy()
         depth_frame["projection"] = projection
-        opengl.upload_array(gl.GL_UNIFORM_BUFFER, context.frame_buffer, depth_frame)
+        resources.upload_array(gl.GL_UNIFORM_BUFFER, context.frame_buffer, depth_frame)
         gl.glUseProgram(context.shadow_program.program)
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glDepthFunc(gl.GL_LEQUAL)
@@ -1186,7 +1225,7 @@ class SceneViewer:
         for start, end in zip(starts, ends):
             item = table.buffers[order[start]]
             gl.glBindVertexArray(item.vertex_array)
-            opengl.upload_array(
+            resources.upload_array(
                 gl.GL_ARRAY_BUFFER, item.instance_buffer, instances[start:end]
             )
             gl.glDrawElementsInstanced(
@@ -1214,7 +1253,7 @@ class SceneViewer:
         table = self.table
         context = self.context
         occlusion = self.occlusion
-        gl.glViewport(0, 0, occlusion.width, occlusion.height)
+        gl.glViewport(0, 0, *occlusion.sizes["depth"])
         gl.glDisable(gl.GL_BLEND)
         gl.glDisable(gl.GL_POLYGON_OFFSET_FILL)
 
@@ -1240,7 +1279,7 @@ class SceneViewer:
             gl.glDrawArrays(gl.GL_TRIANGLES, 0, 3)
         return occlusion.textures["blurred"]
 
-    def bind_geometry(self, buffers, previous) -> opengl.ShaderProgram:
+    def bind_geometry(self, buffers, previous) -> resources.ShaderProgram:
         """
         Set up the program, material, textures and render state to
         draw one piece of geometry, skipping anything which is the
@@ -1248,14 +1287,14 @@ class SceneViewer:
 
         Parameters
         ------------
-        buffers : opengl.GeometryBuffers
+        buffers : resources.GeometryBuffers
           Geometry about to be drawn.
-        previous : opengl.GeometryBuffers or None
+        previous : resources.GeometryBuffers or None
           Geometry drawn just before this, if any.
 
         Returns
         ------------
-        program : opengl.ShaderProgram
+        program : resources.ShaderProgram
           The program now in use.
         """
         context = self.context
@@ -1273,43 +1312,34 @@ class SceneViewer:
                 gl.glDisable(gl.GL_POLYGON_OFFSET_FILL)
                 gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
             program.set("points", buffers.kind == "points")
-            if buffers.kind == "points":
-                width = state.point_size
-                if width is None:
-                    width = self.studio.point_size
-            else:
-                width = state.line_width
-                if width is None:
-                    width = self.studio.line_width
-            program.set("line_width", width)
             return program
 
         program = context.mesh_program
         if changed_program:
             gl.glUseProgram(program.program)
-            program.set("smooth_shading", state.smooth)
             gl.glEnable(gl.GL_POLYGON_OFFSET_FILL)
             if state.wireframe:
                 gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
             else:
                 gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 
+        gl.glBindBufferBase(
+            gl.GL_UNIFORM_BUFFER,
+            resources.BLOCK_BINDINGS["Material"],
+            buffers.material_buffer,
+        )
         if changed_program or previous.material_key != buffers.material_key:
-            material = buffers.material
-            for uniform, name in shaders.MATERIAL_UNIFORMS.items():
-                program.set(uniform, getattr(material, name))
-            program.set("has_normal_texture", "normal_texture" in buffers.textures)
             for name in shaders.MATERIAL_TEXTURES:
                 gl.glActiveTexture(gl.GL_TEXTURE0 + shaders.TEXTURE_UNITS[name])
                 gl.glBindTexture(
                     gl.GL_TEXTURE_2D, buffers.textures.get(name, context.white_texture)
                 )
-            if state.cull and not material.double_sided:
+            # the fourth flag is a material seen from both sides
+            if state.cull and buffers.material["flags"][3] == 0:
                 gl.glEnable(gl.GL_CULL_FACE)
             else:
                 gl.glDisable(gl.GL_CULL_FACE)
 
-        program.set("has_face_colors", buffers.face_colors != 0)
         gl.glActiveTexture(gl.GL_TEXTURE0 + shaders.TEXTURE_UNITS["face_colors"])
         gl.glBindTexture(gl.GL_TEXTURE_BUFFER, buffers.face_colors)
         return program
@@ -1339,19 +1369,20 @@ class SceneViewer:
         compressed across and then down a mip level of that, and add the
         blur back scaled up.
         """
-        opengl.copy_framebuffer(self.framebuffer, self.resolve_framebuffer.framebuffer)
+        resources.copy_framebuffer(self.framebuffer, self.resolve_framebuffer.framebuffer)
         bloom = self.bloom
         if bloom is None:
             return
         context = self.context
         resolved = self.resolve_framebuffer
         textures, framebuffers = bloom.textures, bloom.framebuffers
+        width, height = bloom.sizes["picture"]
         # at exactly half size linear filtering averages every 2x2 block
         gl.glBindFramebuffer(gl.GL_READ_FRAMEBUFFER, resolved.framebuffer)
         gl.glBindFramebuffer(gl.GL_DRAW_FRAMEBUFFER, framebuffers["picture"])
         gl.glBlitFramebuffer(
-            *(0, 0, 2 * bloom.width, 2 * bloom.height),
-            *(0, 0, bloom.width, bloom.height),
+            *(0, 0, 2 * width, 2 * height),
+            *(0, 0, width, height),
             gl.GL_COLOR_BUFFER_BIT,
             gl.GL_LINEAR,
         )
@@ -1364,7 +1395,7 @@ class SceneViewer:
         gl.glBindVertexArray(context.empty_vertex_array)
         gl.glDisable(gl.GL_DEPTH_TEST)
         gl.glDisable(gl.GL_BLEND)
-        gl.glViewport(0, 0, bloom.blur_width, bloom.blur_height)
+        gl.glViewport(0, 0, *bloom.sizes["blurred"])
         for source, target, direction in (
             ("picture", "across", (1.0, 0.0)),
             ("across", "blurred", (0.0, 1.0)),
@@ -1405,11 +1436,11 @@ class SceneViewer:
           The image, and the depth and segmentation or None.
         """
         self.render()
-        color = opengl.read_framebuffer(self.resolve_framebuffer)
+        color = resources.read_framebuffer(self.resolve_framebuffer)
         if not (include_depth or include_segmentation):
             return RenderArrays(color=color, depth=None, segmentation=None)
         # one unantialiased draw writes the depth and node of every pixel
-        target = opengl.create_framebuffer(
+        target = resources.create_framebuffer(
             self.framebuffer.width,
             self.framebuffer.height,
             samples=0,
@@ -1417,9 +1448,9 @@ class SceneViewer:
         )
         try:
             self.draw(target)
-            values = opengl.read_framebuffer(target)
+            values = resources.read_framebuffer(target)
         finally:
-            target.delete()
+            resources.delete(target)
         depth, segmentation = None, None
         if include_depth:
             depth = values[..., 0]
@@ -1469,7 +1500,7 @@ class SceneViewer:
                 self.draw_seconds.append(time.perf_counter() - start)
                 self.check_speed()
             self.resolve()
-        opengl.copy_framebuffer(self.resolve_framebuffer, 0)
+        resources.copy_framebuffer(self.resolve_framebuffer, 0)
         return drawn
 
     def check_speed(self) -> None:
@@ -1639,7 +1670,8 @@ class SceneViewer:
     def on_animate(self, elapsed: float) -> None:
         """
         Advance `scene.animations` by the time since the last tick,
-        looping back to the start.
+        looping back to the start, which is drawn without changing
+        the scene.
 
         Parameters
         ------------
@@ -1648,27 +1680,28 @@ class SceneViewer:
         """
         if not self.state.playing:
             return
+        if self.animation_time is None:
+            self.animation_time = 0.0
         self.animation_time += elapsed
         if self.scene.duration > 0.0:
             self.animation_time %= self.scene.duration
-        self.scene.animate(self.animation_time)
         self.state.dirty = True
 
 
-def hidden_context() -> opengl.RenderContext:
+def hidden_context() -> resources.RenderContext:
     """
     Get the hidden window used for every offscreen render, creating
     it the first time.
 
     Returns
     ------------
-    context : opengl.RenderContext
+    context : resources.RenderContext
       A hidden window with compiled shaders.
     """
     try:
         return _HIDDEN_CONTEXT["context"]
     except KeyError:
-        context = opengl.create_context(64, 64, visible=False, resizable=False)
+        context = resources.create_context(64, 64, visible=False, resizable=False)
         # it's the library's and not one of the user's windows, which
         # would keep `pyglet.app.run` from ever returning
         pyglet.app.windows.discard(context.window)

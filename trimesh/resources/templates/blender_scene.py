@@ -470,13 +470,14 @@ def environment_world(environment):
         graph.math("MULTIPLY_ADD", height, 0.5, 0.5),
         ground,
     )
-    for box in environment["softboxes"]:
-        cosine = graph.dot(direction, to_blender(unit(box["direction"])))
-        sharpness = box["sharpness"]
+    for towards, sharpness, color in zip(
+        environment["directions"], environment["sharpness"], environment["colors"]
+    ):
+        cosine = graph.dot(direction, to_blender(towards))
         falloff = graph.math(
             "EXPONENT", graph.math("MULTIPLY_ADD", cosine, sharpness, -sharpness)
         )
-        light = graph.vector("MULTIPLY_ADD", box["color"], falloff, light)
+        light = graph.vector("MULTIPLY_ADD", color, falloff, light)
     graph.set(world.node_tree.nodes["Background"].inputs["Color"], light)
     return world
 

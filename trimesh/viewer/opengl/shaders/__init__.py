@@ -17,11 +17,29 @@ from string import Template
 
 import numpy as np
 
-from ....scene.metadata import DIFFUSE_SHARPNESS, SPECULAR_SHARPNESS
-from ...conversion import ALPHA_MODES
-
 # the directory holding the `.glsl` templates
 DIRECTORY = os.path.abspath(os.path.dirname(__file__))
+
+# How a surface's alpha is used, which is glTF's `alphaMode`, and the
+# integer the mesh shader compares against:
+#   OPAQUE ignores alpha
+#   MASK draws a pixel only where alpha is at least `alpha_cutoff`
+#   BLEND draws over whatever is behind, with surfaces sorted far to near
+# Clear glass from `KHR_materials_transmission` is BLEND with an alpha
+# of one minus how much light passes through. Every shader writes color
+# already multiplied by alpha and the framebuffer adds what is behind
+# times one minus alpha, so a reflection, which isn't multiplied by
+# alpha, still shows on glass which lets everything else through.
+ALPHA_MODES = {"OPAQUE": 0, "MASK": 1, "BLEND": 2}
+
+# the sharpness of a spherical Gaussian whose mean cosine is 2/3, the
+# same as the clamped cosine lobe which diffuse surfaces reflect with
+DIFFUSE_SHARPNESS = 2.95
+
+# the spherical Gaussian with the same mean cosine as a GGX reflection
+# lobe, whose sharpness is `exp(polyval(SPECULAR_SHARPNESS, log(roughness)))`
+# fit within 1.1% over roughness 0.04 to 1 where 1 is `DIFFUSE_SHARPNESS`
+SPECULAR_SHARPNESS = (0.131, 1.0381, -0.7256, 1.0728)
 
 # the most lights a frame can be lit by
 MAX_LIGHTS = 8
@@ -56,21 +74,6 @@ TEXTURE_UNITS = {
             "bloom_source",
         ]
     )
-}
-
-# the mesh shader's material uniforms and the `MaterialUniforms` field
-# each is set from
-MATERIAL_UNIFORMS = {
-    "base_color_factor": "base_color",
-    "metallic_factor": "metallic",
-    "roughness_factor": "roughness",
-    "emissive_factor": "emissive",
-    "alpha_mode": "alpha_mode",
-    "alpha_cutoff": "alpha_cutoff",
-    "shadow_catcher": "shadow_catcher",
-    "unlit": "unlit",
-    "diffuse_transmission_factor": "diffuse_transmission",
-    "diffuse_transmission_color_factor": "diffuse_transmission_color",
 }
 
 # one row per mesh vertex
@@ -143,7 +146,7 @@ LIGHT = np.dtype(
     metadata={"glsl": "Light"},
 )
 
-# a large soft light infinitely far away, from `metadata.Softbox`
+# a large soft light infinitely far away, from `EnvironmentLight`
 SOFTBOX = np.dtype(
     [
         # view space unit vector towards it, then its sharpness
@@ -172,7 +175,7 @@ FRAME = np.dtype(
         # view space to the 0.0-1.0 texture coordinates and depth of
         # each layer of `shadow_maps`
         ("shadow_matrices", "<f4", (MAX_SHADOWS, 4, 4)),
-        # the environment from `metadata.Environment`: linear RGB from
+        # the environment from `EnvironmentLight`: linear RGB from
         # straight up and down, the view space up, and the softboxes
         ("sky_color", "<f4", 4),
         ("ground_color", "<f4", 4),
@@ -190,8 +193,40 @@ FRAME = np.dtype(
         # neighbors, the glow's standard deviation in texels of the mip
         # level of the half size picture it is blurred at, that level, then zero
         ("bloom", "<f4", 4),
+        # pixels across lines, then across points, then zeros
+        ("line_widths", "<f4", 4),
+        # one to shade meshes with their vertex normals rather than every
+        # triangle flat with its own, then zeros
+        ("smooth_shading", "<i4", 4),
     ]
 )
+
+# one glTF metallic-roughness material, which every mesh has a uniform
+# buffer of, read by the mesh shader as `material.name`
+MATERIAL = np.dtype(
+    [
+        # linear RGBA multiplied into every pixel
+        ("base_color", "<f4", 4),
+        # linear RGB light given off, then zero
+        ("emissive", "<f4", 4),
+        # metallic, roughness, the alpha below which `MASK` draws nothing,
+        # and the fraction of diffuse light a thin surface scatters out of
+        # its other side from `KHR_materials_diffuse_transmission`
+        ("factors", "<f4", 4),
+        # linear RGB of that scattered light, then zero
+        ("transmission_color", "<f4", 4),
+        # the value in `ALPHA_MODES`, then one for `KHR_materials_unlit`,
+        # for an invisible floor which only shows shadows, and for drawing
+        # both sides of every triangle, which only the CPU reads
+        ("flags", "<i4", 4),
+        # one where a normal map and a color per triangle are bound, then zeros
+        ("has_textures", "<i4", 4),
+    ]
+)
+
+# every uniform block by its GLSL name, which a shader reads as the
+# lower case name, bound to the uniform buffer binding of its index here
+BLOCKS = {"Frame": FRAME, "Material": MATERIAL}
 
 # numpy scalar kind : (GLSL scalar, GLSL vector prefix)
 GLSL_SCALARS = {"f": ("float", "vec"), "i": ("int", "ivec"), "u": ("uint", "uvec")}
@@ -297,34 +332,43 @@ def shader_source(name: str) -> str:
                 lines.append(f"layout(location = {locations[field]}) in {kind} {field};")
         inputs[key] = "\n".join(lines)
 
-    # the frame's std140 block after the structs its fields use, with
-    # matrices `row_major` so numpy arrays upload untransposed: every field
-    # has to be whole 16 byte vectors or matrices, which is the only case
-    # where numpy and std140 pack a dtype identically
-    structs = {
-        field.base.metadata["glsl"]: field.base
-        for field, *_ in FRAME.fields.values()
-        if field.base.names is not None
-    }
-    parts = [(f"struct {kind}", fields, "};") for kind, fields in structs.items()]
-    parts.append(("layout(std140, row_major) uniform Frame", FRAME, "} frame;"))
-    block = []
-    for header, fields, closing in parts:
-        block.append(f"{header} {{")
-        for field_name in fields.names:
-            field, offset = fields.fields[field_name][:2]
-            kind, array = glsl_type(field)
-            element = field.base.itemsize * int(np.prod(field.shape[len(array) :]))
-            if element % 16 != 0 or offset % 16 != 0:
-                raise ValueError(
-                    f"`{field_name}` must be made of 16 byte vectors for std140"
-                )
-            dimensions = "".join(f"[{size}]" for size in array)
-            block.append(f"    {kind} {field_name}{dimensions};")
-        block.append(closing)
+    # each std140 block after the structs its fields use, with matrices
+    # `row_major` so numpy arrays upload untransposed: every field has to
+    # be whole 16 byte vectors or matrices, which is the only case where
+    # numpy and std140 pack a dtype identically
+    blocks = {}
+    for block_name, dtype in BLOCKS.items():
+        structs = {
+            field.base.metadata["glsl"]: field.base
+            for field, *_ in dtype.fields.values()
+            if field.base.names is not None
+        }
+        parts = [(f"struct {kind}", fields, "};") for kind, fields in structs.items()]
+        parts.append(
+            (
+                f"layout(std140, row_major) uniform {block_name}",
+                dtype,
+                f"}} {block_name.lower()};",
+            )
+        )
+        lines = []
+        for header, fields, closing in parts:
+            lines.append(f"{header} {{")
+            for field_name in fields.names:
+                field, offset = fields.fields[field_name][:2]
+                kind, array = glsl_type(field)
+                element = field.base.itemsize * int(np.prod(field.shape[len(array) :]))
+                if element % 16 != 0 or offset % 16 != 0:
+                    raise ValueError(
+                        f"`{field_name}` must be made of 16 byte vectors for std140"
+                    )
+                dimensions = "".join(f"[{size}]" for size in array)
+                lines.append(f"    {kind} {field_name}{dimensions};")
+            lines.append(closing)
+        blocks[f"{block_name.lower()}_block"] = "\n".join(lines)
 
     source = template.substitute(
-        frame_block="\n".join(block),
+        **blocks,
         shared_functions=shared,
         **inputs,
         alpha_modes="\n".join(

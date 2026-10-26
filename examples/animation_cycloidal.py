@@ -25,7 +25,7 @@ import numpy as np
 
 import trimesh
 from trimesh.scene.animation import Animation
-from trimesh.scene.metadata import Environment, RenderSettings, Softbox
+from trimesh.scene.lighting import EnvironmentLight, autolight
 from trimesh.transformations import euler_matrix, rotation_matrix
 from trimesh.visual.material import PBRMaterial
 
@@ -155,25 +155,6 @@ def animate(scene, fps=30):
         roughnessFactor=0.05,
         transmissionFactor=0.9,
     )
-    scene.metadata.update(
-        RenderSettings(
-            environment=Environment(
-                up=[0, 0, 1],
-                sky=[0.01, 0.01, 0.03],
-                ground=[0.0, 0.0, 0.0],
-                softboxes=[
-                    Softbox(direction=direction, sharpness=sharpness, color=color)
-                    for direction, sharpness, color in SPACE
-                ],
-            ),
-            ground_shadow=False,
-            show_environment=True,
-            # bold lines and fine particles
-            line_width=3.0,
-            point_size=3.0,
-        ).to_metadata()
-    )
-
     # the drive: the cranks turn on their own axes, the discs slide around
     # a circle as big as their eccentricity, and the output carries it all
     z = [0.0, 0.0, 1.0]
@@ -238,6 +219,32 @@ def animate(scene, fps=30):
     )
 
     scene.camera_transform = camera[0]
+    # the studio's key and rim lights where the camera starts, and in place
+    # of its environment the space around the drive, which is posed with
+    # +Y up so that +Z is up in this scene
+    lights, transforms = autolight(scene)
+    for light, transform in zip(lights[:2], transforms[:2]):
+        scene.graph[light.name] = transform
+    up = rotation_matrix(np.pi / 2.0, [1.0, 0.0, 0.0])
+    space = EnvironmentLight(
+        name="space",
+        sky=[0.01, 0.01, 0.03],
+        ground=[0.0, 0.0, 0.0],
+        # each softbox's direction turned into the frame of the light's node
+        softboxes=[
+            (np.dot(trimesh.util.unitize(direction), up[:3, :3]), sharpness, color)
+            for direction, sharpness, color in SPACE
+        ],
+    )
+    scene.lights = [*lights[:2], space]
+    scene.graph[space.name] = up
+    # bold lines and fine particles, with the space around them
+    scene.metadata["render"] = {
+        "ground_shadow": False,
+        "show_environment": True,
+        "line_width": 3.0,
+        "point_size": 3.0,
+    }
     # deep enough to see the whole cloud until it has flown past
     scene.camera.z_far = 2.0 * GROWTH * scene.scale
     scene.animations.extend(

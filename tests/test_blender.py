@@ -29,8 +29,7 @@ except BaseException:
     )
 
 from trimesh.interfaces import blender
-from trimesh.scene.lighting import DirectionalLight, PointLight
-from trimesh.scene.metadata import Environment, Softbox
+from trimesh.scene.lighting import DirectionalLight, EnvironmentLight, PointLight
 from trimesh.viewer.render import render_frames, turntable
 
 tf = g.trimesh.transformations
@@ -99,8 +98,6 @@ def test_engines():
     scene.camera_transform = tf.euler_matrix(0.4, 0.3, 0.1) @ tf.translation_matrix(
         [0, 0, 6]
     )
-    settings = g.trimesh.interfaces.ffmpeg.VideoSettings(fps=5)
-
     checks = {}
     engines = ["opengl", "blender"]
     # every frame of an animation agrees, which a turntable turning 120
@@ -119,7 +116,7 @@ def test_engines():
             [(None, box)], times, spin[:, None], name="spin"
         )
     )
-    animation = {"resolution": [80, 60], "duration": 1.2, "settings": settings}
+    animation = {"resolution": [80, 60], "duration": 1.2, "fps": 5}
     frames = []
     for engine in engines:
         gif = floorless.render(file_type="gif", engine=engine, **animation)
@@ -163,8 +160,12 @@ def test_engines():
     checks["blend renders the same"] = g.np.abs(reopened - direct).max() <= 2
 
     # an environment seen behind the scene, which both engines draw alike
-    wide = Softbox(direction=[0.3, 0.8, 0.5], sharpness=6.0, color=[2] * 3)
-    shown = Environment(sky=[0.6, 0.5, 0.4], ground=[0.05, 0.08, 0.1], softboxes=[wide])
+    shown = EnvironmentLight(
+        name="environment",
+        sky=[0.6, 0.5, 0.4],
+        ground=[0.05, 0.08, 0.1],
+        softboxes=[([0.3, 0.8, 0.5], 6.0, [2.0] * 3)],
+    )
     # saturated sRGB colors, which glTF stores as linear
     colored = g.trimesh.creation.icosphere(subdivisions=4)
     colored.visual.vertex_colors = g.trimesh.visual.color.interpolate(
@@ -278,7 +279,7 @@ def test_engines():
         [PointLight(name="bulb", color=WHITE, intensity=6.0, radius=3.0)],
         [bulb],
         plane=True,
-        environment=Environment(sky=[0.1] * 3, ground=[0.1] * 3),
+        environment=EnvironmentLight(name="environment", sky=[0.1] * 3, ground=[0.1] * 3),
     )
     # and on the last frame of a box sliding past where the light reached
     # with the box where it starts, which lights reach in every frame
@@ -324,9 +325,43 @@ def test_engines():
 def test_minimum_version():
     """
     Blender older than the template supports raises naming the version,
-    and an executable which isn't Blender raises naming the executable.
+    an executable which isn't Blender raises naming the executable, and
+    an option Blender doesn't take raises rather than being dropped.
     """
     scene = g.trimesh.creation.box().scene()
+    with g.pytest.raises(TypeError, match="bogus"):
+        scene.render(file_type="png", resolution=[16, 12], engine="blender", bogus=1)
+
+    # the GLB Blender reads shares the scene's geometry rather than copying
+    # it, so what is cached on it is computed once and never changed
+    mesh = scene.geometry[scene.graph.nodes_geometry[0]]
+    smooth = mesh.smooth_shaded
+    before = (type(smooth.visual), smooth.visual.kind, hash(smooth))
+    shade = g.trimesh.graph.smooth_shade
+    with (
+        g.tempfile.TemporaryDirectory() as directory,
+        g.pytest.MonkeyPatch.context() as patch,
+    ):
+        calls = []
+        patch.setattr(
+            g.trimesh.graph,
+            "smooth_shade",
+            lambda *args, **kwargs: calls.append(args) or shade(*args, **kwargs),
+        )
+        copied, _ = blender.viewer_glb(scene, count=1, fps=30.0, directory=directory)
+    checks = {
+        "smooth shading not recomputed": len(calls) == 0,
+        "cache reused": mesh.smooth_shaded is smooth,
+        "cache unchanged": (type(smooth.visual), smooth.visual.kind, hash(smooth))
+        == before,
+        "copy has the viewer's material": [
+            type(geometry.visual).__name__ for geometry in copied.geometry.values()
+        ]
+        == ["TextureVisuals"],
+        "scene unchanged": [id(v) for v in scene.geometry.values()] == [id(mesh)],
+    }
+    for name, ok in checks.items():
+        assert ok, name
     with g.pytest.MonkeyPatch.context() as patch:
         patch.setitem(blender._BLENDER_VERSION, blender._blender_executable, (4, 2, 0))
         with g.pytest.raises(ValueError, match=r"4\.3.*4\.2\.0"):

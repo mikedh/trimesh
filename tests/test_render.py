@@ -98,34 +98,33 @@ print(json.dumps({
         for name, ok in checks.items():
             assert ok, name
 
-        # `windowed` is main's viewer with one warning on pyglet<2, and
-        # the OpenGL 3.3 viewer with none on every newer pyglet
+        # `windowed` is the OpenGL 3.3 viewer on every pyglet with no warning,
+        # and main's `render_scene` keywords for a window warn and are dropped
         g.require_rendering()
         code = """
 import io, json, sys, warnings
 import numpy, pyglet, trimesh
 from PIL import Image
-pyglet1 = int(pyglet.version.split(".")[0]) < 2
 with warnings.catch_warnings(record=True) as caught:
     warnings.simplefilter("always")
     from trimesh.viewer import windowed
+    legacy = trimesh.viewer.render_scene(
+        trimesh.creation.box().scene(), (64, 48), visible=True, resizable=False
+    )
 png = trimesh.creation.box().scene().save_image(resolution=(64, 48))
 image = Image.open(io.BytesIO(png))
-if pyglet1:
-    from trimesh.viewer.pyglet1.viewer import SceneViewer, render_scene
-    other = "trimesh.viewer.opengl.viewer"
-else:
-    from trimesh.viewer.opengl.viewer import SceneViewer
-    from trimesh.viewer.render import render_scene
-    other = "trimesh.viewer.pyglet1"
+from trimesh.viewer.opengl.viewer import SceneViewer
+from trimesh.viewer.render import render_scene
 print(json.dumps({
-    "pyglet1": pyglet1,
     "viewer": windowed.SceneViewer is SceneViewer,
     "lazy viewer": trimesh.viewer.SceneViewer is SceneViewer,
     "render_scene": windowed.render_scene is render_scene,
     "lazy render_scene": trimesh.viewer.render_scene is render_scene,
-    "other viewer never imported": other not in sys.modules,
+    "no pyglet1": "trimesh.viewer.pyglet1" not in sys.modules,
     "png": png.startswith(b"\\x89PNG") and image.format == "PNG",
+    "legacy png": bool(numpy.abs(
+        numpy.asarray(Image.open(io.BytesIO(legacy)), dtype=int) - numpy.asarray(image)
+    ).max() <= 1),
     "size": list(image.size),
     "not blank": bool(numpy.asarray(image.convert("RGB")).std() > 0),
     "caught": [(w.category.__name__, str(w.message), w.filename)
@@ -134,7 +133,7 @@ print(json.dumps({
 """
         env = dict(g.os.environ)
         if g.sys.platform.startswith("linux") and not env.get("DISPLAY"):
-            # main's viewer has no EGL fallback of its own
+            # where pyglet 3 prints its EGL version before the results
             env["PYGLET_HEADLESS"] = "1"
         result = g.json.loads(
             g.subprocess.run(
@@ -143,17 +142,69 @@ print(json.dumps({
                 check=True,
                 text=True,
                 env=env,
-            ).stdout
+            ).stdout.splitlines()[-1]
         )
         caught = result.pop("caught")
         checks = {
-            "one warning only on pyglet<2": len(caught) == int(result.pop("pyglet1")),
+            "one warning for the window keywords": len(caught) == 1,
             "deprecation": all(kind == "DeprecationWarning" for kind, _, _ in caught),
             "stacklevel": all(filename == "<string>" for _, _, filename in caught),
-            "says upgrade pyglet": all("pyglet" in message for _, message, _ in caught),
+            "names the keywords": all(
+                "visible" in message and "resizable" in message
+                for _, message, _ in caught
+            ),
             "size": result.pop("size") == [64, 48],
             **result,
         }
+        for name, ok in checks.items():
+            assert ok, name
+
+    def test_unchanged(self):
+        from pathlib import Path
+
+        # importing trimesh loads no renderer, encoder or pyglet, checked
+        # in a fresh interpreter where nothing else imported them
+        # nor does converting geometry for the GPU, which Blender renders use
+        code = "import sys, trimesh, trimesh.viewer.conversion; "
+        code += "print(' '.join(sorted(sys.modules)))"
+        loaded = g.subprocess.run(
+            [g.sys.executable, "-c", code], capture_output=True, check=True, text=True
+        ).stdout.split()
+        lazy = ["trimesh.viewer.render", "trimesh.interfaces.ffmpeg", "pyglet"]
+        checks = {f"{name} not imported": name not in loaded for name in lazy}
+        checks["trimesh imported"] = "trimesh.scene.scene" in loaded
+
+        # rendering a scene without lights or a camera never adds them
+        g.require_rendering()
+        scene = g.get_mesh("duck.dae")
+        before = scene.export(file_type="glb")
+        graph = hash(scene.graph)
+        cameras = list(scene.cameras)
+        png = scene.save_image(resolution=(64, 48))
+        with g.TemporaryDirectory() as directory:
+            path = g.os.path.join(directory, "still.png")
+            written = scene.render(Path(path), resolution=(64, 48))
+            with open(path, "rb") as file_obj:
+                stored = file_obj.read()
+        checks.update(
+            {
+                "png": g.png(png).shape == (48, 64, 4),
+                "a path returns nothing": written is None,
+                # where consecutive renders differ by a level at most
+                "a path holds the same png": g.np.abs(
+                    g.png(stored).astype(int) - g.png(png)
+                ).max()
+                <= 1,
+                "no lights stored": not scene.has_lights,
+                "no camera stored": not scene.has_camera,
+                "cameras unchanged": scene.cameras == cameras,
+                "graph unchanged": hash(scene.graph) == graph,
+                "export unchanged": scene.export(file_type="glb") == before,
+            }
+        )
+        # what isn't a viewer option raises rather than being dropped
+        with g.pytest.raises(TypeError, match="bogus"):
+            scene.render(resolution=(64, 48), bogus=True)
         for name, ok in checks.items():
             assert ok, name
 

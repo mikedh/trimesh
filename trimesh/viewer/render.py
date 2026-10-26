@@ -16,16 +16,18 @@ every file type, and a `.blend` is the scene Blender renders.
 
 import contextlib
 import os
+import shutil
 import tempfile
+import warnings
 
 import numpy as np
 
 from .. import util
-from ..interfaces.ffmpeg import VIDEO_TYPES, VideoSettings, VideoWriter, frame_durations
+from ..interfaces.ffmpeg import VIDEO_TYPES, VideoWriter
 from ..scene.cameras import current_view
-from ..scene.metadata import RenderSettings
 from ..scene.scene import Scene
 from ..typed import Number
+from .conversion import render_lights
 
 # written by Pillow with no ffmpeg: a still image, or a looping animation
 PILLOW_TYPES = ("png", "gif", "webp", "avif")
@@ -33,16 +35,55 @@ PILLOW_TYPES = ("png", "gif", "webp", "avif")
 # every file type `render_scene` can write
 RENDER_TYPES = (*PILLOW_TYPES, *VIDEO_TYPES)
 
+# the milliseconds an animated image format counts frame durations in,
+# where GIF's are hundredths of a second and the rest whole milliseconds
+DURATION_TICKS = {"gif": 10}
+
+# seconds a turntable takes to orbit a scene which isn't animated
+TURNTABLE_DURATION = 4.0
+
+# what `render_scene` and `Scene.save_image` took on `main` for the window
+# they rendered in, which a render no longer opens
+WINDOW_KEYWORDS = ("visible", "resizable", "start_loop", "fullscreen")
+
+
+def window_keywords(kwargs: dict, name: str) -> dict:
+    """
+    Drop the keywords in `WINDOW_KEYWORDS` from a render's keywords
+    with a warning, which will raise after April 2028.
+
+    Parameters
+    ------------
+    kwargs : dict
+      Keywords passed to `name` by its caller.
+    name : str
+      The function they were passed to, for the warning.
+
+    Returns
+    ------------
+    kept : dict
+      Every other keyword.
+    """
+    ignored = [key for key in WINDOW_KEYWORDS if key in kwargs]
+    if len(ignored) > 0:
+        warnings.warn(
+            f"`{name}` ignores {ignored}, which will raise after April 2028",
+            category=DeprecationWarning,
+            stacklevel=3,
+        )
+    return {key: value for key, value in kwargs.items() if key not in WINDOW_KEYWORDS}
+
 
 def render_scene(
     scene,
     resolution=None,
+    file_obj=None,
     file_type: str = "png",
-    engine: str = "opengl",
     duration: Number | None = None,
-    settings: VideoSettings | None = None,
+    fps: Number = 30.0,
+    engine: str = "opengl",
     **kwargs,
-) -> bytes:
+) -> bytes | None:
     """
     Render a scene to a PNG of its current pose, or to an animation.
 
@@ -52,39 +93,42 @@ def render_scene(
       Scene to render.
     resolution : (2,) int or None
       Size in pixels, defaults to `scene.camera.resolution`.
+    file_obj : None, str or file-like
+      Where to write the render, or None to return it.
     file_type : str
       "png" for a still, or "gif", "webp", or a video like "mp4" for the
       animation of the scene or a turntable if it isn't animated.
+    duration : float or None
+      Seconds of animation, defaults to `scene.duration` or
+      `TURNTABLE_DURATION` if it isn't animated.
+    fps : float
+      Frames per second of an animation.
     engine : str
       "opengl" for the built in renderer or "blender".
-    duration : float or None
-      Seconds of animation, defaults to `scene.duration` or 4.0.
-    settings : VideoSettings or None
-      Frame rate and encoder for animations.
     kwargs : dict
-      Passed to the OpenGL `SceneViewer`.
+      Passed to the OpenGL `SceneViewer` or to `blender.render`, where
+      `WINDOW_KEYWORDS` are deprecated and dropped.
 
     Returns
     ------------
-    data : bytes
-      The encoded image or video.
+    data : bytes or None
+      The encoded image or video if `file_obj` is None.
     """
     if file_type not in RENDER_TYPES:
         raise ValueError(f"`{file_type}` is not one of {RENDER_TYPES}")
-    if settings is None:
-        settings = VideoSettings()
+    kwargs = window_keywords(kwargs, "render_scene")
     frames = render_frames(
         scene,
         resolution=resolution,
         engine=engine,
         duration=duration,
-        fps=settings.fps,
+        fps=fps,
         still=file_type == "png",
         **kwargs,
     )
     # the generator frees its viewer or Blender even if encoding fails
     with contextlib.closing(frames):
-        return encode(frames, file_type=file_type, settings=settings)
+        return encode(frames, file_obj=file_obj, file_type=file_type, fps=fps)
 
 
 def render_frames(
@@ -110,13 +154,14 @@ def render_frames(
     engine : str
       "opengl" for the built in renderer or "blender".
     duration : float or None
-      Seconds of animation, defaults to `scene.duration` or 4.0.
+      Seconds of animation, defaults to `scene.duration` or
+      `TURNTABLE_DURATION` if it isn't animated.
     fps : float
       Frames per second.
     still : bool
       Render one frame of the scene as it is posed.
     kwargs : dict
-      Passed to the OpenGL `SceneViewer`.
+      Passed to the OpenGL `SceneViewer` or to `blender.render`.
 
     Returns
     ------------
@@ -125,50 +170,14 @@ def render_frames(
     """
     if engine not in ("opengl", "blender"):
         raise ValueError(f"engine `{engine}` is not `opengl` or `blender`")
-    scene, studio, count = stage(
+    scene, count = stage(
         scene, resolution=resolution, duration=duration, fps=fps, still=still
     )
     if engine == "blender":
         from ..interfaces import blender
 
-        return blender.render(scene, studio=studio, count=count, fps=fps)
+        return blender.render(scene, count=count, fps=fps, **kwargs)
     return opengl_frames(scene, count=count, fps=fps, **kwargs)
-
-
-def blend_scene(
-    scene,
-    resolution=None,
-    duration: Number | None = None,
-    fps: Number = 30.0,
-    samples: int = 64,
-) -> bytes:
-    """
-    The scene as a `.blend`, which Blender renders the same frames as
-    `render_frames(engine="blender")` from, with its animation, cameras,
-    lights, environment and images.
-
-    Parameters
-    ------------
-    scene : trimesh.Scene
-      Scene to save, which is not changed.
-    resolution : (2,) int or None
-      Render size in pixels, defaults to `scene.camera.resolution`.
-    duration : float or None
-      Seconds in the frame range, defaults to `scene.duration` or 4.0.
-    fps : float
-      Frames per second.
-    samples : int
-      Antialiasing samples per pixel for rendering.
-
-    Returns
-    ------------
-    blend : bytes
-      The `.blend` file.
-    """
-    from ..interfaces import blender
-
-    scene, studio, count = stage(scene, resolution=resolution, duration=duration, fps=fps)
-    return blender.save_blend(scene, studio=studio, count=count, fps=fps, samples=samples)
 
 
 def stage(
@@ -189,7 +198,8 @@ def stage(
     resolution : (2,) int or None
       Size in pixels, defaults to `scene.camera.resolution`.
     duration : float or None
-      Seconds of animation, defaults to `scene.duration` or 4.0.
+      Seconds of animation, defaults to `scene.duration` or
+      `TURNTABLE_DURATION` if it isn't animated.
     fps : float
       Frames per second.
     still : bool
@@ -198,9 +208,8 @@ def stage(
     Returns
     ------------
     staged : trimesh.Scene
-      A copy with a camera, lights and an animation unless `still`.
-    studio : trimesh.scene.metadata.Studio
-      Every render default filled in for where the camera starts.
+      A copy with a camera, lights ending with an `EnvironmentLight`,
+      and an animation unless `still`.
     count : int
       Frames to render.
     """
@@ -212,30 +221,33 @@ def stage(
     original = scene
     scene = Scene(graph=original.graph.copy(), metadata=original.metadata)
     scene.geometry.update(original.geometry)
-    scene.cameras = original.cameras
+    # a list of its own, as the camera is added to the copy
+    scene.cameras = list(original.cameras)
     scene.animations = list(original.animations)
     scene.skins = original.skins
-    if original.has_lights:
-        scene.lights = list(original.lights)
     scene.camera = camera
     if framed:
         # a new camera framing the scene stays where it starts, and the
         # scene's own camera stays on its node which may be moving
         scene.camera_transform = camera_transform
-    studio = RenderSettings.from_metadata(scene.metadata).resolve(scene, camera_transform)
-    if not scene.has_lights:
-        # the default lights are made explicit in the copy, fixed where
-        # the camera starts
-        scene.lights = studio.lights
-        for light, transform in zip(studio.lights, studio.transforms):
+    # the default lights are made explicit in the copy, fixed where the
+    # camera starts, and the scene's own lights stay on their nodes
+    lights, transforms = render_lights(original, camera_transform)
+    scene.lights = lights
+    for light, transform in zip(lights, transforms):
+        if light.name not in scene.graph.nodes:
             scene.graph.update(frame_to=light.name, matrix=transform)
 
     count = 1
     if not still:
+        if duration is None:
+            duration = scene.duration or TURNTABLE_DURATION
         if scene.duration == 0.0:
-            scene.animations.append(turntable(scene, duration or 4.0, fps))
-        count = max(round((duration or scene.duration) * fps), 1)
-    return scene, studio, count
+            # the turntable drives the camera's node from the base frame
+            scene.graph.update(frame_to=scene.camera.name, matrix=scene.camera_transform)
+            scene.animations.append(turntable(scene, duration, fps))
+        count = max(round(duration * fps), 1)
+    return scene, count
 
 
 def opengl_frames(scene, count: int, fps: Number, **kwargs):
@@ -259,19 +271,17 @@ def opengl_frames(scene, count: int, fps: Number, **kwargs):
     frames : generator
       (height, width, 4) uint8 RGBA images.
     """
+    from .opengl.resources import gl, read_framebuffer_finish, read_framebuffer_start
     from .opengl.viewer import SceneViewer
 
-    # a render is always offscreen so these don't apply
-    for key in ("visible", "start_loop", "fullscreen", "resizable"):
-        kwargs.pop(key, None)
+    # a render looks through the scene's camera, which may be animated
     viewer = SceneViewer(
         scene,
         resolution=scene.camera.resolution,
         visible=False,
         start_loop=False,
-        **kwargs,
+        **{"follow_camera": True, **kwargs},
     )
-    from .opengl import gl, read_framebuffer_finish, read_framebuffer_start
 
     # two pixel buffers so one frame is copied off the GPU while the
     # next is drawn, rather than waiting for every frame
@@ -282,11 +292,8 @@ def opengl_frames(scene, count: int, fps: Number, **kwargs):
         previous = None
         for index in range(count):
             if count > 1:
-                # an animation shorter than the video loops
-                scene.animate(index / fps, loop=True)
-                # a render looks through the scene's camera, which may be animated
-                viewer.place_camera(scene.camera_transform)
-            # animation only moves the scene graph, which every frame reads
+                # drawn without posing the scene, looping shorter animations
+                viewer.animation_time = index / fps
             viewer.render(changed=index == 0)
             read_framebuffer_start(framebuffer, buffers[index % 2])
             if previous is not None:
@@ -299,7 +306,7 @@ def opengl_frames(scene, count: int, fps: Number, **kwargs):
         viewer.close()
 
 
-def encode(frames, file_type: str, settings: VideoSettings) -> bytes:
+def encode(frames, file_obj, file_type: str, fps: Number) -> bytes | None:
     """
     Encode (height, width, 3 or 4) uint8 frames as a file.
 
@@ -307,42 +314,96 @@ def encode(frames, file_type: str, settings: VideoSettings) -> bytes:
     ------------
     frames : iterable
       Frames in order.
+    file_obj : None, str or file-like
+      Where to write the file, or None to return it.
     file_type : str
       One of `RENDER_TYPES`.
-    settings : VideoSettings
-      Frame rate and encoder.
+    fps : float
+      Frames per second of an animation.
 
     Returns
     ------------
-    data : bytes
-      The encoded file.
+    data : bytes or None
+      The encoded file if `file_obj` is None.
     """
     if file_type in VIDEO_TYPES:
-        # ffmpeg seeks around the file to finish some containers
+        if isinstance(file_obj, str):
+            # ffmpeg writes the file itself, seeking around it to finish
+            # some containers
+            write_video(frames, file_obj, fps)
+            return None
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, f"render.{file_type}")
-            with VideoWriter(path, settings) as video:
-                for frame in frames:
-                    video.write(frame)
-            with open(path, "rb") as file_obj:
-                return file_obj.read()
+            write_video(frames, path, fps)
+            with open(path, "rb") as video:
+                if file_obj is None:
+                    return video.read()
+                shutil.copyfileobj(video, file_obj)
+                return None
 
     from PIL import Image
 
     images = [Image.fromarray(frame) for frame in frames]
+    # one image is a still and more is a looping animation, whose
+    # frames end on time in the units each format stores
+    animation = {}
+    if len(images) > 1:
+        animation = {
+            "save_all": True,
+            "append_images": images[1:],
+            "duration": frame_durations(len(images), fps, file_type),
+            "loop": 0,
+        }
+    if file_obj is not None:
+        images[0].save(file_obj, format=file_type, **animation)
+        return None
     with util.BytesIO() as buffer:
-        # one image is a still and more is a looping animation, whose
-        # frames end on time in the units each format stores
-        animation = {}
-        if len(images) > 1:
-            animation = {
-                "save_all": True,
-                "append_images": images[1:],
-                "duration": frame_durations(len(images), settings.fps, file_type),
-                "loop": 0,
-            }
         images[0].save(buffer, format=file_type, **animation)
         return buffer.getvalue()
+
+
+def write_video(frames, path: str, fps: Number) -> None:
+    """
+    Encode frames into a video file with ffmpeg.
+
+    Parameters
+    ------------
+    frames : iterable
+      (height, width, 3 or 4) uint8 frames in order.
+    path : str
+      Video file to write, whose extension picks the container.
+    fps : float
+      Frames per second.
+    """
+    with VideoWriter(path, fps=fps) as video:
+        for frame in frames:
+            video.write(frame)
+
+
+def frame_durations(count: int, fps: Number, file_type: str) -> list[int]:
+    """
+    How long each frame of an animated image shows, in whole ticks of
+    its format, so every frame ends within half a tick of when it should
+    rather than a rounded duration drifting: 30 fps in a GIF is 30, 40
+    and 30 milliseconds rather than 30 every frame, which plays 11% fast.
+
+    Parameters
+    ------------
+    count : int
+      Frames in the animation.
+    fps : float
+      Frames per second.
+    file_type : str
+      The format, i.e. "gif", whose ticks are in `DURATION_TICKS`.
+
+    Returns
+    ------------
+    durations : list[int]
+      Milliseconds for each frame.
+    """
+    tick = DURATION_TICKS.get(file_type, 1)
+    ends = np.round(np.arange(count + 1) * 1000.0 / (fps * tick)).astype(np.int64)
+    return (np.diff(ends) * tick).tolist()
 
 
 def turntable(scene, duration: Number, fps: Number):

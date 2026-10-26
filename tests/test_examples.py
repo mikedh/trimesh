@@ -76,10 +76,6 @@ def test_pyrender_scene():
     pyrender's example scene keeps its lights, camera and settings
     through a GLB, and the file renders exactly what its rays hit.
     """
-    from scipy import ndimage
-
-    from trimesh.scene.metadata import RenderSettings
-
     example = load_example("pyrender_scene")
     # the same files as pyrender's but made from the models here
     stand_ins = {
@@ -98,14 +94,10 @@ def test_pyrender_scene():
     reloaded = g.roundtrip(export, "glb")
 
     # what the file renders is exactly what its camera's rays hit
-    _, depth, index = g.render(
+    arrays = g.render(
         reloaded, resolution=[160, 120], include_depth=True, include_segmentation=True
     )
-    reference_depth, reference = g.camera_ray_reference(reloaded)
-    interior = ndimage.maximum_filter(reference, 3) == ndimage.minimum_filter(
-        reference, 3
-    )
-    covered = interior & (reference >= 0)
+    index = arrays.segmentation
     checks = {
         "lights": [(type(light), light.intensity) for light in reloaded.lights]
         == [(type(light), light.intensity) for light in scene.lights],
@@ -121,15 +113,12 @@ def test_pyrender_scene():
         "camera pose": g.np.allclose(reloaded.camera_transform, example.CAMERA_POSE),
         "fov": g.np.allclose(reloaded.camera.fov, scene.camera.fov),
         # the example changes pyrender's settings away from the defaults
-        "settings": RenderSettings.from_metadata(reloaded.metadata)
-        == RenderSettings.from_metadata(scene.metadata)
-        != RenderSettings(),
-        "segmentation is rays": (index == reference)[interior].all(),
-        "depth is rays": g.np.allclose(
-            depth[covered], reference_depth[covered], rtol=1e-4
-        ),
+        "settings": reloaded.metadata.get("render", {})
+        == scene.metadata.get("render", {})
+        != {},
         "every node drawn": len(g.np.unique(index[index >= 0]))
         == len(reloaded.graph.nodes_geometry),
     }
+    checks.update(g.ray_checks(reloaded, arrays))
     for name, ok in checks.items():
         assert ok, name
