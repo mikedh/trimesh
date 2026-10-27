@@ -1544,7 +1544,7 @@ def test_export_unchanged():
     from PIL import Image
 
     from trimesh.viewer.opengl.viewer import SceneViewer
-    from trimesh.viewer.render import render_frames, stage
+    from trimesh.viewer.render import stage
 
     g.require_rendering()
     scenes = {
@@ -1617,11 +1617,11 @@ def test_export_unchanged():
     fps = 10
     for name in ["box moves", "camera rides"]:
         scene = g.set_environment(scenes[name], EnvironmentLight(name="sky"))
-        frames = list(render_frames(scene, resolution=[64, 48], duration=0.5, fps=fps))
+        frames = g.render_frames(scene, [64, 48], fps, duration=0.5)
         for index, frame in enumerate(frames):
             posed = scene.copy()
             posed.animate(index / fps)
-            (still,) = render_frames(posed, resolution=[64, 48], still=True)
+            still = g.png(posed.render(resolution=[64, 48]))
             difference = g.np.abs(frame.astype(int) - still).max()
             checks[f"{name} frame {index} is the posed scene"] = difference <= 1
         checks[f"{name} moves"] = not (frames[0] == frames[-1]).all()

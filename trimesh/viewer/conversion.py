@@ -28,7 +28,7 @@ from ..scene.lighting import (
     prefilter,
     spherical_harmonics,
 )
-from ..typed import ArrayLike, Integer, NDArray, float64
+from ..typed import ArrayLike, NDArray, float64
 from ..visual.color import to_rgba
 from ..visual.material import PBRMaterial
 from ..voxel.base import VoxelGrid
@@ -309,12 +309,8 @@ def geometry_to_arrays(geometry) -> GeometryArrays | None:
 
 
 def shadow_projections(
-    world: ArrayLike,
-    directional: ArrayLike,
-    cone_angles: ArrayLike,
-    bounds: ArrayLike,
-    resolution: Integer,
-) -> tuple[NDArray, NDArray]:
+    world: ArrayLike, directional: ArrayLike, cone_angles: ArrayLike, bounds: ArrayLike
+) -> NDArray:
     """
     Where each light sees the scene from, as one projection per light
     fit tightly around the scene's bounds so no shadow map resolution
@@ -331,16 +327,11 @@ def shadow_projections(
       Outer cone angle of each spot light.
     bounds : (2, 3) float
       Axis aligned bounds of everything casting shadows.
-    resolution : int
-      Width and height of the shadow maps in pixels.
 
     Returns
     ------------
     clip : (k, 4, 4) float
       World to clip space of each light.
-    texels : (k, 2) float
-      Width of a shadow map pixel in world units as a constant for
-      directional lights plus a multiple of the distance from spot lights.
     """
     world = np.array(world, dtype=np.float64).reshape((-1, 4, 4))
     directional = np.asarray(directional, dtype=bool)
@@ -371,10 +362,7 @@ def shadow_projections(
     # a cone between straight ahead and a hemisphere has a finite focal length
     focal = 1.0 / np.tan(np.clip(cone_angles, 1e-3, np.pi / 2.0 - 1e-3))
     scale = np.where(directional[:, None], 2.0 / size, focal[:, None])
-    projection = projection_matrices(scale, near, far, directional)
-    widths = np.where(directional, size.max(axis=1), 2.0 / focal)
-    texels = np.column_stack((widths * directional, widths * ~directional))
-    return np.matmul(projection, to_light), texels / float(resolution)
+    return np.matmul(projection_matrices(scale, near, far, directional), to_light)
 
 
 def render_lights(scene, camera_transform: ArrayLike) -> tuple[list, NDArray[float64]]:

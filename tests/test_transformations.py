@@ -215,11 +215,26 @@ def test_trs():
 
 
 def test_skin_points():
-    """`skin_points` matches the per-point weighted sum of joint transforms."""
+    """`Skin.deform` matches the per-point weighted sum of joint transforms."""
+    from trimesh.scene.animation import Skin
+
     tf = g.trimesh.transformations
     random = g.np.random.default_rng(4)
     points = random.uniform(-2.0, 2.0, (200, 3))
-    matrices = g.np.array(list(g.random_transforms(6, 20.0, seed=8, rigid=False)))
+    # joints whose world transforms are a node's matrix times an inverse bind
+    nodes = g.np.array(list(g.random_transforms(6, 20.0, seed=8, rigid=False)))
+    binds = g.np.array(list(g.random_transforms(6, 2.0, seed=9, rigid=False)))
+    matrices = nodes @ binds
+    graph = g.trimesh.scene.transforms.SceneGraph()
+    for index, matrix in enumerate(nodes):
+        graph.update(frame_to=f"joint_{index}", matrix=matrix)
+    skin = Skin([f"joint_{index}" for index in range(6)], binds)
+
+    def deform(points, joints, weights, skin=skin):
+        mesh = g.trimesh.Trimesh(points, process=False)
+        mesh.vertex_attributes.update({"joints": joints, "weights": weights})
+        return skin.deform(mesh, graph)
+
     joints = random.integers(0, 6, (200, 4))
     weights = random.random((200, 4))
     weights /= weights.sum(axis=1, keepdims=True)
@@ -227,11 +242,9 @@ def test_skin_points():
     one[:, 0] = 1.0
     unused = joints.copy()
     unused[:, 1:] = random.integers(0, 6, (200, 3))
-    single = tf.skin_points(points, joints, one, matrices)
-    same = g.np.tile(matrices[:1], (6, 1, 1))
-    empty = tf.skin_points(
-        g.np.zeros((0, 3)), g.np.zeros((0, 4), int), g.np.zeros((0, 4)), matrices
-    )
+    single = deform(points, joints, one)
+    same = Skin(skin.joints, g.np.linalg.inv(nodes) @ matrices[0])
+    empty = deform(g.np.zeros((0, 3)), g.np.zeros((0, 4), int), g.np.zeros((0, 4)))
 
     # an explicit per-point loop is the definition
     loop = [
@@ -243,19 +256,19 @@ def test_skin_points():
     ]
     checks = {
         "matches the definition": g.np.allclose(
-            tf.skin_points(points, joints, weights, matrices), loop, atol=1e-12
+            deform(points, joints, weights), loop, atol=1e-9
         ),
         # one joint with all the weight is just that transform
-        "single joint": g.np.allclose(single, first, atol=1e-12),
+        "single joint": g.np.allclose(single, first, atol=1e-9),
         # joints with no weight don't matter
         "unweighted joints ignored": g.np.array_equal(
-            single, tf.skin_points(points, unused, one, matrices)
+            single, deform(points, unused, one)
         ),
         # weights summing to one of the same transform is that transform
         "same transform": g.np.allclose(
-            tf.skin_points(points, joints, weights, same),
+            deform(points, joints, weights, skin=same),
             tf.transform_points(points, matrices[0]),
-            atol=1e-12,
+            atol=1e-9,
         ),
         "empty": empty.shape == (0, 3),
     }

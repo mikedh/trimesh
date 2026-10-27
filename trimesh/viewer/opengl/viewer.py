@@ -131,9 +131,6 @@ GENERATORS = {
 SWITCHES = (gl.glDisable, gl.glEnable)
 
 IDENTITY = np.eye(4)
-# maps clip space of -1.0 to 1.0 to texture coordinates of 0.0 to 1.0
-SHADOW_BIAS = np.diag([0.5, 0.5, 0.5, 1.0])
-SHADOW_BIAS[:3, 3] = 0.5
 
 # (input, action) for the help message
 MOUSE_BINDINGS = (
@@ -1290,9 +1287,6 @@ class SceneViewer:
         directional = rows["position"][:, 3:] == 0.0
         rows["position"][:, :3] = np.where(directional, towards, light_view[:, :3, 3])
         rows["direction"][:, :3] = -towards
-        # nothing is shadowed until the shadows are drawn
-        layers = rows["shadow"][:, 0].copy()
-        rows["shadow"][:, 0] = -1.0
         # the environment, which `frame_constants` has from world space
         rotation = frame["environment_rotation"][0]
         rotation[:3, :3] = rotation[:3, :3] @ view[:3, :3].T
@@ -1310,8 +1304,11 @@ class SceneViewer:
         # opaque meshes of the scene rather than the axis, grid or floor
         scene_rows = table.node_index >= 0
         opaque = table.mesh & ~table.blended & scene_rows
-        casting = layers >= 0
-        if effects and state.shadows and casting.any() and self.scene_bounds is not None:
+        # the lights with a layer of `shadow_maps`, which is used if drawn
+        casting = rows["shadow"][:, 0] >= 0
+        if not (effects and state.shadows and self.scene_bounds is not None):
+            rows["shadow"][:, 0] = -1.0
+        elif casting.any():
             if self.shadow_fit is None:
                 # every opaque mesh seen from each shadow casting light fit
                 # around the scene, which doesn't change with the camera
@@ -1320,7 +1317,6 @@ class SceneViewer:
                     directional[casting, 0],
                     rows["falloff"][casting, 3],
                     self.scene_bounds,
-                    SHADOW_RESOLUTION,
                 )
                 gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.framebuffers["shadow"])
                 gl.glViewport(0, 0, *self.sizes["shadow"])
@@ -1328,7 +1324,7 @@ class SceneViewer:
                 # shadow itself, more where it's seen at a grazing angle
                 gl.glPolygonOffset(2.0, 4.0)
                 shadow_frame = depth_frame.copy()
-                for layer, light_clip in enumerate(self.shadow_fit[0]):
+                for layer, light_clip in enumerate(self.shadow_fit):
                     gl.glFramebufferTextureLayer(
                         gl.GL_FRAMEBUFFER, gl.GL_DEPTH_ATTACHMENT,
                         self.textures["shadow"], 0, layer,
@@ -1338,12 +1334,9 @@ class SceneViewer:
                     shadow_frame["projection"] = light_clip
                     upload(gl.GL_UNIFORM_BUFFER, context.frame_buffer, shadow_frame)
                     self.draw_rows(opaque & ~table.fixed, transforms, "depth")
-            clip, texels = self.shadow_fit
             # the shader looks shadows up from view space
-            shadow_matrices = SHADOW_BIAS @ clip @ self.camera_transform
-            frame["shadow_matrices"][0, : len(clip)] = shadow_matrices
-            rows["shadow"][casting, 0] = layers[casting]
-            rows["shadow"][casting, 1:3] = texels
+            shadow_matrices = self.shadow_fit @ self.camera_transform
+            frame["shadow_matrices"][0, : len(shadow_matrices)] = shadow_matrices
 
         # meshes are pushed back slightly so lines on their surface win
         gl.glPolygonOffset(1.0, 1.0)

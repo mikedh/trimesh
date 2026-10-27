@@ -97,21 +97,6 @@ def test_engines():
             ]
             checks["dolly slides"] = g.np.ptp(columns[0]) > 5.0
             checks["dolly slides alike"] = g.np.allclose(*columns, atol=2.0)
-            direct = frames
-
-    # a saved `.blend` reopened renders what the direct render did
-    with g.tempfile.TemporaryDirectory() as directory:
-        path = g.os.path.join(directory, "scene.blend")
-        dolly.export(path, resolution=RESOLUTION, duration=0.8, fps=FPS, samples=16)
-        g.subprocess.run(
-            [blender._blender_executable, "--background", path]
-            + ["--render-output", g.os.path.join(directory, "frame_")]
-            + ["--render-frame", "3"],
-            check=True,
-            capture_output=True,
-        )
-        reopened = g.np.array(Image.open(g.os.path.join(directory, "frame_0003.png")))
-    checks["blend renders the same"] = g.np.array_equal(reopened, direct[3])
 
     for name, ok in checks.items():
         assert ok, name
@@ -122,13 +107,24 @@ def test_minimum_version():
     scene = g.trimesh.creation.box().scene()
     with g.pytest.raises(TypeError, match="bogus"):
         scene.render(file_type="png", resolution=[16, 12], engine="blender", bogus=1)
+    with g.tempfile.TemporaryDirectory() as directory:
+        # the template run by a Python whose `bpy` says it is Blender 4.2
+        with open(g.os.path.join(directory, "bpy.py"), "w") as f:
+            f.write("from types import SimpleNamespace\n")
+            f.write("app = SimpleNamespace(version=(4, 2, 0), version_string='4.2.0')\n")
+        old = g.subprocess.run(
+            [
+                g.sys.executable,
+                "-c",
+                g.trimesh.resources.get_string("templates/blender_scene.py"),
+            ],
+            capture_output=True,
+            text=True,
+            env={**g.os.environ, "PYTHONPATH": directory},
+        )
+    assert old.returncode != 0 and re.search(r"4\.3.*4\.2\.0", old.stderr), old.stderr
     with g.pytest.MonkeyPatch.context() as patch:
-        patch.setitem(blender._BLENDER_VERSION, blender._blender_executable, (4, 2, 0))
-        with g.pytest.raises(ValueError, match=r"4\.3.*4\.2\.0"):
-            scene.render(file_type="png", resolution=[16, 12], engine="blender")
-    with g.pytest.MonkeyPatch.context() as patch:
-        # Python answers `--version` with something other than Blender's
+        # Python fails on Blender's arguments, and the error names it
         patch.setattr(blender, "_blender_executable", g.sys.executable)
-        patch.delitem(blender._BLENDER_VERSION, g.sys.executable, raising=False)
         with g.pytest.raises(RuntimeError, match=re.escape(g.sys.executable)):
             scene.render(file_type="png", resolution=[16, 12], engine="blender")

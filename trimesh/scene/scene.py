@@ -1,5 +1,4 @@
 import collections
-import os
 import pickle
 import warnings
 from copy import deepcopy
@@ -1201,8 +1200,8 @@ class Scene(Geometry3D):
         file_obj : str, pathlib.Path, file-like, or None
           Where to write the render, such as "animated.mp4".
         file_type : str or None
-          "png", "gif", "webp", "avif", "mp4", "mkv" or "mov", from the
-          extension of `file_obj` if not passed, or "png" without either.
+          "png", "gif", "webp", "avif", "mp4", "mkv", "mov" or "blend", from
+          the extension of `file_obj` if not passed, or "png" without either.
         resolution : (2,) int or None
           Size in pixels, defaults to `scene.camera.resolution`.
         duration : float or None
@@ -1223,19 +1222,8 @@ class Scene(Geometry3D):
         """
         from ..viewer.render import render_scene
 
-        if isinstance(file_obj, (str, os.PathLike)):
-            file_obj = os.path.abspath(os.path.expanduser(file_obj))
-            # a file name's extension is its type unless one was passed
-            file_type = file_type or file_obj.split(".")[-1]
         return render_scene(
-            self,
-            resolution=resolution,
-            file_obj=file_obj,
-            file_type=(file_type or "png").strip().lower().lstrip("."),
-            duration=duration,
-            fps=fps,
-            engine=engine,
-            **kwargs,
+            self, resolution, file_obj, file_type, duration, fps, engine, **kwargs
         )
 
     @property

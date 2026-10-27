@@ -128,9 +128,7 @@ LIGHT = np.dtype(
         # one over the range or zero, the spot cone scale and offset which are
         # zero and one without a cone, then the outer cone angle for the CPU
         ("falloff", "<f4", 4),
-        # the layer of `shadow_maps` with its shadow or -1, then the width of
-        # a shadow map pixel in view units as a constant plus a multiple of
-        # the distance to the light, then zero
+        # the layer of `shadow_maps` with its shadow or -1, then zeros
         ("shadow", "<f4", 4),
     ],
     metadata={"glsl": "Light"},
@@ -150,8 +148,7 @@ FRAME = np.dtype(
         # how many of `lights` are in use, then zeros
         ("light_count", "<i4", 4),
         ("lights", LIGHT, MAX_LIGHTS),
-        # view space to the 0.0-1.0 texture coordinates and depth of
-        # each layer of `shadow_maps`
+        # view space to the clip space of the light of each layer of `shadow_maps`
         ("shadow_matrices", "<f4", (MAX_SHADOWS, 4, 4)),
         # the `EnvironmentLight`: view space to its cube map's frame, the
         # linear RGB the cube map is multiplied by then the mip level of

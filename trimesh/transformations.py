@@ -1616,38 +1616,6 @@ def sample_channel(
     return values[lower] + (values[upper] - values[lower]) * step
 
 
-def skin_points(
-    points: ArrayLike, joints: ArrayLike, weights: ArrayLike, matrices: ArrayLike
-) -> NDArray:
-    """
-    Move points by a weighted blend of joint transforms, which is
-    linear blend skinning as glTF and every other format defines it.
-
-    Parameters
-    ------------
-    points : (n, 3) float
-      Points to move.
-    joints : (n, k) int
-      Which of `matrices` moves each point, `k` per point.
-    weights : (n, k) float
-      How much each of those joints moves each point.
-    matrices : (j, 4, 4) float
-      Transform of every joint, which for glTF is the joint's world
-      transform times its inverse bind matrix.
-
-    Returns
-    ------------
-    moved : (n, 3) float
-      The points moved by the blend of their joints.
-    """
-    points = np.asanyarray(points, dtype=np.float64).reshape((-1, 3))
-    rows = np.asanyarray(matrices, dtype=np.float64)[:, :3].reshape((-1, 12))
-    # the top three rows of every joint blended together per point
-    weights = np.asanyarray(weights, dtype=np.float64)
-    blended = (weights[:, :, None] * rows[joints]).sum(axis=1).reshape((-1, 3, 4))
-    return np.matmul(blended[:, :, :3], points[:, :, None])[:, :, 0] + blended[:, :, 3]
-
-
 def quaternion_multiply(quaternion1, quaternion0):
     """Return multiplication of two quaternions.
 

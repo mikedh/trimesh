@@ -1,16 +1,11 @@
-import glob
 import os
 import platform
-import re
 import subprocess
-import tempfile
-
-import numpy as np
 
 from .. import util
 from ..constants import log
 from ..resources import get_string
-from ..typed import ArrayLike, BooleanOperationType, Integer, Iterable, Number
+from ..typed import BooleanOperationType, Integer, Iterable, Number
 from .generic import HIDDEN_CONSOLE, MeshScript
 
 if platform.system() == "Windows":
@@ -148,47 +143,17 @@ def unwrap(
     return result
 
 
-# the oldest Blender which `templates/blender_scene.py` runs in
-MINIMUM_VERSION = (4, 3)
-
-# what `blender --version` reported, by executable
-_BLENDER_VERSION = {}
-
-
-def version() -> tuple:
-    """
-    The version of the Blender being used, asked once.
-
-    Returns
-    ------------
-    version : tuple
-      Like `(4, 5, 15)`.
-    """
-    try:
-        return _BLENDER_VERSION[_blender_executable]
-    except KeyError:
-        pass
-    command = [_blender_executable, "--version"]
-    output = subprocess.run(command, capture_output=True, text=True, **HIDDEN_CONSOLE)
-    match = re.search(r"Blender (\d+)\.(\d+)\.(\d+)", output.stdout)
-    if match is None:
-        raise RuntimeError(f"`{_blender_executable}` isn't Blender:\n{output.stdout}")
-    _BLENDER_VERSION[_blender_executable] = tuple(int(part) for part in match.groups())
-    return _BLENDER_VERSION[_blender_executable]
-
-
 def build(
     scene,
     directory: str,
     count: Integer,
     fps: Number,
     samples: Integer = 64,
-    blend: str | None = None,
     **settings,
 ) -> None:
     """
     Run `resources/templates/blender_scene.py` in Blender on a GLB of the
-    scene, which renders `frame_*.png` files or saves a `.blend`.
+    scene, which renders `frame_*.png` files.
 
     Parameters
     ------------
@@ -200,8 +165,6 @@ def build(
       Frames of `scene.animations` every `1 / fps` seconds.
     samples : int
       Antialiasing samples per pixel.
-    blend : str or None
-      Save a `.blend` to this path rather than rendering.
     settings : dict
       Changes to `trimesh.viewer.conversion.RENDER_DEFAULTS`.
     """
@@ -212,16 +175,6 @@ def build(
         raise TypeError(f"unknown render settings {unknown}")
     if not exists:
         raise ValueError("No blender available!")
-    if version() < MINIMUM_VERSION:
-        raise ValueError(
-            f"rendering needs Blender >= {'.'.join(map(str, MINIMUM_VERSION))}, "
-            + f"found {'.'.join(map(str, version()))} at `{_blender_executable}`"
-        )
-    for geometry in scene.geometry.values():
-        material = getattr(getattr(geometry, "visual", None), "material", None)
-        if getattr(material, "diffuseTransmissionFactor", None) is not None:
-            log.warning("only the OpenGL viewer renders diffuse transmission")
-            break
 
     path = os.path.join(directory, "scene.glb")
     scene.export(path, include_normals=True)
@@ -232,7 +185,6 @@ def build(
         **settings,
         "input": path,
         "output": os.path.join(directory, "frame_"),
-        "blend": blend,
         "camera": scene.camera.name,
         "fps": fps,
         "count": count,
@@ -248,64 +200,3 @@ def build(
     if result.returncode != 0:
         output = result.stdout + result.stderr
         raise RuntimeError(f"`{_blender_executable}` failed:\n{output}")
-
-
-def render(scene, count: Integer = 1, fps: Number = 30.0, **settings):
-    """
-    Render a scene with Blender's EEVEE through its own camera.
-
-    Parameters
-    ------------
-    scene : trimesh.Scene
-      Scene from `trimesh.viewer.render.stage`.
-    count, fps, settings
-      Passed to `build`, like `samples=64` or `exposure=2.0`.
-
-    Returns
-    ------------
-    frames : generator
-      (height, width, 4) uint8 RGBA images over white.
-    """
-    from PIL import Image
-
-    with tempfile.TemporaryDirectory() as directory:
-        build(scene, directory, count, fps, **settings)
-        # the background was transparent so put it over white
-        white = Image.new("RGBA", tuple(scene.camera.resolution), (255,) * 4)
-        for path in sorted(glob.glob(os.path.join(directory, "frame_*.png"))):
-            with Image.open(path) as image:
-                yield np.asarray(Image.alpha_composite(white, image.convert("RGBA")))
-
-
-def save_blend(
-    scene,
-    resolution: ArrayLike | None = None,
-    duration: Number | None = None,
-    fps: Number = 30.0,
-    **settings,
-) -> bytes:
-    """
-    The scene as a `.blend` which renders the frames `render` does.
-
-    Parameters
-    ------------
-    scene : trimesh.Scene
-      Scene to save, which is not changed.
-    resolution, duration, fps
-      Passed to `trimesh.viewer.render.stage`.
-    settings : dict
-      Passed to `build`, like `samples=64` or `exposure=2.0`.
-
-    Returns
-    ------------
-    blend : bytes
-      The `.blend` file with every image packed in.
-    """
-    from ..viewer.render import stage
-
-    scene, count = stage(scene, resolution=resolution, duration=duration, fps=fps)
-    with tempfile.TemporaryDirectory() as directory:
-        path = os.path.join(directory, "scene.blend")
-        build(scene, directory, count, fps, blend=path, **settings)
-        with open(path, "rb") as file_obj:
-            return file_obj.read()

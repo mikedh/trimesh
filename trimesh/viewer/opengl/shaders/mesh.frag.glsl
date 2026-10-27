@@ -50,13 +50,19 @@ float shadow_visibility(vec4 shadow, vec3 position, vec3 normal, float distance)
     if (shadow.x < 0.0) {
         return 1.0;
     }
-    vec3 lifted = position + normal * 2.0 * (shadow.y + shadow.z * distance);
-    vec4 projected = frame.shadow_matrices[int(shadow.x)] * vec4(lifted, 1.0);
-    vec2 texel = 1.0 / vec2(textureSize(shadow_maps, 0).xy);
+    mat4 light_clip = frame.shadow_matrices[int(shadow.x)];
+    // a shadow map pixel is two over the projection's scale and the size
+    // wide at the distance from a light, which is one for directional ones
+    mat3 rows = transpose(mat3(light_clip));
+    float size = float(textureSize(shadow_maps, 0).x);
+    float texel = 2.0 * distance / (min(length(rows[0]), length(rows[1])) * size);
+    vec4 projected = light_clip * vec4(position + normal * 2.0 * texel, 1.0);
+    // clip space of -1.0 to 1.0 is texture coordinates of 0.0 to 1.0
+    vec3 coordinates = projected.xyz / projected.w * 0.5 + 0.5;
     float visible = 0.0;
     for (int index = 0; index < 9; index++) {
-        vec2 offset = projected.xy / projected.w + vec2(index / 3 - 1, index % 3 - 1) * texel;
-        visible += texture(shadow_maps, vec4(offset, shadow.x, projected.z / projected.w));
+        vec2 offset = coordinates.xy + vec2(index / 3 - 1, index % 3 - 1) / size;
+        visible += texture(shadow_maps, vec4(offset, shadow.x, coordinates.z));
     }
     return visible / 9.0;
 }

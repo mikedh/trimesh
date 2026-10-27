@@ -9,14 +9,15 @@ from trimesh.interfaces import ffmpeg
 # step is 0.625 * 2 ** (qp / 6) and rounding errs at most half a step
 STEP = 0.625 * 2 ** (18 / 6)
 
-# (width, height, fps, channels): an odd size and 4K, which is above 1080p
+# (width, height, fps, channels, H.264 level times ten): an odd size and
+# 4K, which is above 1080p, at the smallest level of table A-1 which fits
 FRAMES = 3
-CASES = [(256, 144, 24, 4), (161, 97, 30, 3), (3840, 2160, 30, 3)]
+CASES = [(256, 144, 24, 4, 41), (161, 97, 30, 3, 41), (3840, 2160, 30, 3, 51)]
 
 
 def probe(path):
-    """Width, height, frame rate and pixel format of the video stream."""
-    entries = "stream=width,height,r_frame_rate,pix_fmt"
+    """Width, height, frame rate, pixel format and level of the video stream."""
+    entries = "stream=width,height,r_frame_rate,pix_fmt,level"
     command = f"ffprobe -v error -select_streams v:0 -of json -show_entries {entries}"
     out = g.subprocess.run([*command.split(), path], capture_output=True, check=True)
     return g.json.loads(out.stdout)["streams"][0]
@@ -33,17 +34,6 @@ def encode(path, frames, fps, profiles=None):
     return video
 
 
-def test_h264_level():
-    # smallest level of H.264 table A-1 which fits, up to 8K at 120 fps
-    levels = "4.1 4.2 5.1 5.2 6 6.1 6.2".split()
-    sizes = [(640, 360, 30), (1920, 1080, 60), (3840, 2160, 30), (3840, 2160, 60)]
-    sizes += [(7680, 4320, 30), (7680, 4320, 60), (7680, 4320, 120)]
-    for size, level in zip(sizes, levels):
-        assert ffmpeg.h264_level(*size) == level, size
-    with g.pytest.raises(ValueError):
-        ffmpeg.h264_level(7680, 4320, 240)
-
-
 def test_video():
     if not ffmpeg.exists:
         if g.all_dependencies:
@@ -54,7 +44,7 @@ def test_video():
     software = {"h264_not_an_encoder": "", "libx264": ffmpeg.PROFILES["libx264"]}
     checks = {}
     with g.TemporaryDirectory() as directory:
-        for width, height, fps, channels in CASES:
+        for width, height, fps, channels, level in CASES:
             # a smooth gradient with noise, a little different every frame
             ramp = g.np.linspace(40, 200, width)[None, :, None]
             base = ramp + random.integers(
@@ -96,6 +86,7 @@ def test_video():
                         f"{name} size": (stream["width"], stream["height"]) == padded,
                         f"{name} fps": stream["r_frame_rate"] == f"{fps}/1",
                         f"{name} pixel format": stream["pix_fmt"] == "yuv420p",
+                        f"{name} level": stream["level"] == level,
                         f"{name} strict decode": strict.returncode == 0
                         and not strict.stderr,
                         f"{name} codec error": error <= STEP / 2,
@@ -106,6 +97,9 @@ def test_video():
         # a frame of another size is an error rather than a corrupt video
         with g.pytest.raises(ValueError, match="but video is"):
             encode(path, [g.np.zeros((64, 64, 3)), g.np.zeros((64, 32, 3))], 30)
+        # 8K at 240 fps is past the largest level of H.264
+        with g.pytest.raises(ValueError, match="too large"):
+            encode(path, [g.np.zeros((4320, 7680, 3), dtype=g.np.uint8)], 240)
         # none working says which ffmpeg, what it tried and what to do instead
         with g.pytest.MonkeyPatch.context() as patch:
             patch.setattr(ffmpeg, "PROFILES", {"h264_nope": "", "h264_nor_this": ""})
@@ -120,36 +114,36 @@ def test_video():
 def test_without_ffmpeg():
     from PIL import Image, ImageSequence
 
-    from trimesh.viewer import render
+    from trimesh.viewer.render import render_scene
 
     # Pillow writes animations without ffmpeg; a video says what to do instead
-    solid = g.np.zeros((6, 32, 24, 4), dtype=g.np.uint8)
-    solid[..., 0] = (g.np.arange(6) * 40)[:, None, None]
-    solid[..., 3] = 255
-    fps = 30
-    # GIF counts durations in hundredths of a second, so 30 fps can't be
-    # 33 ms every frame: frames end within half a tick of when they should
-    exact = g.np.arange(1, len(solid) + 1) * 1000.0 / fps
+    g.require_rendering()
+    # a box sliding across the view so every frame is different
+    scene, fps, resolution = g.dolly_scene("box", 2.0), 3, (96, 72)
+    raw = g.np.array(g.render_frames(scene, resolution, fps), dtype=g.np.int64)
+    # GIF counts durations in hundredths of a second, so 3 fps can't be
+    # 333 ms every frame: frames end within half a tick of when they should
+    exact = g.np.arange(1, len(raw) + 1) * 1000.0 / fps
     with g.pytest.MonkeyPatch.context() as patch:
         patch.setattr(ffmpeg, "exists", False)
         for file_type, tick in {"gif": 10, "webp": 1}.items():
-            data = render.encode(solid, None, file_type, fps)
+            data = render_scene(scene, resolution, file_type=file_type, fps=fps)
             image = Image.open(g.trimesh.util.wrap_as_stream(data))
             frames, durations = [], []
             for frame in ImageSequence.Iterator(image):
                 frames.append(frame.convert("RGBA"))
                 durations.append(frame.info["duration"])
             assert (g.np.abs(g.np.cumsum(durations) - exact) <= tick / 2).all()
-            # every frame in order, each nearest its own solid color
-            distance = g.np.abs(g.np.array(frames, dtype=g.np.int64)[:, None] - solid)
-            assert distance.sum(axis=(2, 3, 4)).argmin(axis=1).tolist() == list(range(6))
+            # every frame in order, each nearest its own raw frame
+            distance = g.np.abs(g.np.array(frames, dtype=g.np.int64)[:, None] - raw)
+            order = distance.sum(axis=(2, 3, 4)).argmin(axis=1).tolist()
+            assert order == list(range(len(raw))), order
         with g.pytest.raises(ImportError) as missing:
-            render.encode(solid, None, "mp4", fps)
+            render_scene(scene, resolution, file_type="mp4", fps=fps)
     assert all(w in str(missing.value) for w in ["ffmpeg", "webp", "gif"])
 
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
-    test_h264_level()
     test_without_ffmpeg()
     test_video()

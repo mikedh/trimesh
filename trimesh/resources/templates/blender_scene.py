@@ -2,8 +2,8 @@
 blender_scene.py
 ------------------
 
-Render a GLB exported by trimesh to numbered PNG frames or save it as a
-`.blend`, run by `trimesh.interfaces.blender.build` in Blender 4.3 or
+Render a GLB exported by trimesh to numbered PNG frames, run by
+`trimesh.interfaces.blender.build` in Blender 4.3 or
 later with JSON settings as the last argument. Blender's glTF importer
 reads the scene, and this adds only what a GLB can't say: the camera,
 frames, exposure, Blender's own neutral world or a transparent film, and
@@ -15,6 +15,12 @@ import math
 import sys
 
 import bpy
+
+# the oldest Blender this runs in, which the error trimesh raises shows
+if bpy.app.version < (4, 3, 0):
+    raise RuntimeError(
+        f"rendering needs Blender 4.3 or later, not {bpy.app.version_string}"
+    )
 
 
 def link(tree, kind, inputs=None):
@@ -116,14 +122,8 @@ def main(settings):
     # Blender's default world, which is a constant dim gray
     scene.world = bpy.data.worlds.new("world")
 
-    if settings["blend"] is None:
-        scene.render.filepath = settings["output"]
-        bpy.ops.render.render(animation=True)
-    else:
-        # frames render next to the file, which holds every image
-        scene.render.filepath = "//frame_"
-        bpy.ops.file.pack_all()
-        bpy.ops.wm.save_as_mainfile(filepath=settings["blend"], compress=True)
+    scene.render.filepath = settings["output"]
+    bpy.ops.render.render(animation=True)
 
 
 if __name__ == "__main__":

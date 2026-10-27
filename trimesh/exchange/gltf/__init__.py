@@ -1014,19 +1014,21 @@ def _append_mesh(
         # add the reference for vertex color
         current["primitives"][0]["attributes"]["NORMAL"] = acc_norm
 
-    # which four joints move each vertex and how much, which glTF names
+    # which four joints move each vertex and how much, which glTF names,
+    # where joints without weights stay a custom attribute
     attributes = dict(mesh.vertex_attributes)
-    try:
-        # both or neither, as joints without weights are kept as an extra
+    if "joints" in attributes and "weights" in attributes:
         skinning = {
-            "JOINTS_0": (attributes["joints"], "<u2", 5123),
-            "WEIGHTS_0": (attributes["weights"], float32, 5126),
+            "JOINTS_0": (attributes.pop("joints"), "<u2", 5123),
+            "WEIGHTS_0": (attributes.pop("weights"), float32, 5126),
         }
-        del attributes["joints"], attributes["weights"]
         if any(
             np.shape(item[0]) != (len(mesh.vertices), 4) for item in skinning.values()
         ):
-            raise ValueError("joints and weights must be one VEC4 per vertex")
+            if tol.strict:
+                raise ValueError("joints and weights must be one VEC4 per vertex")
+            log.warning("skipping joints and weights which aren't a VEC4 per vertex")
+            skinning = {}
         for key, (data, dtype, component) in skinning.items():
             current["primitives"][0]["attributes"][key] = _data_append(
                 acc=tree["accessors"],
@@ -1034,13 +1036,6 @@ def _append_mesh(
                 blob={"componentType": component, "type": "VEC4", "byteOffset": 0},
                 data=np.asarray(data, dtype=dtype),
             )
-    except KeyError:
-        pass
-    except ValueError:
-        # skinning that isn't one set of four per vertex isn't exportable
-        if tol.strict:
-            raise
-        log.warning("skipping skinning attributes", exc_info=True)
 
     # for each attribute with a leading underscore, assign them to trimesh
     # vertex_attributes

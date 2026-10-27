@@ -7,6 +7,7 @@ might need, to reduce the amount of boilerplate.
 import os
 import sys
 import io
+import re
 import json
 import types
 import copy
@@ -142,8 +143,13 @@ if expect is not None:
 
         installed = pyglet.version
     elif expect_name == "blender":
-        # the version of the Blender trimesh will run, i.e. `(4, 5, 15)`
-        installed = ".".join(str(i) for i in trimesh.interfaces.blender.version())
+        # the version of the Blender trimesh will run, i.e. `4.5.15`
+        output = subprocess.run(
+            [trimesh.interfaces.blender._blender_executable, "--version"],
+            capture_output=True,
+            text=True,
+        ).stdout
+        installed = re.search(r"Blender (\d+\.\d+\.\d+)", output).group(1)
     else:
         raise ValueError(f"unknown `TRIMESH_EXPECT={expect}`")
     assert installed == expect_version, f"`TRIMESH_EXPECT={expect}` but `{installed}`"
@@ -757,6 +763,23 @@ def render(scene, include_depth=False, include_segmentation=False, **kwargs):
         return viewer.to_array(
             include_depth=include_depth, include_segmentation=include_segmentation
         )
+    finally:
+        viewer.close()
+
+
+def render_frames(scene, resolution, fps, duration=None):
+    """Every raw frame `Scene.render` encodes, drawn the way it draws them."""
+    from trimesh.viewer.opengl.viewer import SceneViewer
+    from trimesh.viewer.render import stage
+
+    staged, count = stage(scene, resolution, duration=duration, fps=fps)
+    viewer = SceneViewer(staged, visible=False, start_loop=False, follow_camera=True)
+    try:
+        frames = []
+        for index in range(count):
+            viewer.animation_time = index / fps
+            frames.append(viewer.to_array().color)
+        return frames
     finally:
         viewer.close()
 

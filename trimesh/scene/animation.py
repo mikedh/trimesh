@@ -12,7 +12,7 @@ import numpy as np
 
 from .. import caching
 from ..constants import log
-from ..transformations import sample_channel, skin_points, trs_from_matrix, trs_matrix
+from ..transformations import sample_channel, trs_from_matrix, trs_matrix
 from ..typed import (
     ArrayLike,
     Callable,
@@ -219,7 +219,8 @@ class Skin:
         """
         The vertices of a skinned mesh where its joints put them,
         which is in world space as the node holding the mesh doesn't
-        move it, as glTF specifies.
+        move it, by linear blend skinning as glTF and every other
+        format defines it.
 
         Parameters
         ------------
@@ -233,13 +234,15 @@ class Skin:
         vertices : (n, 3) float
           Posed vertices in world space.
         """
-        # each joint's world transform times its inverse bind matrix
+        # the top three rows of each joint's world transform times its
+        # inverse bind matrix, blended by the weights of every vertex
         world = np.reshape([graph.get(joint)[0] for joint in self.joints], (-1, 4, 4))
-        attributes = mesh.vertex_attributes
-        joints, weights = attributes["joints"], attributes["weights"]
-        return skin_points(
-            mesh.vertices, joints, weights, world @ self.inverse_bind_matrices
-        )
+        rows = (world @ self.inverse_bind_matrices)[:, :3].reshape((-1, 12))
+        joints = mesh.vertex_attributes["joints"]
+        weights = np.asarray(mesh.vertex_attributes["weights"], dtype=np.float64)
+        blended = (weights[:, :, None] * rows[joints]).sum(axis=1).reshape((-1, 3, 4))
+        vertices = np.asarray(mesh.vertices, dtype=np.float64)[:, :, None]
+        return np.matmul(blended[:, :, :3], vertices)[:, :, 0] + blended[:, :, 3]
 
     def __hash__(self) -> int:
         """

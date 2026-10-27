@@ -12,7 +12,7 @@ import numpy as np
 
 from .. import exceptions, util
 from ..constants import tol
-from ..typed import Callable, NDArray
+from ..typed import NDArray
 from . import color
 
 try:
@@ -315,20 +315,18 @@ class PBRField:
     `_data` like the others, where None removes it.
     """
 
-    def __init__(self, name: str, cast: Callable | None = None):
+    def __set_name__(self, owner: type, name: str) -> None:
         """
-        Declare a field.
+        Store the field's name, which is its key in `_data`.
 
         Parameters
         ------------
+        owner
+          The class declaring the field.
         name
-          The field's name and its key in `_data`.
-        cast
-          Converts a value when it is set like `float`, or None to
-          store it as it is like an image.
+          The field's name.
         """
         self.name = name
-        self.cast = cast
 
     def __get__(self, material: "PBRMaterial | None", owner: type | None = None):
         """
@@ -362,8 +360,6 @@ class PBRField:
           The new value, or None to remove it.
         """
         material._data.pop(self.name, None)
-        if value is not None and self.cast is not None:
-            value = self.cast(value)
         if value is not None:
             material._data[self.name] = value
 
@@ -378,21 +374,19 @@ class PBRMaterial(Material):
     """
 
     # `KHR_materials_transmission`: from 0.0 to 1.0 passing through like glass
-    transmissionFactor = PBRField("transmissionFactor", float)
+    transmissionFactor = PBRField()
     # an image whose red channel multiplies `transmissionFactor`
-    transmissionTexture = PBRField("transmissionTexture")
+    transmissionTexture = PBRField()
     # `KHR_materials_diffuse_transmission`: scattered through a thin leaf
-    diffuseTransmissionFactor = PBRField("diffuseTransmissionFactor", float)
+    diffuseTransmissionFactor = PBRField()
     # an image whose alpha channel multiplies `diffuseTransmissionFactor`
-    diffuseTransmissionTexture = PBRField("diffuseTransmissionTexture")
+    diffuseTransmissionTexture = PBRField()
     # the (3,) linear RGB color of that scattered light, white if not set
-    diffuseTransmissionColorFactor = PBRField(
-        "diffuseTransmissionColorFactor", lambda value: np.float64(value).reshape(3)
-    )
+    diffuseTransmissionColorFactor = PBRField()
     # an sRGB image whose color multiplies `diffuseTransmissionColorFactor`
-    diffuseTransmissionColorTexture = PBRField("diffuseTransmissionColorTexture")
+    diffuseTransmissionColorTexture = PBRField()
     # `KHR_materials_unlit`: the base color is the final color with no lighting
-    unlit = PBRField("unlit", bool)
+    unlit = PBRField()
 
     def __init__(
         self,

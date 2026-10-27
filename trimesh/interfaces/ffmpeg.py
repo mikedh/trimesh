@@ -11,26 +11,26 @@ import tempfile
 
 import numpy as np
 
-from ..typed import ArrayLike, Integer, Number
+from ..typed import ArrayLike, Number
 from .generic import HIDDEN_CONSOLE
 
 _ffmpeg_executable = shutil.which("ffmpeg")
 exists = _ffmpeg_executable is not None
 
-# H.264 table A-1 levels: the most macroblocks in a frame and a second,
-# then the most bits a second and bits of buffer of High profile. A video
-# declares the smallest level which fits so hardware decoders accept it,
-# and is held to the peak of 4.2 which players decode in real time.
+# H.264 table A-1 levels: the most macroblocks in a frame and in a second.
+# A video declares the smallest level which fits so hardware decoders
+# accept it, and is held to the bits a second and of buffer of High
+# profile at level 4.2, the peak which players decode in real time.
 H264_LEVELS = {
-    "4.1": (8192, 245760, 62500000, 78125000),
-    "4.2": (8704, 522240, 62500000, 78125000),
-    "5.1": (36864, 983040, 300000000, 300000000),
-    "5.2": (36864, 2073600, 300000000, 300000000),
-    "6": (139264, 4177920, 300000000, 300000000),
-    "6.1": (139264, 8355840, 600000000, 600000000),
-    "6.2": (139264, 16711680, 1000000000, 1000000000),
+    "4.1": (8192, 245760),
+    "4.2": (8704, 522240),
+    "5.1": (36864, 983040),
+    "5.2": (36864, 2073600),
+    "6": (139264, 4177920),
+    "6.1": (139264, 8355840),
+    "6.2": (139264, 16711680),
 }
-PEAK_BITRATE, PEAK_BUFFER = H264_LEVELS["4.2"][2:]
+PEAK_BITRATE, PEAK_BUFFER = 62500000, 78125000
 
 # Encoder to constant quality arguments, fastest first, all keeping SSIM
 # above 0.98 on renders. NVENC's B-frames aren't references as some decoders
@@ -45,29 +45,6 @@ VIDEO_TYPES = ("mp4", "mkv", "mov")  # files which hold H.264
 INPUT_FORMATS = {3: "rgb24", 4: "rgba"}  # channels to ffmpeg pixel format
 # (size, *arguments) to if a test frame encoded
 _FFMPEG_PROFILE_WORKS = {}
-
-
-def h264_level(width: Integer, height: Integer, fps: Number) -> str:
-    """
-    The smallest H.264 level which fits a frame size and frame rate.
-
-    Parameters
-    ------------
-    width, height : int
-      Frame size in pixels.
-    fps : float
-      Frames per second.
-
-    Returns
-    ------------
-    level : str
-      A key of `H264_LEVELS`.
-    """
-    macroblocks = -(-width // 16) * -(-height // 16)
-    for level, (frame, rate, *_) in H264_LEVELS.items():
-        if macroblocks <= frame and macroblocks * fps <= rate:
-            return level
-    raise ValueError(f"{width}x{height} at {fps} fps is too large for H.264")
 
 
 class VideoWriter:
@@ -111,9 +88,18 @@ class VideoWriter:
         if self.shape is None:
             self.shape = frame.shape
             even = (width + width % 2, height + height % 2)
-            size, level = "{}x{}".format(*even), h264_level(*even, self.fps)
+            # the smallest level which fits, counting 16x16 macroblocks
+            size, blocks = "{}x{}".format(*even), -(-even[0] // 16) * -(-even[1] // 16)
+            fits = [
+                level
+                for level, (per_frame, per_second) in H264_LEVELS.items()
+                if blocks <= per_frame and blocks * self.fps <= per_second
+            ]
+            if len(fits) == 0:
+                raise ValueError(f"{size} at {self.fps} fps is too large for H.264")
+            level = fits[0]
             for self.encoder, quality in PROFILES.items():
-                if H264_LEVELS[level][2] > PEAK_BITRATE:
+                if float(level) > 4.2:
                     # NVENC's constant quality overshoots the peak on bursts
                     # of detail: target the peak with the quality as the finest
                     quality = quality.replace("-cq", "-qmin")
