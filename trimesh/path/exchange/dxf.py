@@ -411,11 +411,13 @@ def convert_entities(blob, blob_raw=None, blocks=None, return_name=False):
             entities.append(i.copy())
             # offset its vertices to the current index
             entities[-1].points += len(vertices)
-        # DXF scales the block, rotates it counterclockwise (the opposite
-        # sign to `planar_matrix`) and then moves it to the insertion point
-        matrix = tf.planar_matrix(offset=offset, theta=-np.radians(angle))
-        matrix[:2, :2] *= scale
-        vertices.extend(tf.transform_points(cv, matrix))
+        # transform the block's vertices based on the entity settings
+        # DXF rotates counterclockwise, the opposite sign to `planar_matrix`
+        vertices.extend(
+            tf.transform_points(
+                cv, tf.planar_matrix(offset=offset, theta=-np.radians(angle), scale=scale)
+            )
+        )
 
     # find the start points of entities
     # DXF object to trimesh object converters
