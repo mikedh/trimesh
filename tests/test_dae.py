@@ -1,3 +1,5 @@
+import re
+
 try:
     from . import generic as g
 except BaseException:
@@ -95,6 +97,32 @@ class DAETest(g.unittest.TestCase):
 
         # test fallback to default roughness
         assert m.visual.material.roughnessFactor == 1.0
+
+    def test_export_unique_ids(self):
+        """
+        Exporting multiple meshes should produce document-unique ids
+        """
+        if collada is None:
+            g.log.error("no pycollada to test!")
+            return
+
+        a = g.trimesh.creation.box()
+        b = g.trimesh.creation.icosphere()
+        b.apply_translation([3, 0, 0])
+        # vertex colors add a COLOR source
+        b.visual.vertex_colors = [255, 0, 0, 255]
+
+        r = g.trimesh.exchange.dae.export_collada([a, b])
+
+        ids = re.findall(rb'\sid="([^"]+)"', r)
+        assert len(ids) > 0
+        assert len(ids) == len(set(ids))
+
+        # each geometry should reference its own vertices
+        c = collada.Collada(g.trimesh.util.wrap_as_stream(r))
+        assert len(c.geometries) == 2
+        for geom, mesh in zip(c.geometries, [a, b]):
+            assert g.np.allclose(geom.primitives[0].vertex, mesh.vertices)
 
 
 if __name__ == "__main__":
