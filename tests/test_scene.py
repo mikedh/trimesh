@@ -530,6 +530,65 @@ def test_scene_concat():
     assert isinstance(concat, g.trimesh.path.Path3D)
 
 
+def _massless_path(z=2.0):
+    # a Path3D has neither a `mass` nor a `center_mass` property
+    return g.trimesh.path.Path3D(
+        entities=[g.trimesh.path.entities.Line([0, 1, 2])],
+        vertices=np.array([[0.0, 0, z], [1, 0, z], [1, 1, z]]),
+    )
+
+
+def test_center_mass_with_massless_geometry():
+    # a scene mixing a mesh with a massless geometry (Path3D) used to
+    # raise a KeyError from Scene.center_mass: the massless instance
+    # should simply not contribute to the weighted average
+    box = g.trimesh.creation.box(extents=[1, 1, 1])
+    scene = g.trimesh.Scene()
+    scene.add_geometry(
+        box,
+        node_name="box",
+        geom_name="box",
+        transform=g.trimesh.transformations.translation_matrix([5, 0, 0]),
+    )
+    scene.add_geometry(_massless_path(), node_name="path", geom_name="path")
+
+    assert not hasattr(scene.geometry["path"], "mass")
+    np.testing.assert_allclose(scene.center_mass, [5, 0, 0])
+
+
+def test_center_mass_weights_stay_aligned():
+    # with instances interleaved as [box, path, box] the weights must
+    # stay aligned with the transformed centers they belong to
+    small = g.trimesh.creation.box(extents=[1, 1, 1])
+    big = g.trimesh.creation.box(extents=[2, 2, 2])
+    scene = g.trimesh.Scene()
+    scene.add_geometry(
+        small,
+        node_name="small",
+        transform=g.trimesh.transformations.translation_matrix([-10, 0, 0]),
+    )
+    scene.add_geometry(_massless_path(), node_name="path")
+    scene.add_geometry(
+        big,
+        node_name="big",
+        transform=g.trimesh.transformations.translation_matrix([10, 0, 0]),
+    )
+
+    expected = (
+        small.mass * np.array([-10.0, 0, 0]) + big.mass * np.array([10.0, 0, 0])
+    ) / (small.mass + big.mass)
+    np.testing.assert_allclose(scene.center_mass, expected)
+
+
+def test_center_mass_no_massive_geometry():
+    # a scene with no geometry that has mass properties has no
+    # defined center of mass
+    scene = g.trimesh.Scene()
+    scene.add_geometry(_massless_path(), node_name="path")
+    with g.pytest.raises(ValueError, match="no geometry with mass"):
+        _ = scene.center_mass
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     test_empty()
