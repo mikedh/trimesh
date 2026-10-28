@@ -369,12 +369,29 @@ def weighted_vertex_normals(
         return matrix.dot(face_normals)
 
     def summed_loop():
+        from .caching import TrackedArray
+
         summed = np.zeros((vertex_count, 3), np.float64)
+        grouped = (
+            type(faces) in (np.ndarray, TrackedArray)
+            and faces.ndim == 2
+            and faces.shape[1] > 0
+            and faces.dtype.kind in "iu"
+        )
+        if grouped:
+            # Stable grouping keeps the face/corner order used by np.where.
+            flat = faces.reshape(-1)
+            order = np.argsort(flat, kind="stable")
+            offsets = np.searchsorted(flat[order], np.arange(vertex_count + 1))
+            face_indices, corner_indices = np.divmod(order, faces.shape[1])
+
         for vertex_idx in np.arange(vertex_count):
-            # loop over all vertices
-            # compute normal contributions from surrounding faces
-            # obviously slower than with the sparse matrix
-            face_idxs, inface_idxs = np.where(faces == vertex_idx)
+            if grouped:
+                start, end = offsets[vertex_idx : vertex_idx + 2]
+                face_idxs = face_indices[start:end]
+                inface_idxs = corner_indices[start:end]
+            else:
+                face_idxs, inface_idxs = np.where(faces == vertex_idx)
             surrounding_angles = face_angles[face_idxs, inface_idxs]
             summed[vertex_idx] = np.dot(
                 surrounding_angles / surrounding_angles.sum(), face_normals[face_idxs]
