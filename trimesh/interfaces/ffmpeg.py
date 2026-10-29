@@ -17,10 +17,8 @@ from .generic import HIDDEN_CONSOLE
 _ffmpeg_executable = shutil.which("ffmpeg")
 exists = _ffmpeg_executable is not None
 
-# H.264 table A-1 levels: the most macroblocks in a frame and in a second.
-# A video declares the smallest level which fits so hardware decoders
-# accept it, and is held to the bits a second and of buffer of High
-# profile at level 4.2, the peak which players decode in real time.
+# H.264 table A-1: max macroblocks per frame and per second for each level,
+# with bitrate and buffer capped at High 4.2, which players decode in real time
 H264_LEVELS = {
     "4.1": (8192, 245760),
     "4.2": (8704, 522240),
@@ -32,9 +30,8 @@ H264_LEVELS = {
 }
 PEAK_BITRATE, PEAK_BUFFER = 62500000, 78125000
 
-# Encoder to constant quality arguments, fastest first, all keeping SSIM
-# above 0.98 on renders. NVENC's B-frames aren't references as some decoders
-# can't take that. VLC 3 + NVIDIA VDPAU shreds H.264 above 4 MP: VLC's bug.
+# constant quality per encoder, fastest first, SSIM > 0.98; NVENC B-frames aren't
+# references for some decoders. VLC 3 + VDPAU shreds H.264 above 4 MP: VLC's bug.
 PROFILES = {
     "h264_nvenc": "-preset p5 -tune hq -rc vbr -cq 14 -b:v 0 -bf 2 -b_ref_mode disabled",
     "h264_videotoolbox": "-q:v 65",
@@ -43,16 +40,13 @@ PROFILES = {
 
 VIDEO_TYPES = ("mp4", "mkv", "mov")  # files which hold H.264
 INPUT_FORMATS = {3: "rgb24", 4: "rgba"}  # channels to ffmpeg pixel format
-# (size, *arguments) to if a test frame encoded
+# (size, *arguments) to whether a test frame encoded
 _FFMPEG_PROFILE_WORKS = {}
 
 
 class VideoWriter:
     """
-    Encode frames into a video with the system ffmpeg, where the first
-    frame sets the size and picks the fastest encoder which works for it.
-    4:2:0 color needs an even size, so an odd width or height is padded
-    by repeating the last column or row.
+    Encode frames to H.264 with the fastest working encoder, padding odd sizes.
     """
 
     def __init__(self, path: str, fps: Number = 30.0):
@@ -60,7 +54,7 @@ class VideoWriter:
         Parameters
         ------------
         path : str
-          Output file, whose extension picks the container: `.mp4`, `.mkv`...
+          Output file, whose extension picks the container.
         fps : float
           Frames per second.
         """
@@ -71,7 +65,7 @@ class VideoWriter:
             )
         self.path, self.fps = path, fps
         self.encoder = self.shape = self.process = None
-        # ffmpeg logs to a file as an unread pipe fills and blocks it
+        # an unread log pipe would fill and block ffmpeg
         self.log = tempfile.TemporaryFile()
 
     def write(self, frame: ArrayLike) -> None:
@@ -88,7 +82,7 @@ class VideoWriter:
         if self.shape is None:
             self.shape = frame.shape
             even = (width + width % 2, height + height % 2)
-            # the smallest level which fits, counting 16x16 macroblocks
+            # smallest level that fits, counting 16x16 macroblocks
             size, blocks = "{}x{}".format(*even), -(-even[0] // 16) * -(-even[1] // 16)
             fits = [
                 level
@@ -100,12 +94,11 @@ class VideoWriter:
             level = fits[0]
             for self.encoder, quality in PROFILES.items():
                 if float(level) > 4.2:
-                    # NVENC's constant quality overshoots the peak on bursts
-                    # of detail: target the peak with the quality as the finest
+                    # NVENC constant quality overshoots: target the peak instead
                     quality = quality.replace("-cq", "-qmin")
                     quality = quality.replace("-b:v 0", f"-b:v {PEAK_BITRATE}")
-                # a keyframe every two seconds, and BT.709 4:2:0 color which
-                # is converted by the filter as ffmpeg before 7.1 only tags it
+                # keyframes every two seconds; the filter converts to BT.709
+                # as ffmpeg before 7.1 only tags it
                 arguments = (
                     f"-c:v {self.encoder} {quality} -profile:v high -level:v {level} "
                     + f"-maxrate {PEAK_BITRATE} -bufsize {PEAK_BUFFER} "
@@ -117,12 +110,11 @@ class VideoWriter:
                 try:
                     works = _FFMPEG_PROFILE_WORKS[key]
                 except KeyError:
-                    # hardware encoders need hardware, drivers and a minimum size
+                    # hardware encoders need drivers and a minimum size
                     test = f"-v error -f lavfi -i testsrc=size={size} -frames:v 1".split()
                     command = [_ffmpeg_executable, *test, *arguments, "-f", "null", "-"]
                     try:
-                        # one frame takes far under a second, so a probe
-                        # still running after 30 is a hung driver
+                        # a one frame probe running 30 seconds is a hung driver
                         run = subprocess.run(
                             command, capture_output=True, timeout=30, **HIDDEN_CONSOLE
                         )
@@ -150,7 +142,7 @@ class VideoWriter:
         elif frame.shape != self.shape:
             raise ValueError(f"frame is {frame.shape} but video is {self.shape}")
         padded = np.pad(frame, ((0, height % 2), (0, width % 2), (0, 0)), "edge")
-        # if ffmpeg failed this raises, and `close` then says why
+        # raises if ffmpeg died, and `close` says why
         self.process.stdin.write(memoryview(padded))
 
     def close(self) -> None:
@@ -158,14 +150,17 @@ class VideoWriter:
         Finish encoding and wait for ffmpeg to write the file.
         """
         process, self.process = self.process, None
-        if process is None:
+        if self.log.closed:
             return
-        # closes stdin, ignoring a pipe ffmpeg already broke, and waits
-        process.communicate()
-        self.log.seek(0)
-        if process.returncode != 0:
-            message = self.log.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"ffmpeg failed with `{self.encoder}`:\n{message}")
+        with self.log:
+            if process is None:
+                return
+            # closes stdin, ignoring a pipe ffmpeg already broke, and waits
+            process.communicate()
+            self.log.seek(0)
+            if process.returncode != 0:
+                message = self.log.read().decode("utf-8", errors="replace")
+                raise RuntimeError(f"ffmpeg failed with `{self.encoder}`:\n{message}")
 
     def __enter__(self):
         return self

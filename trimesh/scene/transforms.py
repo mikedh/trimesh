@@ -103,34 +103,27 @@ class SceneGraph:
 
     def update_matrices(self, edges: Sequence, matrices: ArrayLike) -> None:
         """
-        Replace the matrix of many edges at once, such as every edge an
-        animation drives, keeping each edge's geometry and metadata.
-        This is the same as calling `update` with the matrix and the
-        rest of the edge's data for every edge, but only clears the
-        cache once. It never adds a node or an edge: one which isn't in
-        the graph raises a ValueError if `tol.strict` and is otherwise
-        skipped with a warning.
+        Replace the matrices of existing edges.
 
         Parameters
         ------------
         edges : (n,) of (frame_from, frame_to)
-          Edges to set, where a `frame_from` of None is the base frame.
+          Edges to set, `frame_from` None for the base frame.
         matrices : (n, 4, 4) float
-          Homogeneous transformation matrix of every edge.
+          Matrix of every edge.
         """
-        # every matrix changes in place so the hash has to be recomputed
+        # matrices change in place so clear the hash
         self.transforms._hash = None
         edge_data = self.transforms.edge_data
         for (frame_from, frame_to), matrix in zip(
             edges, np.asarray(matrices, dtype=float)
         ):
-            # falsy frames like `0` or `""` are valid node names
+            # falsy frames like `0` are valid
             if frame_from is None:
                 frame_from = self.base_frame
             if (frame_from, frame_to) in edge_data:
                 edge_data[(frame_from, frame_to)]["matrix"] = matrix
                 continue
-            # setting a matrix must never change the tree
             message = f"can't set the matrix of `{frame_from} -> {frame_to}`"
             if tol.strict:
                 raise ValueError(message)
@@ -289,7 +282,7 @@ class SceneGraph:
         gltf : dict
           With 'nodes' referencing a list of dicts, 'scene_roots'
           referencing the node indices the scene should start from,
-          and 'node_index' mapping {node name : index in 'nodes'}.
+          and 'node_index' as {node name : index}.
         """
 
         if mesh_index is None:
@@ -303,21 +296,9 @@ class SceneGraph:
         node_data = graph.node_data
         edge_data = graph.edge_data
         base_frame = self.base_frame
-        # the index of every camera by the node it rides
+        # {node name : camera index}
         camera_index = {camera.name: index for index, camera in enumerate(scene.cameras)}
-        # untouched default lights aren't part of the scene, nor their nodes
-        from .scene import default_light_nodes
-
-        # unless something was hung under one, which keeps it
-        skipped = {
-            node
-            for node in default_light_nodes(scene)
-            if len(graph.children.get(node, [])) == 0
-        }
-        children = {
-            node: [child for child in childs if child not in skipped]
-            for node, childs in graph.children.items()
-        }
+        children = graph.children
 
         # the base frame is a synthetic wrapper: when it carries nothing
         # export its children as the scene roots instead of writing it —
@@ -340,7 +321,7 @@ class SceneGraph:
 
         # collect the nodes in order
         for node in node_data.keys():
-            if node == base_frame or node in skipped:
+            if node == base_frame:
                 continue
             # assign the index to the node-name lookup
             lookup[node] = len(result)
@@ -400,8 +381,6 @@ class SceneGraph:
         else:
             roots = [lookup[base_frame]]
 
-        # `node_index` lets a caller find the node a name landed at, which
-        # animation channels and lights need as they target node indexes
         gltf = {"nodes": result, "scene_roots": roots, "node_index": lookup}
         if len(extensions_used) > 0:
             gltf["extensionsUsed"] = list(extensions_used)
@@ -647,7 +626,7 @@ class EnforcedForest:
         # topology has changed so clear cache
         if (u, v) not in self.edge_data:
             self._cache = {}
-            # a node has one parent so moving it drops the old edge
+            # drop the old edge of a reparented node
             self.edge_data.pop((self.parents.get(v), v), None)
         else:
             # check to see if matrix and geometry are identical

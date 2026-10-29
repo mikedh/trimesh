@@ -703,8 +703,7 @@ def _create_gltf_structure(
         except BaseException:
             log.debug("failed to export scene metadata!", exc_info=True)
 
-    # store materials as {hash : index} to avoid duplicates, and
-    # textures as {(mode, size, hash) : index} so images are stored once
+    # materials as {hash : index} and textures as {(mode, size, hash) : index}
     mat_hashes = {}
     # store data from geometries
     buffer_items = IndexedDict()
@@ -747,12 +746,11 @@ def _create_gltf_structure(
     # set the roots on the existing scene dict — it may already
     # hold `extras` with the scene metadata
     tree["scenes"][0]["nodes"] = nodes.pop("scene_roots")
-    # {node name : index in tree["nodes"]} which animations and lights target
+    # {node name : index in tree["nodes"]}
     node_index = nodes.pop("node_index")
     tree.update(nodes)
 
-    # note this checks `has_lights` rather than `lights`, which would
-    # generate a default pair for a scene that never had any
+    # `scene.lights` would generate defaults
     if scene.has_lights:
         lights.append_lights(
             scene,
@@ -763,8 +761,7 @@ def _create_gltf_structure(
             ),
         )
 
-    # add any keyframed animation, which also rewrites the nodes it
-    # targets from a `matrix` into TRS as the spec requires, and skins
+    # also rewrites animated node `matrix` into TRS as the spec requires
     animation.append_animations(tree, buffer_items, scene, node_index)
 
     extensions_used = set()
@@ -958,7 +955,7 @@ def _append_mesh(
         )
         material = mesh.visual.material
         if not has_uv:
-            # a texture can't be looked up without coordinates
+            # textures need UV
             material = material.to_pbr().copy(textures=False)
         # append the material and then set from returned index
         current_material = _append_material(
@@ -1014,8 +1011,7 @@ def _append_mesh(
         # add the reference for vertex color
         current["primitives"][0]["attributes"]["NORMAL"] = acc_norm
 
-    # which four joints move each vertex and how much, which glTF names,
-    # where joints without weights stay a custom attribute
+    # skinning attributes, joints without weights stay custom
     attributes = dict(mesh.vertex_attributes)
     if "joints" in attributes and "weights" in attributes:
         skinning = {
@@ -1233,9 +1229,7 @@ def _append_path(path, name, tree, buffer_items):
       Will have buffer appended with path data
     """
 
-    # every entity discretized into line segment endpoints
     segments = path.segments
-    # nothing to export
     if len(segments) == 0:
         return
 
@@ -1274,7 +1268,6 @@ def _append_path(path, name, tree, buffer_items):
         log.debug("failed to serialize metadata, dropping!", exc_info=True)
 
     if path.colors is not None:
-        # every segment has two vertices with its entity's color
         per_vertex = np.repeat(path.colors[path.segments_entity], 2, axis=0)
         acc_color = _data_append(
             acc=tree["accessors"],
@@ -1345,7 +1338,6 @@ def _append_point(points, name, tree, buffer_items):
       Will have buffer appended with points data
     """
 
-    # (n, 3) float32 which is glTF's POSITION type
     positions = util.stack_3D(points.vertices).astype(float32)
 
     acc_vertex = _data_append(
@@ -1369,7 +1361,7 @@ def _append_point(points, name, tree, buffer_items):
     # this is just exporting everying as black
     tree["materials"].append(_default_material)
 
-    # only export integer-typed (n, 3) or (n, 4) colors; skip anything else
+    # only integer (n, 3) or (n, 4) colors
     colors = np.asanyarray(points.colors)
     if colors.ndim == 2 and colors.shape[1] in (3, 4) and colors.dtype.kind in "iu":
         acc_color = _data_append(
@@ -1551,7 +1543,7 @@ def _read_buffers(
       Can be passed to load_kwargs for a trimesh.Scene
     """
 
-    # decoded accessor data and buffer views, empty if the file has no buffers
+    # empty if the file has no buffers
     access, views = [], []
 
     if "bufferViews" in header:
@@ -1710,9 +1702,8 @@ def _read_buffers(
                     from ...path.entities import Line
 
                     vertices = access[attr["POSITION"]]
-                    # GL_LINES is independent pairs of vertices so a segment
-                    # only continues a polyline if it starts where the last
-                    # one ended in the same color
+                    # join GL_LINES pairs into polylines where the end
+                    # and color of one match the start of the next
                     pairs = np.arange(len(vertices)).reshape((-1, 2))
                     keys = vertices
                     if "COLOR_0" in attr:
@@ -1720,7 +1711,6 @@ def _read_buffers(
                         keys = np.column_stack((vertices, colors))
                     joined = (keys[pairs[1:, 0]] == keys[pairs[:-1, 1]]).all(axis=1)
                     starts = np.concatenate(([0], np.flatnonzero(~joined) + 1))
-                    # every polyline is its first start then every end
                     kwargs["entities"] = [
                         Line(points=np.concatenate(([pairs[start, 0]], ends)))
                         for start, ends in zip(starts, np.split(pairs[:, 1], starts[1:]))
@@ -1751,7 +1741,7 @@ def _read_buffers(
                                     # attribute
                                     visuals.vertex_attributes["color"] = colors.copy()
                         except Exception:
-                            # survive failed colors outside of tests
+                            # survive failed colors
                             if tol.strict:
                                 raise
                             log.warning("failed to load colors", exc_info=True)
@@ -1814,7 +1804,7 @@ def _read_buffers(
                                     # attribute
                                     visuals.vertex_attributes["color"] = colors.copy()
                         except Exception:
-                            # survive failed colors outside of tests
+                            # survive failed colors
                             if tol.strict:
                                 raise
                             log.warning("failed to load colors", exc_info=True)
@@ -1825,11 +1815,9 @@ def _read_buffers(
                     custom = {
                         a: access[attr[a]] for a in attr.keys() if a.startswith("_")
                     }
-                    # which joints move each vertex and how much
                     if "JOINTS_0" in attr and "WEIGHTS_0" in attr:
                         weights = access[attr["WEIGHTS_0"]]
                         if weights.dtype.kind == "u":
-                            # normalized integers
                             weights = weights / np.iinfo(weights.dtype).max
                         custom["joints"] = access[attr["JOINTS_0"]].astype(np.uint16)
                         custom["weights"] = weights.astype(np.float64)
@@ -1946,7 +1934,7 @@ def _read_buffers(
     # index-keyed dict intentionally holds one string key for the base
     names[DEFAULT_BASE_FRAME] = DEFAULT_BASE_FRAME
 
-    # every node's transform from its parent, computed at once
+    # every parent-to-node transform
     matrices = animation.node_matrices(nodes)
 
     # visited, kwargs for scene.graph.update
@@ -1954,7 +1942,7 @@ def _read_buffers(
     # unvisited, pairs of node indexes
     queue = deque()
 
-    # every camera by its glTF camera index then the node riding it
+    # {(camera index, node index) : Camera}
     cameras = {}
     # {node name : index into the glTF skins}
     skinned = {}
@@ -2003,15 +1991,13 @@ def _read_buffers(
         # for the transform from parent to child
         kwargs["matrix"] = matrices[b]
 
-        # a camera is named after its node, which stays in the graph like
-        # any other so it moves with its parents, such as a car
+        # a camera is named after its node
         if "camera" in child:
             try:
                 key = (child["camera"], b)
                 cameras[key] = _cam_from_gltf(header["cameras"][child["camera"]])
                 cameras[key].name = kwargs["frame_to"]
             except (KeyError, IndexError, TypeError):
-                # a broken camera is survivable outside of tests
                 if tol.strict:
                     raise
                 log.warning("unable to load camera", exc_info=True)
@@ -2020,8 +2006,7 @@ def _read_buffers(
         if isinstance(child.get("extras"), dict):
             kwargs["metadata"] = child["extras"]
 
-        # put any node extensions in a field of the metadata, less the
-        # light which `parse_lights` loaded onto this node
+        # put node extensions except lights in the metadata
         if "extensions" in child:
             extensions = {
                 key: value
@@ -2064,20 +2049,15 @@ def _read_buffers(
             # if the node doesn't have any geometry just add
             graph.append(kwargs)
 
-    # every light by its node, then the scene's environment from its images
+    # only nodes of the loaded scene
+    loaded = {edge["frame_to"] for edge in graph}
+    names = {index: name for index, name in names.items() if name in loaded}
     images = None
     if lights.ENVIRONMENT in header.get("extensions", {}):
         images = _parse_textures(header, views, resolver)
     scene_lights = lights.parse_lights(header, names, scene_index, images, graph)
-
-    # animations only drive nodes of the loaded scene, not those of
-    # other scenes in the file which aren't in the graph
-    loaded = {edge["frame_to"] for edge in graph}
     animations, skins = animation.parse_animations(
-        header=header,
-        access=access,
-        names={index: name for index, name in names.items() if name in loaded},
-        skinned=skinned,
+        header=header, access=access, names=names, skinned=skinned, matrices=matrices
     )
     # kwargs for load_kwargs
     result = {
@@ -2085,8 +2065,7 @@ def _read_buffers(
         "geometry": meshes,
         "graph": graph,
         "base_frame": DEFAULT_BASE_FRAME,
-        # glTF has no default camera so the first one is looked through,
-        # which is the one an export writes first
+        # the first camera is active
         "cameras": [cameras[key] for key in sorted(cameras)],
         "lights": scene_lights,
         "metadata": {},
@@ -2100,8 +2079,7 @@ def _read_buffers(
         result["metadata"].update(header["scenes"][header["scene"]]["extras"])
     except BaseException:
         pass
-    # load any scene extensions into a field of scene.metadata
-    # except lights which are loaded into `Scene.lights`
+    # scene extensions except lights into scene.metadata
     extensions = {
         key: value
         for key, value in header.get("extensions", {}).items()
@@ -2117,9 +2095,7 @@ def _cam_from_gltf(cam):
     """
     Convert a glTF perspective or orthographic camera to trimesh.
 
-    The retrieved camera will have default resolution, since the glTF
-    specification does not contain it. If the camera is missing fields
-    this will raise `KeyError`.
+    Resolution is the default. Raises `KeyError` on missing fields.
 
     Parameters
     ------------
@@ -2142,15 +2118,14 @@ def _cam_from_gltf(cam):
         )
     perspective = cam["perspective"]
     yfov = perspective["yfov"]
-    # `aspectRatio` is the ratio of the half angle tangents, and without
-    # one it is the viewport's which `Camera.fit_resolution` sets
+    # `aspectRatio` is the ratio of half angle tangents, default square
     xfov = 2.0 * np.arctan(perspective.get("aspectRatio", 1.0) * np.tan(yfov / 2.0))
 
     return Camera(
         name=name,
         fov=np.degrees([xfov, yfov]),
         z_near=perspective["znear"],
-        # `zfar` is optional and means an infinite projection when missing
+        # missing `zfar` is an infinite projection
         z_far=float(perspective.get("zfar", np.inf)),
     )
 
@@ -2179,11 +2154,9 @@ def _convert_camera(camera):
         "yfov": float(np.radians(camera.fov[1])),
         "znear": float(camera.z_near),
     }
-    # width over height is the ratio of the half angle tangents, and a
-    # square view is how a camera without one loads: it is the viewport's
+    # omitted `aspectRatio` loads as square
     if not np.isclose(half[0], half[1]):
         perspective["aspectRatio"] = float(half[0] / half[1])
-    # without `zfar` a glTF camera has an infinite projection
     if np.isfinite(camera.z_far):
         perspective["zfar"] = float(camera.z_far)
     return {"name": camera.name, "type": "perspective", "perspective": perspective}
@@ -2224,8 +2197,8 @@ def _append_image(img, tree, buffer_items, extension_webp):
         # for everything else just use PNG
         save_as = "png"
 
-    # get the image data into a bytes object: glTF viewers ignore embedded
-    # color profiles and the validator flags them, so they're dropped
+    # get the image data into a bytes object, dropping color profiles
+    # which glTF viewers ignore and the validator flags
     with util.BytesIO() as f:
         img.save(f, format=save_as, icc_profile=None)
         f.seek(0)
@@ -2257,8 +2230,8 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
       Binary blobs with various data
     mat_hashes : dict
       Which materials have already been added
-      Stored as { hashed : material index } and textures as
-      { (mode, size, hash of pixels) : texture index }
+      Stored as { hashed : material index } and
+      { (mode, size, hash) : texture index }
     extension_webp : bool
       Export textures as webP using EXT_texture_webp extension.
 
@@ -2311,7 +2284,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
     if isinstance(as_pbr.doubleSided, bool):
         result["doubleSided"] = as_pbr.doubleSided
 
-    # the fields of extensions, which move into them below
+    # extension fields, moved into `extensions` below
     fields = [key for keys in MATERIAL_EXTENSIONS.values() for key in keys]
     textures = [key for key in fields if key.endswith("Texture")]
     for key in fields:
@@ -2335,7 +2308,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
         img = getattr(as_pbr, key)
         if img is None:
             continue
-        # an image used by more than one material or slot is stored once
+        # store each image once
         content = None
         if hasattr(img, "tobytes"):
             content = (img.mode, img.size, hash_fast(img.tobytes()))
@@ -2376,12 +2349,10 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
         if key in result:
             result["pbrMetallicRoughness"][key] = result.pop(key)
 
-    # extensions hold their factors and the references to their textures
     for name, keys in MATERIAL_EXTENSIONS.items():
         stored = {key: result.pop(key) for key in keys if key in result}
         if len(stored) > 0:
             result.setdefault("extensions", {})[name] = stored
-    # a base color which is the final color is an empty extension
     if as_pbr.unlit:
         result.setdefault("extensions", {})["KHR_materials_unlit"] = {}
 

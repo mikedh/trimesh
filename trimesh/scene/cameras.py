@@ -3,11 +3,12 @@ import copy
 import numpy as np
 
 from .. import util
+from ..geometry import align_vectors
 from ..typed import ArrayLike, Floating, Integer, NDArray, Sequence
 
-# the field of view of a camera made to frame a scene, in degrees
+# field of view in degrees
 DEFAULT_FOV = (60.0, 45.0)
-# the clip planes `Camera` has always defaulted to, times a scene's size
+# clip planes, scaled by scene size where generated
 DEFAULT_Z_NEAR = 0.01
 DEFAULT_Z_FAR = 1000.0
 
@@ -44,11 +45,9 @@ class Camera:
         z_near : float
           What is the closest
         z_far : float
-          What is the farthest, where `np.inf` is an infinite projection
+          What is the farthest, `np.inf` for infinite
         magnification : None or (2,) float
-          Make this an orthographic camera seeing half this width and
-          height either side of its center like glTF's `xmag` and `ymag`,
-          where the field of view only frames things with `look_at`.
+          Orthographic half width and height, glTF `xmag` and `ymag`.
         """
 
         if name is None:
@@ -61,7 +60,7 @@ class Camera:
         if fov is None and focal is None:
             if magnification is None:
                 raise ValueError("either focal length or FOV required!")
-            # the default lens with the shape of the orthographic view
+            # default fov with the orthographic aspect
             half = np.tan(np.radians(DEFAULT_FOV[1]) / 2.0) * np.divide(*magnification)
             fov = [np.degrees(2.0 * np.arctan(half)), DEFAULT_FOV[1]]
 
@@ -138,17 +137,15 @@ class Camera:
 
     def fit_resolution(self, resolution: Sequence[Integer] | NDArray) -> None:
         """
-        Set the resolution and fit the horizontal field of view and
-        orthographic width to it with square pixels like glTF does.
+        Set resolution and fit horizontal fov for square pixels.
 
         Parameters
         ------------
         resolution : (2,) int
-          Width and height of the image in pixels.
+          Width and height in pixels.
         """
         self.resolution = resolution
         aspect = self.resolution[0] / self.resolution[1]
-        # the ratio of the half angle tangents is the shape of the image
         half = np.tan(np.radians(self.fov[1]) / 2.0)
         self.fov = (np.degrees(2.0 * np.arctan(half * aspect)), self.fov[1])
         if self.magnification is not None:
@@ -275,7 +272,7 @@ class Camera:
     @property
     def projection(self) -> NDArray[np.float64]:
         """
-        The projection matrix, which is orthographic with `magnification`.
+        Projection matrix, orthographic with `magnification`.
 
         Returns
         --------------
@@ -283,7 +280,6 @@ class Camera:
           Projection matrix for the camera
         """
         orthographic = self.magnification is not None
-        # both fields of view are used, as `look_at` frames with both
         scale = 1.0 / np.tan(np.radians(self.fov) / 2.0)
         if orthographic:
             scale = 1.0 / np.asarray(self.magnification, dtype=np.float64)
@@ -348,19 +344,18 @@ def projection_matrices(
     orthographic: bool | ArrayLike,
 ) -> NDArray[np.float64]:
     """
-    Camera to clip space matrices of glTF cameras looking down -Z.
+    Camera to clip space matrices for cameras looking down -Z.
 
     Parameters
     --------------
     scale : (2,) or (n, 2) float
-      How X and Y are scaled into clip space: `1 / tan(fov / 2)` for
-      perspective, or `1 / magnification` for orthographic.
+      `1 / tan(fov / 2)` or `1 / magnification`.
     z_near : float or (n,) float
-      Distance to the near plane.
+      Near plane distance.
     z_far : float or (n,) float
-      Distance to the far plane, which may be infinite for perspective.
+      Far plane distance, may be infinite for perspective.
     orthographic : bool or (n,) bool
-      Orthographic rather than perspective.
+      Orthographic instead of perspective.
 
     Returns
     --------------
@@ -373,13 +368,11 @@ def projection_matrices(
     )[:3]
     projection = np.zeros((len(scale), 4, 4))
     projection[:, [0, 1], [0, 1]] = scale
-    # `gluPerspective` divided by `z_far` so an infinite far plane is its
-    # limit, where the depth is also the orthographic offset
+    # `gluPerspective` in terms of `z_near / z_far` so infinity works
     ratio = z_near / z_far
     depth = (1.0 + ratio) / (ratio - 1.0)
     projection[:, 2, 2] = np.where(orthographic, 2.0 / (z_near - z_far), depth)
     projection[:, 2, 3] = np.where(orthographic, depth, 2.0 * z_near / (ratio - 1.0))
-    # an orthographic `w` is one and a perspective one is `-z`
     projection[:, 3, 2] = orthographic - 1.0
     projection[:, 3, 3] = orthographic
     return projection
@@ -423,7 +416,7 @@ def look_at(points, fov, rotation=None, distance=None, center=None, pad=None):
     points = np.asanyarray(points, dtype=np.float64)
 
     # Transform points to camera frame (just use the rotation part)
-    # with unit axes as a camera node may be scaled with its scene
+    # the camera node may be scaled
     rinv = util.unitize(rotation[:3, :3].T)
     points_c = rinv.dot(points.T).T
 
@@ -443,6 +436,8 @@ def look_at(points, fov, rotation=None, distance=None, center=None, pad=None):
 
     if distance is None:
         distance = np.max(np.abs(points_c[:, :2]) / tfov + points_c[:, 2][:, np.newaxis])
+        # points with no size are viewed from a unit away
+        distance = distance or 1.0
 
     if pad is not None:
         distance *= pad
@@ -458,8 +453,7 @@ def look_at(points, fov, rotation=None, distance=None, center=None, pad=None):
 def ray_pixel_coords(camera):
     """
     Get the x-y coordinates of rays in camera coordinates at
-    z == -1, or for an orthographic camera where each parallel
-    ray starts on the camera's z == 0 plane.
+    z == -1, or z == 0 for orthographic cameras.
 
     One coordinate pair will be given for each pixel as defined in
     camera.resolution. If reshaped, the returned array corresponds
@@ -544,21 +538,19 @@ def current_view(
     scene, resolution: Sequence[Integer] | NDArray | None = None
 ) -> tuple[Camera, NDArray[np.float64]]:
     """
-    A copy of the camera a scene is rendered with and where it is, or a
-    new one framing the scene, without adding anything to the scene.
+    Copy of the scene camera and its transform, or a new one framing it.
 
     Parameters
     --------------
     scene : trimesh.Scene
       Scene to view.
     resolution : None or (2,) int
-      Size of the image in pixels to `Camera.fit_resolution` to
-      before a new camera frames the scene.
+      Pixels to `Camera.fit_resolution` to.
 
     Returns
     --------------
     camera : Camera
-      A camera which belongs to nobody.
+      Camera not in the scene.
     transform : (4, 4) float
       Camera to world transform.
     """
@@ -566,17 +558,23 @@ def current_view(
         camera = scene.camera.copy()
         transform = np.array(scene.camera_transform, dtype=np.float64)
     else:
-        # near and far planes scale with the scene so any size is in view
+        # planes relative to the scene, which a single point has none of
         camera = Camera(
             name=util.unique_name("camera", scene.graph.nodes),
             fov=DEFAULT_FOV,
-            z_near=DEFAULT_Z_NEAR * scene.scale,
-            z_far=DEFAULT_Z_FAR * scene.scale,
+            z_near=DEFAULT_Z_NEAR * (scene.scale or 1.0),
+            z_far=DEFAULT_Z_FAR * (scene.scale or 1.0),
         )
         transform = np.eye(4)
-    # the aspect is set before framing so the frame fits the image
+    # fit aspect before framing
     if resolution is not None:
         camera.fit_resolution(resolution)
     if not scene.has_camera and scene.bounds is not None:
-        transform = look_at(scene.bounds, fov=camera.fov)
+        # looking down the thinnest axis, -Z on a tie, so flat parts face the camera
+        extents = np.ptp(scene.bounds, axis=0)
+        # extents equal but for rounding are a tie
+        tied = np.isclose(extents, extents.min())
+        thinnest = np.lexsort((np.arange(3) != 2, ~tied))[0]
+        rotation = align_vectors([0, 0, 1], np.eye(3)[thinnest])
+        transform = look_at(scene.bounds, fov=camera.fov, rotation=rotation)
     return camera, transform

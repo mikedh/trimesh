@@ -72,6 +72,8 @@ with warnings.catch_warnings(record=True) as caught:
     warnings.simplefilter("always")
     import trimesh.viewer.pyglet1
     from trimesh import rendering
+    # what `inspect` and `pytest` probe every module for doesn't warn
+    hasattr(rendering, "__wrapped__")
     from trimesh.viewer.pyglet1 import conversion
     function = rendering.convert_to_vertexlist
 print(json.dumps({
@@ -87,16 +89,12 @@ print(json.dumps({
         )
         caught = result["caught"]
         # one warning from each module, both pointing at the importing code
-        checks = {
-            "two warnings": len(caught) == 2,
-            "deprecation": all(kind == "DeprecationWarning" for kind, _, _ in caught),
-            "stacklevel": all(filename == "<string>" for _, _, filename in caught),
-            "pyglet1": "trimesh.viewer.pyglet1`" in caught[0][1],
-            "rendering": "trimesh.rendering`" in caught[-1][1],
-            "forwarded": result["forwarded"],
-        }
-        for name, ok in checks.items():
-            assert ok, name
+        assert len(caught) == 2, "two warnings"
+        assert all(kind == "DeprecationWarning" for kind, _, _ in caught), "deprecation"
+        assert all(filename == "<string>" for _, _, filename in caught), "stacklevel"
+        assert "trimesh.viewer.pyglet1`" in caught[0][1], "pyglet1"
+        assert "trimesh.rendering`" in caught[-1][1], "rendering"
+        assert result["forwarded"], "forwarded"
 
         # `windowed` is the OpenGL 3.3 viewer on every pyglet with no warning,
         # and main's `render_scene` keywords for a window warn and are dropped
@@ -145,18 +143,14 @@ print(json.dumps({
             ).stdout.splitlines()[-1]
         )
         caught = result.pop("caught")
-        checks = {
-            "one warning for the window keywords": len(caught) == 1,
-            "deprecation": all(kind == "DeprecationWarning" for kind, _, _ in caught),
-            "stacklevel": all(filename == "<string>" for _, _, filename in caught),
-            "names the keywords": all(
-                "visible" in message and "resizable" in message
-                for _, message, _ in caught
-            ),
-            "size": result.pop("size") == [64, 48],
-            **result,
-        }
-        for name, ok in checks.items():
+        assert len(caught) == 1, "one warning for the window keywords"
+        assert all(kind == "DeprecationWarning" for kind, _, _ in caught), "deprecation"
+        assert all(filename == "<string>" for _, _, filename in caught), "stacklevel"
+        assert all(
+            "visible" in message and "resizable" in message for _, message, _ in caught
+        ), "names the keywords"
+        assert result.pop("size") == [64, 48], "size"
+        for name, ok in result.items():
             assert ok, name
 
     def test_unchanged(self):
@@ -171,42 +165,80 @@ print(json.dumps({
             [g.sys.executable, "-c", code], capture_output=True, check=True, text=True
         ).stdout.split()
         lazy = ["trimesh.viewer.render", "trimesh.interfaces.ffmpeg", "pyglet"]
-        checks = {f"{name} not imported": name not in loaded for name in lazy}
-        checks["trimesh imported"] = "trimesh.scene.scene" in loaded
+        for name in lazy:
+            assert name not in loaded, f"{name} not imported"
+        assert "trimesh.scene.scene" in loaded, "trimesh imported"
 
-        # rendering a scene without lights or a camera never adds them
+        # a still to a path, where `test_every_scene` checks scenes are unchanged
         g.require_rendering()
         scene = g.get_mesh("duck.dae")
-        before = scene.export(file_type="glb")
-        graph = hash(scene.graph)
-        cameras = list(scene.cameras)
         png = scene.save_image(resolution=(64, 48))
         with g.TemporaryDirectory() as directory:
             path = g.os.path.join(directory, "still.png")
             written = scene.render(Path(path), resolution=(64, 48))
             with open(path, "rb") as file_obj:
                 stored = file_obj.read()
-        checks.update(
-            {
-                "png": g.png(png).shape == (48, 64, 4),
-                "a path returns nothing": written is None,
-                # where consecutive renders differ by a level at most
-                "a path holds the same png": g.np.abs(
-                    g.png(stored).astype(int) - g.png(png)
-                ).max()
-                <= 1,
-                "no lights stored": not scene.has_lights,
-                "no camera stored": not scene.has_camera,
-                "cameras unchanged": scene.cameras == cameras,
-                "graph unchanged": hash(scene.graph) == graph,
-                "export unchanged": scene.export(file_type="glb") == before,
-            }
-        )
+        assert g.png(png).shape == (48, 64, 4), "png"
+        assert written is None, "a path returns nothing"
+        g.assert_images(g.png(stored), g.png(png), "a path holds the same png", 2)
         # what isn't a viewer option raises rather than being dropped
         with g.pytest.raises(TypeError, match="bogus"):
             scene.render(resolution=(64, 48), bogus=True)
-        for name, ok in checks.items():
-            assert ok, name
+
+    def test_keywords(self):
+        # every `Scene.render` default is the viewer's, passing the defaults
+        # draws the default image, and changing any of them changes it
+        from inspect import signature
+
+        from trimesh.viewer.conversion import RENDER_DEFAULTS
+        from trimesh.viewer.render import render_scene
+
+        g.require_rendering()
+        defaults = {
+            key: item.default
+            for key, item in signature(g.trimesh.Scene.render).parameters.items()
+            if key in [*RENDER_DEFAULTS, "quality", "background", "samples"]
+        }
+        scene_render = signature(render_scene).parameters
+        assert defaults == {
+            **RENDER_DEFAULTS,
+            **{
+                key: scene_render[key].default
+                for key in ("quality", "background", "samples")
+            },
+        }, "one set of defaults"
+        box = g.trimesh.creation.box()
+        box.apply_translation([0, 0, 1])
+        line = g.trimesh.load_path([[-1, -1, 0.5], [1, 1, 0.5]])
+        points = g.trimesh.PointCloud([[0.7, -0.7, 0.5], [-0.7, 0.7, 0.5]])
+        scene = g.trimesh.Scene([box, line, points])
+        resolution = (96, 72)
+        default = g.png(scene.render(resolution=resolution))
+        changed = {
+            "quality": False,
+            "exposure": 2.0,
+            "bloom": 0.0,
+            "ground_shadow": False,
+            "show_environment": True,
+            "background": [255, 0, 0, 255],
+            "line_width": 6.0,
+            "point_size": 12.0,
+        }
+        for key, value in [*defaults.items(), *changed.items()]:
+            if key == "samples":
+                continue
+            image = g.png(scene.render(resolution=resolution, **{key: value}))
+            if value is defaults[key]:
+                g.assert_images(image, default, f"default {key}")
+            else:
+                assert g.np.abs(image.astype(int) - default).max() > 8, f"{key} drawn"
+        # bloom is part of quality
+        fast = g.png(scene.render(resolution=resolution, quality=False))
+        g.assert_images(
+            g.png(scene.render(resolution=resolution, quality=False, bloom=0.0)),
+            fast,
+            "no bloom without quality",
+        )
 
 
 if __name__ == "__main__":

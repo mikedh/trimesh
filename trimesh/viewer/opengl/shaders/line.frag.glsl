@@ -1,23 +1,20 @@
-// Shade a line segment rectangle as an antialiased capsule: full
-// color inside the line and a one pixel fade at the edge.
+// A line segment as an antialiased capsule with a one pixel edge fade.
 
 in vec4 segment_color;
 in vec2 pixel_offset;
 in float half_length, view_depth, line_width_pixels;
 
-// draw each segment, which is a point, as a little lit sphere, and which
-// of `scene.graph.nodes_geometry` this is, for segmentation
+// draw points as lit spheres
 uniform bool points;
 uniform float node_index;
 out vec4 fragment_color;
 
 void main() {
-    // distance in pixels from the segment, past either end or across it
+    // pixels from the segment
     float past_end = max(abs(pixel_offset.x) - half_length, 0.0);
     float distance = length(vec2(past_end, pixel_offset.y));
     float coverage = clamp(0.5 * line_width_pixels + 0.5 - distance, 0.0, 1.0);
-    // don't write depth outside the line, where depth images and
-    // segmentation have no antialiasing: a pixel is on the line or it isn't
+    // depth and segmentation are not antialiased
     bool index = frame.output_mode.x == OUTPUT_INDEX;
     if (coverage <= 0.0 || (index && coverage < 0.5)) {
         discard;
@@ -28,8 +25,7 @@ void main() {
     }
     vec3 color = segment_color.rgb;
     if (points) {
-        // the normal of a sphere under this pixel, lit from the upper
-        // left of the view, so a point reads as a round particle
+        // a sphere normal lit from the upper left
         vec2 across = pixel_offset / max(0.5 * line_width_pixels, 1.0);
         vec3 normal = vec3(across, sqrt(max(1.0 - dot(across, across), 0.0)));
         vec3 light = normalize(vec3(-0.3, 0.4, 0.87));
@@ -37,7 +33,7 @@ void main() {
         float highlight = pow(max(dot(normal, normalize(light + vec3(0.0, 0.0, 1.0))), 0.0), 40.0);
         color = color * (0.35 + 0.65 * lambert) + 0.4 * highlight;
     }
-    // premultiplied by alpha, which is how the framebuffer blends
+    // premultiplied alpha
     float alpha = segment_color.a * coverage;
     fragment_color = vec4(color * alpha, alpha);
 }

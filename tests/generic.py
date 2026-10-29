@@ -78,7 +78,8 @@ all_dependencies = "ALL_DEPENDENCIES" in argv
 # if we're testing rendering scenes
 include_rendering = "INCLUDE_RENDERING" in argv
 
-if all_dependencies and not trimesh.ray.has_embree:
+# embreex has no wheels past Python 3.14
+if all_dependencies and not trimesh.ray.has_embree and sys.version_info < (3, 15):
     import embreex
 
 try:
@@ -731,9 +732,15 @@ def set_environment(scene, environment, pose=None):
     Light `scene` with an `EnvironmentLight` on a node at `pose` and the
     scene's own lights or the default key and rim lights, returning it.
     """
-    from trimesh.scene.lighting import EnvironmentLight
+    from trimesh.scene.lighting import EnvironmentLight, autolight
 
-    lights = [light for light in scene.lights if not isinstance(light, EnvironmentLight)]
+    if scene.has_lights:
+        lights = scene.lights
+    else:
+        lights, transforms = autolight(scene)
+        for light, transform in zip(lights, transforms):
+            scene.graph[light.name] = transform
+    lights = [light for light in lights if not isinstance(light, EnvironmentLight)]
     if pose is None:
         pose = np.eye(4)
     scene.graph[environment.name] = pose
@@ -742,13 +749,13 @@ def set_environment(scene, environment, pose=None):
 
 
 def offscreen_viewer(scene, resolution=(320, 240), studio=False, **kwargs):
-    """A hidden viewer, without floor or occlusion unless `studio`."""
+    """A hidden viewer without the bloom truth lacks, or the floor unless `studio`."""
     require_rendering()
     from trimesh.viewer.opengl.viewer import SceneViewer
 
+    kwargs = {"bloom": 0.0, **kwargs}
     if not studio:
         kwargs = {"ground_shadow": False, **kwargs}
-        kwargs["flags"] = {"ambient_occlusion": False, **kwargs.get("flags", {})}
     # tests compare against rays from the scene's camera at this resolution
     scene.camera.fit_resolution(resolution)
     return SceneViewer(
@@ -834,6 +841,8 @@ def camera_hits(scene, meshes=None, corner=(0.0, 0.0)):
     points, ray, face = combined.ray.intersects_location(
         origins, vectors, multiple_hits=False
     )
+    # without embree no hits at all are shaped (0,)
+    points = np.reshape(points, (-1, 3))
     mesh = np.repeat(np.arange(len(meshes)), [len(m.faces) for m in meshes])[face]
     return types.SimpleNamespace(
         combined=combined,
@@ -875,20 +884,60 @@ def ray_reference(scene):
     return types.SimpleNamespace(
         node=nodes[0],
         depth=depths[0],
-        # how far the depth changes across each pixel
+        # how far the depth changes across each pixel, and its range
         span=np.ptp(depths, axis=0),
+        low=depths.min(axis=0),
+        high=depths.max(axis=0),
         agreed=agreed,
         covered=agreed & (nodes[0] >= 0),
     )
 
 
-def ray_checks(scene, arrays, prefix: str = ""):
+def assert_images(a, b, name, atol=1):
     """
-    A render of `scene` (`color`, `depth` and `segmentation` as from
-    `to_array`) is exactly what its camera's rays hit: where the center
-    and corner rays of a pixel agree the segmentation is that node and the
-    depth is the ray's distance along the view axis, and pixels where they
-    don't are only along the edges between nodes and the background.
+    Assert two renders agree to within `atol` levels at every pixel.
+
+    GPUs aren't bit reproducible: identical uploads redraw one pixel a
+    level apart on an RTX 5070, measured, so renders compare within 1.
+    Bloom spreads that level onto its neighbors, so bloomed ones within 2.
+
+    Parameters
+    ------------
+    a : (h, w, c) int or float
+      An image.
+    b : (h, w, c) int or float
+      The image it should equal.
+    name : str
+      Label of the assert.
+    atol : float
+      Largest difference allowed at any pixel.
+    """
+    a, b = np.asarray(a, dtype=np.float64), np.asarray(b, dtype=np.float64)
+    assert a.shape == b.shape, f"{name}: shape {a.shape} is not {b.shape}"
+    difference = np.abs(a - b)
+    if difference.ndim == 3:
+        difference = difference.max(axis=2)
+    rows, columns = np.nonzero(difference > atol)
+    assert len(rows) == 0, (
+        f"{name}: {len(rows)} pixels differ by up to {difference.max():.0f} "
+        f"in rows {rows.min()}-{rows.max()} and columns {columns.min()}-{columns.max()}"
+    )
+
+
+def assert_rays(scene, arrays, prefix: str = "", depth: bool = True):
+    """
+    Assert a render is what its camera rays hit, away from node edges.
+
+    Parameters
+    ------------
+    scene : trimesh.Scene
+      Scene that was rendered.
+    arrays : RenderArrays
+      With `depth` and `segmentation`.
+    prefix : str
+      Label of the asserts.
+    depth : bool
+      Also assert depth is each ray's distance along the view axis.
     """
     from scipy import ndimage
 
@@ -911,15 +960,12 @@ def ray_checks(scene, arrays, prefix: str = ""):
     # and one agreeing pixel next to a disagreeing one can be sampled on the
     # wrong side of a steep surface, so only the deep interior is exact
     deep = ndimage.binary_erosion(agreed, structure=np.ones((3, 3)))
-    checks = {
-        "rays hit the scene": covered.any(),
-        "ambiguity only on edges": not (~agreed & ~edge).any(),
-        "segmentation is rays": (arrays.segmentation == node)[agreed].all(),
-        "depth is rays": (np.abs(arrays.depth - reference.depth) <= tolerance)[
-            deep
-        ].all(),
-    }
-    return {f"{prefix}{name}": bool(ok) for name, ok in checks.items()}
+    assert covered.any(), f"{prefix}rays hit the scene"
+    assert not (~agreed & ~edge).any(), f"{prefix}ambiguity only on edges"
+    assert (arrays.segmentation == node)[agreed].all(), f"{prefix}segmentation is rays"
+    if depth:
+        close = np.abs(arrays.depth - reference.depth) <= tolerance
+        assert close[deep].all(), f"{prefix}depth is rays"
 
 
 def glb_chunks(export):
@@ -932,27 +978,6 @@ def glb_chunks(export):
         start += 8 + int(length)
     # 0x4E4F534A is "JSON" and 0x004E4942 is "BIN"
     return json.loads(chunks[0x4E4F534A]), chunks.get(0x004E4942, b"")
-
-
-def accessor_values(header, blob):
-    """
-    Every accessor of a GLB as (count, width) float64 with normalized
-    integers scaled to one, from the spec's own tables rather than
-    trimesh's so a shared bug can't hide.
-    """
-    dtypes = {5120: "i1", 5121: "u1", 5122: "<i2", 5123: "<u2", 5125: "<u4", 5126: "<f4"}
-    widths = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
-    values = []
-    for accessor in header["accessors"]:
-        dtype = np.dtype(dtypes[accessor["componentType"]])
-        view = header["bufferViews"][accessor["bufferView"]]
-        start = view.get("byteOffset", 0) + accessor.get("byteOffset", 0)
-        count = accessor["count"] * widths[accessor["type"]]
-        data = np.frombuffer(blob, dtype, count, start).astype(np.float64)
-        if accessor.get("normalized", False):
-            data /= np.iinfo(dtype).max
-        values.append(data.reshape((accessor["count"], -1)))
-    return values
 
 
 def dolly_scene(node, duration=1.0):
@@ -979,105 +1004,51 @@ def dolly_scene(node, duration=1.0):
     return scene
 
 
-def same_animations(export, other):
+def same_animations(scene, other):
+    """If two scenes have exactly the same animations."""
+    return [
+        (a.name, a.nodes, a.interpolation, a.times.tobytes(), a.matrices.tobytes())
+        for a in scene.animations
+    ] == [
+        (a.name, a.nodes, a.interpolation, a.times.tobytes(), a.matrices.tobytes())
+        for a in other.animations
+    ]
+
+
+def assert_glb_roundtrip(source, name):
     """
-    If two GLBs animate the same: the same channels on the same node paths
-    with the same interpolation, and every value they read equal to a few
-    float32 units in the last place of its accessor's largest value, which
-    is all composing and decomposing matrices on load can move it.
+    A valid GLB of `source` loads with every node and camera, every node
+    where `source` puts it relative to its parent at every keyframe and
+    three times between, and loading then exporting is a fixed point.
     """
-    found = []
-    for data in (export, other):
-        header, blob = glb_chunks(data)
-        accessors = accessor_values(header, blob)
-        structure, values = [], []
-        for animation in header.get("animations", []):
-            for channel in animation["channels"]:
-                sampler = animation["samplers"][channel["sampler"]]
-                target = channel["target"]
-                structure.append(
-                    (
-                        animation.get("name"),
-                        target["node"],
-                        target["path"],
-                        sampler["interpolation"],
-                    )
-                )
-                values.extend((accessors[sampler["input"]], accessors[sampler["output"]]))
-        found.append((structure, values))
-    (structure, values), (other_structure, other_values) = found
-    epsilon = 4.0 * np.finfo(np.float32).eps
-    return structure == other_structure and all(
-        a.shape == b.shape and np.allclose(a, b, rtol=0.0, atol=epsilon * np.abs(a).max())
-        for a, b in zip(values, other_values)
+    first = source.export(file_type="glb")
+    loaded = roundtrip(first, "glb")
+    once = loaded.export(file_type="glb")
+    validate_glb(first, name)
+    validate_glb(once, name)
+    twice = roundtrip(once, "glb")
+    assert same_animations(twice, roundtrip(twice.export(file_type="glb"), "glb")), (
+        f"{name} fixed point"
     )
-
-
-def spec_nodes(header, accessors, time):
-    """
-    The (n, 4, 4) transform of every glTF node from its parent at a
-    time, with every animation of the file applied as the spec's
-    appendix samples it, from numpy and scipy only.
-    """
-    from scipy.spatial.transform import Rotation
-
-    nodes = header["nodes"]
-    trs = {"translation": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1]}
-    trs = {key: np.array([n.get(key, v) for n in nodes], float) for key, v in trs.items()}
-    for animation in header.get("animations", []):
-        for channel in animation["channels"]:
-            sampler = animation["samplers"][channel["sampler"]]
-            path, node = channel["target"]["path"], channel["target"]["node"]
-            trs[path][node] = spec_sample(
-                accessors[sampler["input"]],
-                accessors[sampler["output"]],
-                sampler.get("interpolation", "LINEAR"),
-                path == "rotation",
-                time,
-            )
-    local = np.tile(np.eye(4), (len(nodes), 1, 1))
-    local[:, :3, :3] = Rotation.from_quat(trs["rotation"]).as_matrix()
-    local[:, :3, :3] *= trs["scale"][:, None, :]
-    local[:, :3, 3] = trs["translation"]
-    for index, node in enumerate(nodes):
-        if "matrix" in node:
-            local[index] = np.reshape(node["matrix"], (4, 4)).T
-    return local
-
-
-def spec_sample(times, values, interpolation, rotation, time):
-    """
-    One glTF animation channel at a time as the spec's appendix samples
-    it, with `x, y, z, w` rotations, from numpy and scipy only.
-    """
-    from scipy.spatial.transform import Rotation, Slerp
-
-    times = np.asarray(times, dtype=np.float64).reshape(-1)
-    values = np.asarray(values, dtype=np.float64).reshape(
-        (len(times), -1, np.shape(values)[-1])
-    )
-    clamped = np.clip(time, times[0], times[-1])
-    # the keyframe at or before the time, and the one after it
-    before = np.clip(np.searchsorted(times, clamped, side="right") - 1, 0, len(times) - 1)
-    after = min(before + 1, len(times) - 1)
-    if interpolation == "STEP" or before == after:
-        return values[before, values.shape[1] // 2]
-    if interpolation == "CUBICSPLINE":
-        span = times[after] - times[before]
-        step = (clamped - times[before]) / span
-        sampled = (
-            (2 * step**3 - 3 * step**2 + 1) * values[before, 1]
-            + span * (step**3 - 2 * step**2 + step) * values[before, 2]
-            + (-2 * step**3 + 3 * step**2) * values[after, 1]
-            + span * (step**3 - step**2) * values[after, 0]
-        )
-        if rotation:
-            sampled = sampled / np.linalg.norm(sampled)
-        return sampled
-    if rotation:
-        keys = Rotation.from_quat(values[[before, after], 0])
-        return Slerp(times[[before, after]], keys)(clamped).as_quat()
-    return np.array([np.interp(clamped, times, column) for column in values[:, 0].T])
+    nodes = sorted(set(source.graph.nodes) - {source.graph.base_frame})
+    assert set(nodes) <= set(loaded.graph.nodes), f"{name} keeps every node"
+    assert [(c.name, c.fov[1]) for c in source.cameras] == [
+        (c.name, c.fov[1]) for c in loaded.cameras
+    ], f"{name} keeps every camera"
+    keys = [animation.times for animation in source.animations] or [[0.0]]
+    keys = np.unique(np.concatenate(keys))
+    between = np.diff(keys)[:, None] * np.linspace(0.0, 1.0, 4, endpoint=False)
+    eps = np.finfo(np.float32).eps
+    for time in [*(keys[:-1, None] + between).ravel(), keys[-1]]:
+        posed = []
+        for scene in (source, loaded):
+            scene.animate(time)
+            parents = scene.graph.transforms.parents
+            posed.append([scene.graph.get(n, parents.get(n))[0] for n in nodes])
+        # float32 values and times in the file compound through rotation
+        # and scale to a few epsilons of the largest value
+        tolerance = 8 * eps * max(1.0, np.abs(posed[0]).max())
+        assert np.allclose(*posed, atol=tolerance), f"{name} at {time:.3f}"
 
 
 def to_glb_bytes(geom: trimesh.Geometry) -> bytes:

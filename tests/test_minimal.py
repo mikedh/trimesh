@@ -36,11 +36,18 @@ class MinimalTest(unittest.TestCase):
         installed = os.path.dirname(trimesh.__file__)
         files = glob.glob("**/__init__.py", root_dir=source, recursive=True)
         files += glob.glob("**/*.glsl", root_dir=source, recursive=True)
-        checks = {"source found": len(files) > 20}
+        assert len(files) > 20, "source found"
         for name in files:
-            checks[name] = os.path.exists(os.path.join(installed, name))
-        for name, ok in checks.items():
-            assert ok, name
+            assert os.path.exists(os.path.join(installed, name)), name
+
+    def test_dependencies(self):
+        """
+        A minimal install requires numpy and nothing else.
+        """
+        from importlib.metadata import requires
+
+        core = [item for item in requires("trimesh") if "extra ==" not in item]
+        assert core == ["numpy>=1.21"], core
 
     def test_path_exc(self):
         # this should require *no deps*

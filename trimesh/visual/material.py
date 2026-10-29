@@ -213,12 +213,12 @@ class SimpleMaterial(Material):
         # simple materials ignore diffuse when there is an image
         factor = None
         if self.image is None:
-            # diffuse is sRGB but the PBR factor is linear
+            # diffuse is sRGB, the factor is linear
             factor = color.to_float(self.diffuse)
             factor[:3] = color.srgb_to_linear(factor[:3])
 
         return PBRMaterial(
-            # simple materials are never metal: the glTF default is 1.0
+            # the glTF default is 1.0
             metallicFactor=0.0,
             roughnessFactor=roughness,
             baseColorTexture=self.image,
@@ -309,59 +309,27 @@ class MultiMaterial(Material):
         return self.materials[idx]
 
 
-class PBRField:
+def extension_property(key: str) -> property:
     """
-    A field of a `PBRMaterial` from a glTF extension, stored in its
-    `_data` like the others, where None removes it.
+    Property for a `PBRMaterial` extension field, None to remove.
+
+    Parameters
+    ------------
+    key
+      Key in `_data`.
+
+    Returns
+    ------------
+    field
+      Property for the field.
     """
 
-    def __set_name__(self, owner: type, name: str) -> None:
-        """
-        Store the field's name, which is its key in `_data`.
-
-        Parameters
-        ------------
-        owner
-          The class declaring the field.
-        name
-          The field's name.
-        """
-        self.name = name
-
-    def __get__(self, material: "PBRMaterial | None", owner: type | None = None):
-        """
-        The value of the field, or None if it isn't set.
-
-        Parameters
-        ------------
-        material
-          The material, or None when read from the class.
-        owner
-          The class of the material.
-
-        Returns
-        ------------
-        value
-          The stored value or None, or this field from the class.
-        """
-        if material is None:
-            return self
-        return material._data.get(self.name)
-
-    def __set__(self, material: "PBRMaterial", value) -> None:
-        """
-        Set the field, or remove it with None.
-
-        Parameters
-        ------------
-        material
-          The material.
-        value
-          The new value, or None to remove it.
-        """
-        material._data.pop(self.name, None)
+    def setter(material: "PBRMaterial", value) -> None:
+        material._data.pop(key, None)
         if value is not None:
-            material._data[self.name] = value
+            material._data[key] = value
+
+    return property(lambda material: material._data.get(key), setter)
 
 
 class PBRMaterial(Material):
@@ -373,20 +341,19 @@ class PBRMaterial(Material):
     Parameters with `Texture` in them must be PIL.Image objects
     """
 
-    # `KHR_materials_transmission`: from 0.0 to 1.0 passing through like glass
-    transmissionFactor = PBRField()
-    # an image whose red channel multiplies `transmissionFactor`
-    transmissionTexture = PBRField()
-    # `KHR_materials_diffuse_transmission`: scattered through a thin leaf
-    diffuseTransmissionFactor = PBRField()
-    # an image whose alpha channel multiplies `diffuseTransmissionFactor`
-    diffuseTransmissionTexture = PBRField()
-    # the (3,) linear RGB color of that scattered light, white if not set
-    diffuseTransmissionColorFactor = PBRField()
-    # an sRGB image whose color multiplies `diffuseTransmissionColorFactor`
-    diffuseTransmissionColorTexture = PBRField()
-    # `KHR_materials_unlit`: the base color is the final color with no lighting
-    unlit = PBRField()
+    # fields of glTF extensions stored by `extension_property`
+    EXTENSION_FIELDS = (
+        # `KHR_materials_transmission`
+        "transmissionFactor",
+        "transmissionTexture",
+        # `KHR_materials_diffuse_transmission`
+        "diffuseTransmissionFactor",
+        "diffuseTransmissionTexture",
+        "diffuseTransmissionColorFactor",
+        "diffuseTransmissionColorTexture",
+        # `KHR_materials_unlit`
+        "unlit",
+    )
 
     def __init__(
         self,
@@ -432,9 +399,8 @@ class PBRMaterial(Material):
         self.name = name
         self.alphaMode = alphaMode
 
-        # the `PBRField` values of glTF extensions like `unlit=True`
-        for key in list(kwargs):
-            if isinstance(getattr(PBRMaterial, key, None), PBRField):
+        for key in self.EXTENSION_FIELDS:
+            if key in kwargs:
                 setattr(self, key, kwargs.pop(key))
         if len(kwargs) > 0:
             util.log.debug(
@@ -728,7 +694,7 @@ class PBRMaterial(Material):
         Parameters
         ----------
         textures
-          Copy the images too, otherwise only the scalar fields.
+          Include images.
 
         Returns
         ----------
@@ -772,7 +738,7 @@ class PBRMaterial(Material):
 
     def to_pbr(self):
         """
-        This material, as it already is one like `SimpleMaterial.to_pbr` returns.
+        Return this material, which is already PBR.
 
         Returns
         ------------
@@ -793,7 +759,7 @@ class PBRMaterial(Material):
         """
         diffuse = self.baseColorFactor
         if diffuse is not None:
-            # the inverse of `SimpleMaterial.to_pbr` as diffuse is sRGB
+            # diffuse is sRGB
             diffuse = color.to_float(diffuse)
             diffuse[:3] = color.linear_to_srgb(diffuse[:3])
         return SimpleMaterial(
@@ -823,6 +789,10 @@ class PBRMaterial(Material):
                 np.asanyarray(v).tobytes() for v in self._data.values() if v is not None
             )
         )
+
+
+for field_name in PBRMaterial.EXTENSION_FIELDS:
+    setattr(PBRMaterial, field_name, extension_property(field_name))
 
 
 def empty_material(color: NDArray[np.uint8] | None = None) -> SimpleMaterial:
@@ -1108,8 +1078,7 @@ def pack(
     assert len(uvs) == len(materials)
     use_pbr = any(isinstance(m, PBRMaterial) for m in materials)
     if use_pbr:
-        # one PBR material makes every material PBR so they pack the same
-        # way, and only simple materials stay simple
+        # pack every material the same way
         materials = [m.to_pbr() for m in materials]
 
     # in some cases, the fused scene results in huge trimsheets

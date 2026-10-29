@@ -63,15 +63,11 @@ def test_affine_authored_vertex_normals(linear):
         return (new * g.trimesh.unitize(moved, threshold=0)).sum(axis=1)
 
     length = g.np.linalg.norm(new, axis=1)
-    checks = {
-        "zero normals stay zero": g.np.allclose(new[::7], 0.0),
-        "nonzero normals are unit": g.np.allclose(length[length > 0], 1.0),
-        "perpendicular to tangent": g.np.abs(dot(tangent)).max() < 1e-8,
-        "perpendicular to bitangent": g.np.abs(dot(bitangent)).max() < 1e-8,
-        "same side as transformed normal": (dot(normals) > -1e-8).all(),
-    }
-    for name, ok in checks.items():
-        assert ok, name
+    assert g.np.allclose(new[::7], 0.0), "zero normals stay zero"
+    assert g.np.allclose(length[length > 0], 1.0), "nonzero normals are unit"
+    assert g.np.abs(dot(tangent)).max() < 1e-8, "perpendicular to tangent"
+    assert g.np.abs(dot(bitangent)).max() < 1e-8, "perpendicular to bitangent"
+    assert (dot(normals) > -1e-8).all(), "same side as transformed normal"
 
 
 @g.pytest.mark.parametrize("linear", [L for L in LINEAR if g.np.linalg.det(L) != 0.0])
@@ -89,17 +85,14 @@ def test_affine_preserves_convexity(linear, cached):
     edges = mesh.triangles[:, 1:] - mesh.triangles[:, :1]
     truth = g.trimesh.unitize(g.np.cross(edges[:, 0], edges[:, 1]))
     fresh = g.Trimesh(mesh.vertices, mesh.faces, process=False)
-    checks = {
-        "convex": mesh.is_convex,
-        # mirrors must keep consistent winding and a positive volume
-        "volume": mesh.is_volume,
-        "face normals match edge cross products": g.np.allclose(mesh.face_normals, truth),
-        "vertex normals in recomputed hemisphere": (
-            (mesh.vertex_normals * fresh.vertex_normals).sum(axis=1) > 0
-        ).all(),
-    }
-    for name, ok in checks.items():
-        assert ok, name
+    assert mesh.is_convex, "convex"
+    assert mesh.is_volume, "volume"
+    assert g.np.allclose(mesh.face_normals, truth), (
+        "face normals match edge cross products"
+    )
+    assert ((mesh.vertex_normals * fresh.vertex_normals).sum(axis=1) > 0).all(), (
+        "vertex normals in recomputed hemisphere"
+    )
 
 
 def test_flips_winding():
@@ -174,44 +167,43 @@ def test_trs():
     # (n, 4) with a single pair is a stack of one, not a single result
     stacked_one = tf.quaternion_slerp(start[10:11], end[10:11], fraction[10:11])
 
-    checks = {
-        "round trip": g.np.allclose(rebuilt, matrices),
-        "translation": g.np.allclose(translation, matrices[:, :3, 3]),
-        "unit quaternions": g.np.allclose(g.np.linalg.norm(quaternion, axis=1), 1.0),
-        "mirrors are negative scale": ((recovered < 0).any(axis=1) == mirrored).all(),
-        "zero scale is finite": g.np.isfinite(quaternion[-1]).all(),
-        "shear is a polar rotation": g.np.allclose(stretch, stretch.T)
-        and g.np.isclose(g.np.linalg.det(rotation), 1.0),
-        "single stays single": [part.shape for part in first] == [(3,), (4,), (3,)],
-        "single round trip": g.np.allclose(tf.trs_matrix(*first), matrices[0]),
-        # a stack of one squeezes to one matrix as it always has
-        "one quaternion squeezes": tf.quaternion_matrix(quaternion[:1]).shape
+    assert g.np.allclose(rebuilt, matrices), "round trip"
+    assert g.np.allclose(translation, matrices[:, :3, 3]), "translation"
+    assert g.np.allclose(g.np.linalg.norm(quaternion, axis=1), 1.0), "unit quaternions"
+    assert ((recovered < 0).any(axis=1) == mirrored).all(), "mirrors are negative scale"
+    assert g.np.isfinite(quaternion[-1]).all(), "zero scale is finite"
+    assert g.np.allclose(stretch, stretch.T) and g.np.isclose(
+        g.np.linalg.det(rotation), 1.0
+    ), "shear is a polar rotation"
+    assert [part.shape for part in first] == [(3,), (4,), (3,)], "single stays single"
+    assert g.np.allclose(tf.trs_matrix(*first), matrices[0]), "single round trip"
+    assert (
+        tf.quaternion_matrix(quaternion[:1]).shape
         == tf.quaternion_matrix([[quaternion[0]]]).shape
-        == (4, 4),
-        # while every batch of TRS stays a batch
-        "one trs stays a stack": tf.trs_matrix(
-            translation[:1], quaternion[:1], recovered[:1]
-        ).shape
-        == (1, 4, 4),
-        "broadcast trs": tf.trs_matrix(translation, quaternion[0], recovered[0]).shape
+        == (4, 4)
+    ), "one quaternion squeezes"
+    assert tf.trs_matrix(translation[:1], quaternion[:1], recovered[:1]).shape == (
+        1,
+        4,
+        4,
+    ), "one trs stays a stack"
+    assert (
+        tf.trs_matrix(translation, quaternion[0], recovered[0]).shape
         == tf.trs_matrix(translation[0], quaternion, recovered[0]).shape
-        == (50, 4, 4),
-        "batched from_matrix": g.np.allclose(
-            tf.quaternion_from_matrix(matrices), quaternions
-        ),
-        "batched slerp": g.np.allclose(batched, slerps),
-        # the strongest slerp predicate: constant speed along the shortest
-        # arc, unit length, and the whole arc is traveled by the end
-        "slerp arc": g.np.allclose(
-            arc(start[10:], batched[10:]), fraction[10:] * arc(start[10:], end[10:])
-        ),
-        "slerp unit": g.np.allclose(g.np.linalg.norm(batched, axis=1), 1.0),
-        "single slerp is a single": g.np.shape(slerps[10]) == (4,),
-        "stack of one slerp": stacked_one.shape == (1, 4)
-        and g.np.allclose(stacked_one[0], slerps[10]),
-    }
-    for name, ok in checks.items():
-        assert ok, name
+        == (50, 4, 4)
+    ), "broadcast trs"
+    assert g.np.allclose(tf.quaternion_from_matrix(matrices), quaternions), (
+        "batched from_matrix"
+    )
+    assert g.np.allclose(batched, slerps), "batched slerp"
+    assert g.np.allclose(
+        arc(start[10:], batched[10:]), fraction[10:] * arc(start[10:], end[10:])
+    ), "slerp arc"
+    assert g.np.allclose(g.np.linalg.norm(batched, axis=1), 1.0), "slerp unit"
+    assert g.np.shape(slerps[10]) == (4,), "single slerp is a single"
+    assert stacked_one.shape == (1, 4) and g.np.allclose(stacked_one[0], slerps[10]), (
+        "stack of one slerp"
+    )
 
 
 def test_skin_points():
@@ -254,26 +246,19 @@ def test_skin_points():
     first = [
         tf.transform_points([p], matrices[j])[0] for p, j in zip(points, joints[:, 0])
     ]
-    checks = {
-        "matches the definition": g.np.allclose(
-            deform(points, joints, weights), loop, atol=1e-9
-        ),
-        # one joint with all the weight is just that transform
-        "single joint": g.np.allclose(single, first, atol=1e-9),
-        # joints with no weight don't matter
-        "unweighted joints ignored": g.np.array_equal(
-            single, deform(points, unused, one)
-        ),
-        # weights summing to one of the same transform is that transform
-        "same transform": g.np.allclose(
-            deform(points, joints, weights, skin=same),
-            tf.transform_points(points, matrices[0]),
-            atol=1e-9,
-        ),
-        "empty": empty.shape == (0, 3),
-    }
-    for name, ok in checks.items():
-        assert ok, name
+    assert g.np.allclose(deform(points, joints, weights), loop, atol=1e-9), (
+        "matches the definition"
+    )
+    assert g.np.allclose(single, first, atol=1e-9), "single joint"
+    assert g.np.array_equal(single, deform(points, unused, one)), (
+        "unweighted joints ignored"
+    )
+    assert g.np.allclose(
+        deform(points, joints, weights, skin=same),
+        tf.transform_points(points, matrices[0]),
+        atol=1e-9,
+    ), "same transform"
+    assert empty.shape == (0, 3), "empty"
 
 
 class TransformTest(g.unittest.TestCase):
@@ -553,9 +538,10 @@ def test_is_rigid():
     scales = [[1, 1, 1], [-1, 1, 1], [2, 2, 2], [-2, 2, -2], [1e5] * 3, [1e-3] * 3]
     scales += [[2, 3, 4], [1, 1, 1 + 1e-4], [1, 1, 0], [0, 0, 0]]
     rotations = tr.random_rotation_matrix(num=len(scales) * 2)
+    rng = g.np.random.default_rng(0)
     for s, R1, R2 in zip(scales, rotations[::2], rotations[1::2]):
         matrix = R1 @ g.np.diag(s + [1]) @ R2
-        matrix[:3, 3] = g.np.random.random(3) * 100
+        matrix[:3, 3] = rng.random(3) * 100
         rigid = bool((g.np.abs(s) == 1).all())
         assert tr.is_rigid(matrix) == rigid
         # an equal error in every entry of the bottom row is never rigid

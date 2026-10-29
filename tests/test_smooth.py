@@ -4,16 +4,16 @@ except BaseException:
     import generic as g
 
 
-def smooth_checks(mesh, prefix):
+def assert_smooth(mesh, prefix):
     """Same triangles in order with every per-vertex attribute and unit normals."""
     smooth, visual = mesh.smooth_shaded, mesh.visual
-    checks = {
-        "face count": len(smooth.faces) == len(mesh.faces),
-        "triangles in order": g.np.allclose(
-            smooth.vertices[smooth.faces], mesh.vertices[mesh.faces]
-        ),
-        "unit normals": g.np.allclose(g.np.linalg.norm(smooth.vertex_normals, axis=1), 1),
-    }
+    assert len(smooth.faces) == len(mesh.faces), f"{prefix} face count"
+    assert g.np.allclose(smooth.vertices[smooth.faces], mesh.vertices[mesh.faces]), (
+        f"{prefix} triangles in order"
+    )
+    assert g.np.allclose(g.np.linalg.norm(smooth.vertex_normals, axis=1), 1), (
+        f"{prefix} unit normals"
+    )
     # every per-vertex attribute: uv, glTF `COLOR_0`, custom data
     corners = {}
     if visual.kind == "texture":
@@ -22,12 +22,13 @@ def smooth_checks(mesh, prefix):
     elif visual.kind == "vertex":
         corners = {"vertex colors": (smooth.visual.vertex_colors, visual.vertex_colors)}
     elif visual.kind == "face":
-        checks["face colors"] = (smooth.visual.face_colors == visual.face_colors).all()
-    for key, (after, before) in corners.items():
-        checks[f"{key} in order"] = after is not None and g.np.allclose(
-            after[smooth.faces], before[mesh.faces]
+        assert (smooth.visual.face_colors == visual.face_colors).all(), (
+            f"{prefix} face colors"
         )
-    return {f"{prefix} {name}": ok for name, ok in checks.items()}
+    for key, (after, before) in corners.items():
+        assert after is not None and g.np.allclose(
+            after[smooth.faces], before[mesh.faces]
+        ), f"{prefix} {key} in order"
 
 
 def test_smooth():
@@ -60,31 +61,30 @@ def test_smooth():
     round_sphere = g.trimesh.creation.icosphere(subdivisions=3)
     rounded = round_sphere.smooth_shaded
 
-    checks = {
-        "cylinder splits only at its two rims": len(smooth.vertices)
-        == len(cylinder.vertices) + 2 * 32,
-        "box has a vertex for every face corner": len(flat.vertices) == 24,
-        "sphere keeps its vertices": len(rounded.vertices) == len(round_sphere.vertices),
-        "sphere keeps its vertex normals": g.np.allclose(
-            rounded.vertex_normals[rounded.faces],
-            round_sphere.vertex_normals[round_sphere.faces],
-        ),
-        "cap normals are exactly +-Z": g.np.allclose(
-            corner[cap], cylinder.face_normals[cap][:, None, :]
-        ),
-        "side normals are radial": g.np.allclose(corner[~cap], radial),
-        "sphere normals are radial": (outward > 0.999).all(),
-        "box normals are face normals": g.np.allclose(
-            flat.vertex_normals[flat.faces], box.face_normals[:, None, :]
-        ),
-        "empty mesh": len(g.trimesh.Trimesh().smooth_shaded.faces) == 0,
-    }
+    assert len(smooth.vertices) == len(cylinder.vertices) + 2 * 32, (
+        "cylinder splits only at its two rims"
+    )
+    assert len(flat.vertices) == 24, "box has a vertex for every face corner"
+    assert len(rounded.vertices) == len(round_sphere.vertices), "sphere keeps vertices"
+    assert g.np.allclose(
+        rounded.vertex_normals[rounded.faces],
+        round_sphere.vertex_normals[round_sphere.faces],
+    ), "sphere keeps its vertex normals"
+    assert g.np.allclose(corner[cap], cylinder.face_normals[cap][:, None, :]), (
+        "cap normals are exactly +-Z"
+    )
+    assert g.np.allclose(corner[~cap], radial), "side normals are radial"
+    assert (outward > 0.999).all(), "sphere normals are radial"
+    assert g.np.allclose(flat.vertex_normals[flat.faces], box.face_normals[:, None, :]), (
+        "box normals are face normals"
+    )
+    assert len(g.trimesh.Trimesh().smooth_shaded.faces) == 0, "empty mesh"
     # `facet_minarea` no longer does anything so passing it warns
     with g.pytest.warns(DeprecationWarning, match="facet_minarea"):
         minarea = g.trimesh.graph.smooth_shade(cylinder, facet_minarea=10.0)
-    checks["facet_minarea changes nothing"] = g.np.array_equal(
-        minarea.vertices, smooth.vertices
-    ) and g.np.array_equal(minarea.faces, smooth.faces)
+    assert g.np.array_equal(minarea.vertices, smooth.vertices) and g.np.array_equal(
+        minarea.faces, smooth.faces
+    ), "facet_minarea changes nothing"
 
     # vertex colors, and a PBR material with per-vertex colors, i.e. glTF `COLOR_0`
     colored = g.trimesh.creation.icosphere()
@@ -97,9 +97,7 @@ def test_smooth():
     for name in ["fuze.obj", "chair_model.obj", "featuretype.STL"]:
         meshes[name] = g.get_mesh(name, force="mesh")
     for name, mesh in meshes.items():
-        checks.update(smooth_checks(mesh, name))
-    for name, ok in checks.items():
-        assert ok, name
+        assert_smooth(mesh, name)
 
 
 if __name__ == "__main__":

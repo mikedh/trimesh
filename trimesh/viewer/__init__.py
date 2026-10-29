@@ -2,8 +2,7 @@
 viewer
 -------------
 
-View meshes and scenes via pyglet or inline HTML, and render
-them to images or video.
+View and render meshes and scenes via pyglet or inline HTML.
 """
 
 from .. import exceptions
@@ -17,8 +16,7 @@ from .notebook import (
 
 def __getattr__(name: str):
     """
-    Import the viewer for the installed pyglet only when it is used,
-    as importing pyglet connects to a display or creates an OpenGL context.
+    Lazily import the viewer, as importing pyglet needs a display.
 
     Parameters
     ------------
@@ -28,7 +26,7 @@ def __getattr__(name: str):
     Returns
     ------------
     value : SceneViewer, render_scene or ExceptionWrapper
-      From `trimesh.viewer.windowed`, or why it couldn't be imported.
+      From `trimesh.viewer.windowed` or the import error.
     """
     if name not in ("SceneViewer", "render_scene"):
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

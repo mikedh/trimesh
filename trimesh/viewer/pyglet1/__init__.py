@@ -1,5 +1,4 @@
-# the fixed function viewer for pyglet<2 which nothing imports by default:
-# use `trimesh.viewer.pyglet1.viewer.SceneViewer` explicitly
+# deprecated fixed function viewer for pyglet<2, only imported explicitly
 import warnings
 
 warnings.warn(

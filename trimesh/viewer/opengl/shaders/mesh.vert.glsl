@@ -1,16 +1,13 @@
-// Transform one mesh vertex, from `shaders.VERTEX` and `shaders.SKIN`,
-// for one instance from `shaders.INSTANCE` which is a scene graph node.
-// Lighting happens in view space where the camera sits at the origin
-// looking down -Z, so the fragment shader needs no camera position.
+// One mesh vertex for one instance. Lighting is in view space, so the
+// camera is at the origin looking down -Z.
 
-// four rows per joint of `world(joint) * inverse_bind` for every skin
+// four rows per joint of `world(joint) * inverse_bind`
 uniform samplerBuffer joint_matrices;
 
 out vec3 view_position, view_normal;
 out vec2 texture_uv;
 out vec4 vertex_color;
 flat out float fragment_node_index;
-// one joint's transform, stored as its four rows
 mat4 joint_rows(float joint) {
     int row = int(joint_offset) + 4 * int(joint);
     return mat4(
@@ -19,8 +16,8 @@ mat4 joint_rows(float joint) {
 }
 
 void main() {
-    // a skinned vertex moves by a blend of its joints, which already
-    // put it in world space, where its node's transform is the identity
+    // skinned vertices are put in world space by their joints, and their
+    // node's transform is the identity
     mat4 skin = mat4(1.0);
     mat3 skin_normal = mat3(1.0);
     if (joint_offset >= 0.0) {

@@ -229,8 +229,7 @@ def handle_extensions(
             if (result := _handlers[scope][ext_name](context)) is not None:
                 results[ext_name] = result
         except Exception as e:
-            # a missing optional dependency is survivable everywhere and
-            # broken data is survivable outside of tests
+            # missing optional dependencies always just warn
             if tol.strict and not isinstance(e, ImportError):
                 raise
             if failed is not None:
@@ -284,8 +283,7 @@ def _specular_glossiness(context: MaterialContext) -> dict[str, Any] | None:
     return specular_to_pbr(**context["parse_textures"](data=context["data"]))
 
 
-# material extensions which only hold `PBRMaterial` fields of the same
-# name, which import and export both read, plus `PBRMaterial.unlit`
+# material extensions holding `PBRMaterial` fields of the same name
 MATERIAL_EXTENSIONS = {
     "KHR_materials_transmission": ("transmissionFactor", "transmissionTexture"),
     "KHR_materials_diffuse_transmission": (
@@ -300,13 +298,12 @@ MATERIAL_EXTENSIONS = {
 
 def material_fields(name: str, context: MaterialContext) -> dict[str, Any]:
     """
-    The `PBRMaterial` fields a material extension of `MATERIAL_EXTENSIONS`
-    stores, with its textures resolved to images.
+    Load the `PBRMaterial` fields of a material extension.
 
     Parameters
     ----------
     name
-      The extension, a key of `MATERIAL_EXTENSIONS`.
+      Key of `MATERIAL_EXTENSIONS`.
     context
       MaterialContext with the extension's data.
 

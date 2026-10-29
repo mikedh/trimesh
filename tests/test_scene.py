@@ -117,7 +117,6 @@ def test_cam_gltf():
         assert r.camera.name == cam.name
         assert np.allclose(r.camera.fov, cam.fov)
         assert r.camera.z_near == cam.z_near
-        # without `zfar` a glTF camera has an infinite projection
         assert r.camera.z_far == cam.z_far
 
     from trimesh.exchange.gltf import _cam_from_gltf, _convert_camera
@@ -131,17 +130,14 @@ def test_cam_gltf():
     # orthographic cameras round trip too
     scene.camera = Camera(name="cam1", magnification=(2.0, 1.5), z_near=0.5, z_far=20.0)
     ortho = g.roundtrip(scene.export(file_type="glb"), "glb")
-    checks = {
-        "16:9 is wide": np.isclose(half[0], 16 / 9 * np.tan(0.33)),
-        "yfov is vertical": np.isclose(wide.fov[1], np.degrees(0.66)),
-        "aspectRatio exported": _convert_camera(cam)["perspective"]["aspectRatio"]
-        == np.divide(*np.tan(np.radians([30, 45]))),
-        "ortho magnification": np.allclose(ortho.camera.magnification, (2.0, 1.5)),
-        "ortho clip planes": (ortho.camera.z_near, ortho.camera.z_far) == (0.5, 20.0),
-        "ortho transform": np.allclose(ortho.camera_transform, scene.camera_transform),
-    }
-    for name, ok in checks.items():
-        assert ok, name
+    assert np.isclose(half[0], 16 / 9 * np.tan(0.33)), "16:9 is wide"
+    assert np.isclose(wide.fov[1], np.degrees(0.66)), "yfov is vertical"
+    assert _convert_camera(cam)["perspective"]["aspectRatio"] == np.divide(
+        *np.tan(np.radians([30, 45]))
+    ), "aspectRatio exported"
+    assert np.allclose(ortho.camera.magnification, (2.0, 1.5)), "ortho magnification"
+    assert (ortho.camera.z_near, ortho.camera.z_far) == (0.5, 20.0), "ortho clip planes"
+    assert np.allclose(ortho.camera_transform, scene.camera_transform), "ortho transform"
 
 
 def test_scaling():
@@ -514,19 +510,17 @@ def test_append_scenes():
     camera, transform = scenes[0].camera, scenes[0].camera_transform
     summed = g.trimesh.scene.scene.append_scenes(scenes)
     names = [light.name for light in summed.lights]
-    checks = {
-        "every light kept": len(names) == 2,
-        "names unique": len(set(names)) == 2,
-        "every light has a node": all(name in summed.graph.nodes for name in names),
-        "lights stay put": [summed.graph[name][0][0, 3] for name in names] == [-2, 2],
-        "lights stay themselves": [light.intensity for light in summed.lights] == [3, 7],
-        "later metadata wins": summed.metadata["ambient_light"] == [2.0, 2.0, 2.0],
-        "the camera survives": summed.has_camera and summed.camera.name == camera.name,
-        "camera transform": g.np.allclose(summed.camera_transform, transform),
-        "originals untouched": [s.lights[0].name for s in scenes] == ["lamp", "lamp"],
-    }
-    for name, ok in checks.items():
-        assert ok, name
+    assert len(names) == 2, "every light kept"
+    assert len(set(names)) == 2, "names unique"
+    assert all(name in summed.graph.nodes for name in names), "every light has a node"
+    assert [summed.graph[name][0][0, 3] for name in names] == [-2, 2], "lights stay put"
+    assert [light.intensity for light in summed.lights] == [3, 7], (
+        "lights stay themselves"
+    )
+    assert summed.metadata["ambient_light"] == [2.0, 2.0, 2.0], "later metadata wins"
+    assert summed.has_camera and summed.camera.name == camera.name, "the camera survives"
+    assert g.np.allclose(summed.camera_transform, transform), "camera transform"
+    assert [s.lights[0].name for s in scenes] == ["lamp", "lamp"], "originals untouched"
 
 
 def test_scene_concat():

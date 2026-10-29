@@ -170,10 +170,8 @@ def test_path_to_gltf_with_line():
         segments = g.np.sort(item.segments.reshape((-1, 6)), axis=1)
         colors = item.colors[item.segments_entity]
         colored.append(g.np.unique(g.np.column_stack((segments, colors)), axis=0))
-    checks = {
-        "segments and colors": g.np.allclose(*colored),
-        "polylines stay joined": len(loaded.entities) == len(path.entities),
-    }
+    assert g.np.allclose(*colored), "segments and colors"
+    assert len(loaded.entities) == len(path.entities), "polylines stay joined"
     # each segment is labeled with the entity which discretizes to it, in
     # either order of asking for the two cached values
     reference = g.trimesh.util.vstack_empty(
@@ -188,13 +186,11 @@ def test_path_to_gltf_with_line():
         else:
             _ = fresh.segments
             labels = fresh.segments_entity
-        checks[f"order {order} entity per segment"] = (
+        assert (
             len(labels) == len(fresh.segments)
             and g.np.array_equal(fresh.segments, reference)
             and (g.np.diff(labels) >= 0).all()
-        )
-    for name, ok in checks.items():
-        assert ok, name
+        ), f"order {order} entity per segment"
 
 
 def test_path_to_gltf_with_arc():

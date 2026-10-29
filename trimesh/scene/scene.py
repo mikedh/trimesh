@@ -1,5 +1,4 @@
 import collections
-import pickle
 import warnings
 from copy import deepcopy
 from hashlib import sha256
@@ -80,15 +79,13 @@ class Scene(Geometry3D):
         # create a new graph
         self.graph = SceneGraph(base_frame=base_frame)
 
-        # keyframed animations, and {node : Skin} for skinned mesh nodes
+        # keyframed animations and {node : Skin}
         self.animations: list[Animation] = []
         self.skins: dict[Hashable, Skin] = {}
-        # cameras riding the nodes named after them, the first looked through
+        # cameras on nodes of the same name, the first is active
         self.cameras: list[Camera] = []
-        # lights riding nodes or None for the defaults, and the fingerprint
-        # of generated defaults which are only the scene's once changed
+        # None until set or generated
         self._lights = None
-        self._default_lights = None
 
         # create our cache
         self._cache = caching.Cache(id_function=self.__hash__)
@@ -396,7 +393,6 @@ class Scene(Geometry3D):
             if points is None:
                 continue
             if node_name in self.skins:
-                # a skinned mesh is where its joints put it
                 points = self.skins[node_name].deform(
                     self.geometry[geometry_name], self.graph
                 )
@@ -598,12 +594,10 @@ class Scene(Geometry3D):
             geometry = self.geometry[geometry_name]
             if not hasattr(geometry, "triangles"):
                 continue
-            corners = geometry.triangles.copy().reshape((-1, 3))
+            corners = geometry.triangles.reshape((-1, 3))
             if node_name in self.skins:
-                # a skinned mesh is where its joints put it
-                corners = self.skins[node_name].deform(geometry, self.graph)[
-                    geometry.faces.ravel()
-                ]
+                corners = self.skins[node_name].deform(geometry, self.graph)
+                corners = corners[geometry.faces.ravel()]
                 transform = np.eye(4)
             # append the (n, 3, 3) triangles to a sequence
             triangles.append(transformations.transform_points(corners, matrix=transform))
@@ -750,30 +744,18 @@ class Scene(Geometry3D):
             self.camera = cameras.Camera(fov=fov)
             self.graph[self.camera.name] = np.eye(4)
             return self.camera
-        # set with no rotation by default
-        if angles is None:
-            angles = np.zeros(3)
-
-        rotation = transformations.euler_matrix(*angles)
-        transform = cameras.look_at(
+        rotation = np.eye(4)
+        if not self.has_camera:
+            # the camera and view every render defaults to
+            self.camera, rotation = cameras.current_view(self)
+        if angles is not None:
+            rotation = transformations.euler_matrix(*angles)
+        self.camera.fov = fov
+        if resolution is not None:
+            self.camera.resolution = resolution
+        self.graph[self.camera.name] = cameras.look_at(
             self.bounds, fov=fov, rotation=rotation, distance=distance, center=center
         )
-
-        if self.has_camera:
-            self.camera.fov = fov
-            if resolution is not None:
-                self.camera.resolution = resolution
-        else:
-            # create a new camera object
-            self.camera = Camera(
-                fov=fov,
-                resolution=resolution,
-                z_near=cameras.DEFAULT_Z_NEAR * self.scale,
-                z_far=cameras.DEFAULT_Z_FAR * self.scale,
-            )
-
-        self.graph[self.camera.name] = transform
-
         return self.camera
 
     @property
@@ -817,13 +799,13 @@ class Scene(Geometry3D):
         """
         # get the unit vectors of the camera
         vectors, pixels = self.camera.to_rays()
-        # rays start at the camera, or on its plane if it's orthographic
+        # orthographic rays start on the camera plane
         origins = np.zeros_like(vectors)
         if self.camera.magnification is not None:
             origins[:, :2] = cameras.ray_pixel_coords(self.camera)[0]
         # find our scene's transform for the camera
         transform = self.camera_transform
-        # a camera node scaled with its scene still casts unit rays
+        # the camera node may be scaled
         vectors = util.unitize(
             transformations.transform_points(vectors, transform, translate=False)
         )
@@ -833,9 +815,7 @@ class Scene(Geometry3D):
     @property
     def camera(self) -> Camera:
         """
-        Get the camera the scene is viewed through, which is the first
-        of `Scene.cameras`. If there are none one framing everything is
-        made and added.
+        The first of `Scene.cameras`, generated if there are none.
 
         Returns
         ----------
@@ -851,8 +831,7 @@ class Scene(Geometry3D):
     @camera.setter
     def camera(self, camera: Camera | None):
         """
-        Set the camera the Scene is viewed through, replacing the first
-        of `Scene.cameras`.
+        Replace the first of `Scene.cameras`.
 
         Parameters
         -----------
@@ -861,81 +840,58 @@ class Scene(Geometry3D):
         """
         if camera is None:
             return
-        # replace the first camera, or add it if there isn't one
         self.cameras[:1] = [camera]
 
     @property
     def has_camera(self) -> bool:
         """
-        If a camera was set on this scene, without generating the
-        default camera `Scene.camera` would.
+        If the scene has a camera, without generating one.
 
         Returns
         ------------
         has_camera : bool
-          If `Scene.cameras` has any camera.
+          If `Scene.cameras` is not empty.
         """
         return len(self.cameras) > 0
 
     @property
     def has_lights(self) -> bool:
         """
-        If this scene has lights of its own: ones which were set, or the
-        defaults `Scene.lights` generated once any was added, removed,
-        edited or moved. Untouched defaults are only what a renderer
-        would use, so they aren't exported.
+        If the scene has lights, without generating them.
 
         Returns
         ------------
         has_lights : bool
-          If the lights are the scene's own.
+          If the scene has lights.
         """
-        if self._lights is None:
-            return False
-        return light_fingerprint(self, self._lights) != self._default_lights
+        return self._lights is not None
 
     @property
     def duration(self) -> float:
         """
-        How long the longest animation in this scene runs for.
+        Length of the longest animation.
 
         Returns
         -------------
         duration
-          Length in seconds, zero if the scene isn't animated.
+          Seconds, zero if not animated.
         """
         return max((animation.duration for animation in self.animations), default=0.0)
 
-    def animate(
-        self, time: Floating, name: str | None = None, loop: bool = False
-    ) -> None:
+    def animate(self, time: Floating) -> None:
         """
-        Set every animated edge of the scene graph to its pose at a time.
-
-        Note this writes the graph in place: keep a `scene.copy()` if you
-        want the pose it had before.
+        Pose the scene graph at a time, in place.
 
         Parameters
         --------------
         time
-          Time to sample at, in seconds.
-        name
-          Only apply animations with this name, None for all of them.
-        loop
-          Repeat each animation past its own end as glTF players do,
-          rather than holding its last pose.
+          Seconds, held at each animation's ends.
         """
         parents = self.graph.transforms.parents
         for animation in self.animations:
-            if name is not None and animation.name != name:
-                continue
-            at = time
-            if loop and animation.duration > 0.0:
-                at = time % animation.duration
-            # every node of an animation is sampled and written at once
             self.graph.update_matrices(
                 [(parents.get(node), node) for node in animation.nodes],
-                animation.interpolate(at),
+                animation.interpolate(time),
             )
 
     @property
@@ -957,7 +913,6 @@ class Scene(Geometry3D):
                 self.graph[L.name] = T
             # set the lights
             self._lights = lights
-            self._default_lights = light_fingerprint(self, lights)
         return self._lights
 
     @lights.setter
@@ -971,7 +926,6 @@ class Scene(Geometry3D):
           Lights in the scene.
         """
         self._lights = lights
-        self._default_lights = None
 
     def rezero(self) -> None:
         """
@@ -1023,8 +977,7 @@ class Scene(Geometry3D):
             # get a copy of the geometry
             current = self.geometry[geometry_name].copy()
             if node_name in self.skins:
-                # a skinned mesh is where its joints put it and the joint
-                # indices mean nothing once it is moved there
+                # bake the pose, after which joint indices are meaningless
                 current.vertices = self.skins[node_name].deform(current, self.graph)
                 current.vertex_attributes.pop("joints")
                 current.vertex_attributes.pop("weights")
@@ -1120,7 +1073,7 @@ class Scene(Geometry3D):
         geometry = {k: self.geometry[k] for k in geometry_names}
         result = Scene(geometry=geometry, graph=graph)
 
-        # the subscene is rooted at `node` so its own edge isn't drivable
+        # the root edge is not animatable
         copy_attachments(self, result, nodes=nodes, rename={}, root=node)
         result.metadata.update(deepcopy(self.metadata))
         return result
@@ -1175,10 +1128,6 @@ class Scene(Geometry3D):
         png : bytes
           Render of scene as a PNG
         """
-        from ..viewer.render import window_keywords
-
-        # a render never opens a window, which these were for
-        kwargs = window_keywords(kwargs, "save_image")
         return self.render(file_type="png", resolution=resolution, **kwargs)
 
     def render(
@@ -1189,41 +1138,80 @@ class Scene(Geometry3D):
         duration: Number | None = None,
         fps: Number = 30.0,
         engine: str = "opengl",
+        quality: bool = True,
+        exposure: Number = 1.0,
+        bloom: Number = 1.0,
+        ground_shadow: bool = True,
+        show_environment: bool = False,
+        background=None,
+        line_width: Number = 2.0,
+        point_size: Number = 6.0,
+        samples: Integer = 64,
         **kwargs,
     ) -> bytes | None:
         """
-        Render the scene to an image, or to an animation or video of
-        `Scene.animations` or of a turntable if it isn't animated.
+        Render the scene to an image, animation or video.
 
         Parameters
         -----------
         file_obj : str, pathlib.Path, file-like, or None
-          Where to write the render, such as "animated.mp4".
+          Destination, such as "animated.mp4".
         file_type : str or None
-          "png", "gif", "webp", "avif", "mp4", "mkv", "mov" or "blend", from
-          the extension of `file_obj` if not passed, or "png" without either.
+          "png", "gif", "webp", "avif", "mp4", "mkv" or "mov".
         resolution : (2,) int or None
-          Size in pixels, defaults to `scene.camera.resolution`.
+          Pixels, default `scene.camera.resolution`.
         duration : float or None
-          Seconds of animation, defaults to `scene.duration` or a
-          four second turntable if it isn't animated.
+          Seconds, default `scene.duration` or a turntable.
         fps : float
-          Frames per second of an animation.
+          Frames per second.
         engine : str
-          "opengl" for the built in renderer or "blender".
+          "opengl" or "blender".
+        quality : bool
+          OpenGL shadows, ambient occlusion and bloom.
+        exposure : float
+          Multiplies light before tone mapping.
+        bloom : float
+          Strength of the OpenGL glare around overexposed pixels.
+        ground_shadow : bool
+          Shadows on an invisible floor under the scene.
+        show_environment : bool
+          Draw the environment light as the background.
+        background : None or color
+          Behind the scene, defaults to white.
+        line_width : float
+          Pixels across paths.
+        point_size : float
+          Pixels across points.
+        samples : int
+          Blender samples per pixel.
         **kwargs
-          Passed to the OpenGL `SceneViewer`, or to Blender like `samples=64`,
-          including `trimesh.viewer.conversion.RENDER_DEFAULTS` like `exposure=2.0`.
+          Passed to `SceneViewer`.
 
         Returns
         -----------
         data : bytes or None
-          The encoded image or video if `file_obj` is None.
+          Encoded render if `file_obj` is None.
         """
         from ..viewer.render import render_scene
 
         return render_scene(
-            self, resolution, file_obj, file_type, duration, fps, engine, **kwargs
+            self,
+            resolution,
+            file_obj,
+            file_type,
+            duration,
+            fps,
+            engine,
+            quality=quality,
+            background=background,
+            samples=samples,
+            exposure=exposure,
+            bloom=bloom,
+            ground_shadow=ground_shadow,
+            show_environment=show_environment,
+            line_width=line_width,
+            point_size=point_size,
+            **kwargs,
         )
 
     @property
@@ -1362,7 +1350,6 @@ class Scene(Geometry3D):
         if np.allclose(scale, 1.0):
             return result
 
-        # animated translations scale like every other edge in the graph
         for animation in result.animations:
             animation.matrices[..., :3, 3] *= scale
 
@@ -1377,7 +1364,6 @@ class Scene(Geometry3D):
             scale = float(scale)
 
         if not scale_is_3D:
-            # a camera's planes and orthographic size are lengths too
             for camera in result.cameras:
                 camera.z_near *= scale
                 camera.z_far *= scale
@@ -1429,32 +1415,31 @@ class Scene(Geometry3D):
                 ).apply_transform(np.linalg.inv(T))
 
         else:
-            # a uniform scale is the same in every axis, so it doesn't
-            # matter what pose a geometry is in: scale it where it sits
+            # a uniform scale commutes with every pose
             for geometry in result.geometry.values():
                 geometry.apply_scale(scale)
 
-        # scaling every vertex and every edge translation by the same factor
-        # scales the world transform of everything exactly once, and leaves
-        # the graph, instancing, and the edges animations drive as they were
+        # with vertices scaled, scaling edge translations scales the world
         edge_data = result.graph.transforms.edge_data
         edges = [key for key, edge in edge_data.items() if "matrix" in edge]
         matrices = np.reshape([edge_data[key]["matrix"] for key in edges], (-1, 4, 4))
         matrices[:, :3, 3] *= scale
         result.graph.update_matrices(edges, matrices)
 
-        # the inverse bind matrices go from world space where every edge
-        # translation was just scaled, so they become `S @ B @ inv(S)`
+        # inverse bind matrices become `S @ B @ inv(S)`
         diagonal = np.append(np.broadcast_to(scale, (3,)), 1.0)
         for skin in {id(skin): skin for skin in result.skins.values()}.values():
             skin.inverse_bind_matrices *= np.outer(diagonal, 1.0 / diagonal)
 
-        # a light's range is a length so it scales, but its intensity
-        # in candela or lux is a physical quantity which doesn't
+        # range is a length, and point and spot lights fall off with its
+        # square so are as bright where they land
+        length = float(np.max(scale))
         if result.has_lights:
             for light in result.lights:
                 if light.radius is not None:
-                    light.radius = light.radius * float(np.max(scale))
+                    light.radius = light.radius * length
+                if isinstance(light, (lighting.PointLight, lighting.SpotLight)):
+                    light.intensity = light.intensity * length**2
 
         return result
 
@@ -1475,12 +1460,10 @@ class Scene(Geometry3D):
         copied = Scene(
             geometry=geometry, graph=self.graph.copy(), metadata=self.metadata.copy()
         )
-        # one deep copy so nodes sharing a skin still share one, and
-        # copied default lights stay defaults until the copy changes them
+        # one deepcopy so shared skins stay shared
         copied.cameras, copied.animations, copied.skins, copied._lights = deepcopy(
             (self.cameras, self.animations, self.skins, self._lights)
         )
-        copied._default_lights = self._default_lights
         return copied
 
     def show(
@@ -1501,8 +1484,7 @@ class Scene(Geometry3D):
           None for a "best guess"
         kwargs
           Passed to viewer, such as `smooth=False` which will turn
-          off automatic smooth shading, or `exposure=2.0` which is
-          one of `trimesh.viewer.conversion.RENDER_DEFAULTS`
+          off automatic smooth shading, or `exposure=2.0`
         """
 
         if viewer is None:
@@ -1592,69 +1574,24 @@ def split_scene(geometry, **kwargs):
     return scene
 
 
-def light_fingerprint(scene: Scene, lights: Sequence[lighting.Light]) -> int:
-    """
-    A hash of the values of every light and the world transform of the
-    node each rides, to tell if the default lights `Scene.lights`
-    generated were changed since.
-
-    Parameters
-    ------------
-    scene : trimesh.Scene
-      Scene the lights ride the scene graph of.
-    lights : (n,) trimesh.scene.lighting.Light
-      Lights to describe.
-
-    Returns
-    ------------
-    fingerprint : int
-      Equal only for equal lights in equal places.
-    """
-    nodes = scene.graph.nodes
-    poses = [scene.graph.get(light.name)[0] for light in lights if light.name in nodes]
-    return caching.hash_fast(pickle.dumps((list(lights), poses)))
-
-
-def default_light_nodes(scene: Scene) -> set:
-    """
-    The scene graph nodes of default lights `Scene.lights` generated
-    which were never changed, which aren't part of the scene.
-
-    Parameters
-    ------------
-    scene : trimesh.Scene
-      Scene to check.
-
-    Returns
-    ------------
-    nodes : set
-      Node names, empty if the scene's lights are its own or unset.
-    """
-    if scene._lights is None or scene.has_lights:
-        return set()
-    return {light.name for light in scene._lights}
-
-
 def copy_attachments(
     source: Scene, target: Scene, nodes: Iterable, rename: dict, root: Hashable
 ) -> None:
     """
-    Copy the animations, skins, cameras and lights riding the scene
-    graph nodes another scene kept into it, following any renaming.
+    Copy animations, skins, cameras and lights on kept nodes.
 
     Parameters
     ------------
     source : trimesh.Scene
       Scene to copy from.
     target : trimesh.Scene
-      Scene to add to, mutated in place.
+      Scene to add to in place.
     nodes : (n,) hashable
-      Nodes of `source` which `target` has, where anything riding one
-      it doesn't have is left behind.
+      Nodes of `source` to keep.
     rename : dict
-      {node name in `source` : node name in `target`} if it changed.
+      {`source` node : `target` node}
     root : hashable
-      The base frame of `target`, which has no edge to animate.
+      Base frame of `target`.
     """
     for animation in source.animations:
         kept = [i for i, n in enumerate(animation.nodes) if n in nodes and n != root]
@@ -1670,14 +1607,13 @@ def copy_attachments(
                     interpolation=animation.interpolation,
                 )
             )
-    # a skin only works if its node and every joint were kept
+    # a skin needs its node and every joint
     for node, skin in source.skins.items():
         if node in nodes and all(joint in nodes for joint in skin.joints):
             joints = [rename.get(joint, joint) for joint in skin.joints]
             target.skins[rename.get(node, node)] = Skin(
                 joints, skin.inverse_bind_matrices
             )
-    # cameras and lights are named after the node they ride
     cameras = [camera.copy() for camera in source.cameras if camera.name in nodes]
     lights = []
     if source.has_lights:
@@ -1716,8 +1652,6 @@ def append_scenes(iterable, common=None, base_frame="world"):
     geometry = {}
     # save transforms as edge tuples
     edges = []
-    # animations, skins, cameras and lights are added with their nodes
-    # remapped alongside the edges
     result = Scene(base_frame=base_frame)
 
     # nodes which shouldn't be remapped
@@ -1781,11 +1715,7 @@ def append_scenes(iterable, common=None, base_frame="world"):
         map_node = {}
         # the nodes used in this scene
         current = set()
-        # untouched default lights aren't part of a scene, nor their nodes
-        defaults = default_light_nodes(s)
         for a, b, attr in s.graph.to_edgelist():
-            if b in defaults:
-                continue
             # remap node names from local names
             a, b = node_remap(a), node_remap(b)
             # remap geometry keys
@@ -1800,7 +1730,7 @@ def append_scenes(iterable, common=None, base_frame="world"):
         # mark nodes from current scene as consumed
         consumed.update(current)
 
-        # the first scene's camera is the one looked through
+        # the first scene's camera stays active
         copy_attachments(s, result, s.graph.nodes, map_node, s.graph.base_frame)
         # later metadata wins
         result.metadata.update(deepcopy(s.metadata))

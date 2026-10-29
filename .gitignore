@@ -118,9 +118,6 @@ venv.bak/
 # pycharm project settings
 .idea
 
-# renders and reports written by the examples, and emacs autosaves
+# renders written by the examples
 examples/*.mp4
 examples/*.glb
-examples/uncommitted/
-*.report.json
-\#*\#

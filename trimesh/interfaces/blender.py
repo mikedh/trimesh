@@ -148,25 +148,24 @@ def build(
     directory: str,
     count: Integer,
     fps: Number,
-    samples: Integer = 64,
+    samples: Integer,
     **settings,
 ) -> None:
     """
-    Run `resources/templates/blender_scene.py` in Blender on a GLB of the
-    scene, which renders `frame_*.png` files.
+    Render a scene to `frame_*.png` files with Blender.
 
     Parameters
     ------------
     scene : trimesh.Scene
-      Scene from `trimesh.viewer.render.stage`.
+      From `trimesh.viewer.render.stage`.
     directory : str
-      Where the GLB and any frames go.
+      Directory for the GLB and frames.
     count, fps : int, float
-      Frames of `scene.animations` every `1 / fps` seconds.
+      Frame count and frames per second.
     samples : int
-      Antialiasing samples per pixel.
+      Samples per pixel.
     settings : dict
-      Changes to `trimesh.viewer.conversion.RENDER_DEFAULTS`.
+      Overrides of `trimesh.viewer.conversion.RENDER_DEFAULTS`.
     """
     from ..viewer.conversion import RENDER_DEFAULTS
 
@@ -178,8 +177,7 @@ def build(
 
     path = os.path.join(directory, "scene.glb")
     scene.export(path, include_normals=True)
-    # the settings glTF can't say, like exposure and line widths, where a
-    # pixel is about the scene's scale over the image's height
+    # settings glTF can't hold, and `pixel` in world units
     arguments = {
         **RENDER_DEFAULTS,
         **settings,

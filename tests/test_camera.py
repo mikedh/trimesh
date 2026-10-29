@@ -86,31 +86,28 @@ class CameraTests(g.unittest.TestCase):
         framed = g.trimesh.creation.box().scene()
         for resolution in (None, (1920, 1080)):
             framed.set_camera(fov=(50, 40), resolution=resolution)
-        checks = {
-            "resolution keeps fov": g.np.array_equal(camera.fov, (60, 45)),
-            # 30 pixels per degree of each field of view as on `main`
-            "default resolution": g.np.array_equal(
-                Camera(fov=(60, 45)).resolution, (1800, 1350)
-            ),
-            "copy keeps clip planes": (copied.z_near, copied.z_far)
-            == (camera.z_near, 50),
-            "copy keeps fov": g.np.array_equal(copied.fov, camera.fov),
-            "view has the image resolution": g.np.array_equal(
-                viewed.resolution, (1920, 1080)
-            ),
-            "view keeps vertical fov": g.np.isclose(viewed.fov[1], 45.0),
-            # the ratio of the half angle tangents is the shape of the image
-            "view has square pixels": g.np.isclose(half[0] / half[1], 1920 / 1080),
-            "scene camera unchanged": g.np.array_equal(scene.camera.fov, (60, 45))
-            and g.np.array_equal(scene.camera.resolution, (640, 480)),
-            "orthographic view keeps height": g.np.allclose(
-                flat.magnification, (1.5 * 1920 / 1080, 1.5)
-            ),
-            "set_camera twice keeps fov": g.np.array_equal(framed.camera.fov, (50, 40))
-            and g.np.array_equal(framed.camera.resolution, (1920, 1080)),
-        }
-        for name, ok in checks.items():
-            assert ok, name
+        assert g.np.array_equal(camera.fov, (60, 45)), "resolution keeps fov"
+        assert g.np.array_equal(Camera(fov=(60, 45)).resolution, (1800, 1350)), (
+            "default resolution"
+        )
+        assert (copied.z_near, copied.z_far) == (camera.z_near, 50), (
+            "copy keeps clip planes"
+        )
+        assert g.np.array_equal(copied.fov, camera.fov), "copy keeps fov"
+        assert g.np.array_equal(viewed.resolution, (1920, 1080)), (
+            "view has the image resolution"
+        )
+        assert g.np.isclose(viewed.fov[1], 45.0), "view keeps vertical fov"
+        assert g.np.isclose(half[0] / half[1], 1920 / 1080), "view has square pixels"
+        assert g.np.array_equal(scene.camera.fov, (60, 45)) and g.np.array_equal(
+            scene.camera.resolution, (640, 480)
+        ), "scene camera unchanged"
+        assert g.np.allclose(flat.magnification, (1.5 * 1920 / 1080, 1.5)), (
+            "orthographic view keeps height"
+        )
+        assert g.np.array_equal(framed.camera.fov, (50, 40)) and g.np.array_equal(
+            framed.camera.resolution, (1920, 1080)
+        ), "set_camera twice keeps fov"
 
     def test_focal_updates_on_resolution_change(self):
         """
@@ -192,17 +189,12 @@ class CameraTests(g.unittest.TestCase):
         # a scaled rotation frames from the same place as the unit one
         # and keeps its scale, as a camera node scaled with its scene
         rotation = g.trimesh.transformations.random_rotation_matrix(seed=3)
-        checks = {}
         for scale in (0.025, 40.0):
             scaled = rotation @ g.np.diag([scale] * 3 + [1])
             unit = g.trimesh.scene.cameras.look_at(moved, fov, rotation=rotation)
             framed = g.trimesh.scene.cameras.look_at(moved, fov, rotation=scaled)
-            checks[f"{scale} same translation"] = g.np.allclose(
-                framed[:3, 3], unit[:3, 3]
-            )
-            checks[f"{scale} keeps scale"] = g.np.allclose(framed[:3, :3], scaled[:3, :3])
-        for name, ok in checks.items():
-            assert ok, name
+            assert g.np.allclose(framed[:3, 3], unit[:3, 3]), f"{scale} same translation"
+            assert g.np.allclose(framed[:3, :3], scaled[:3, :3]), f"{scale} keeps scale"
 
     def test_ray_index(self):
         # make sure to_rays is giving valid indexes
@@ -225,7 +217,6 @@ class CameraTests(g.unittest.TestCase):
             "orthographic": {"magnification": (1.5, 1.0)},
         }
         width, height = 40, 30
-        checks = {}
         for kind, lens in lenses.items():
             for scale in (1.0, 0.025):
                 name = f"{kind} at scale {scale}"
@@ -255,22 +246,18 @@ class CameraTests(g.unittest.TestCase):
                     )
                 hits = origins + vectors * distance[:, None]
                 ndc = project(scene, hits)
-                checks.update(
-                    {
-                        f"{name} unit rays": g.np.allclose(
-                            g.np.linalg.norm(vectors, axis=1), 1.0
-                        ),
-                        f"{name} equals unscaled": g.np.allclose(origins, reference[0])
-                        and g.np.allclose(vectors, reference[1])
-                        and g.np.array_equal(pixels, reference[2]),
-                        f"{name} distance to the face": g.np.allclose(hits[:, 2], 1.0),
-                        f"{name} lands on pixel centers": g.np.allclose(
-                            ndc[:, :2], g.np.column_stack((column, row))
-                        ),
-                    }
+                assert g.np.allclose(g.np.linalg.norm(vectors, axis=1), 1.0), (
+                    f"{name} unit rays"
                 )
-        for name, ok in checks.items():
-            assert ok, name
+                assert (
+                    g.np.allclose(origins, reference[0])
+                    and g.np.allclose(vectors, reference[1])
+                    and g.np.array_equal(pixels, reference[2])
+                ), f"{name} equals unscaled"
+                assert g.np.allclose(hits[:, 2], 1.0), f"{name} distance to the face"
+                assert g.np.allclose(ndc[:, :2], g.np.column_stack((column, row))), (
+                    f"{name} lands on pixel centers"
+                )
 
     def test_scaled_copy(self):
         s = g.get_mesh("cycloidal.3DXML")
@@ -286,12 +273,8 @@ class CameraTests(g.unittest.TestCase):
         """The default camera centers a whole assembly inside its frustum."""
         scene = g.get_mesh("cycloidal.3DXML")
         ndc = project(scene, g.trimesh.bounds.corners(scene.bounds))
-        checks = {
-            "corners in frustum": (g.np.abs(ndc) <= 1.0 + 1e-6).all(),
-            "centered": g.np.linalg.norm(ndc[:, :2].mean(axis=0)) < 0.25,
-        }
-        for name, ok in checks.items():
-            assert ok, name
+        assert (g.np.abs(ndc) <= 1.0 + 1e-6).all(), "corners in frustum"
+        assert g.np.linalg.norm(ndc[:, :2].mean(axis=0)) < 0.25, "centered"
 
 
 if __name__ == "__main__":

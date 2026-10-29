@@ -18,11 +18,8 @@ from .cameras import current_view
 # default light color
 _DEFAULT_RGBA = np.array([60, 60, 60, 255], dtype=np.uint8)
 
-# The faces of a cube map in the order KTX2 and OpenGL store them, +X, -X,
-# +Y, -Y, +Z, -Z, each as (towards it, along its rows, down its columns):
-# the texel in row `t` and column `s` of a face `n` texels across faces
-# `face[0] + (2 * s + 1 - n) / n * face[1] + (2 * t + 1 - n) / n * face[2]`
-# as table 8.19 of the OpenGL 4.6 core specification lays them out
+# cube map faces +X, -X, +Y, -Y, +Z, -Z as (normal, row axis, column axis)
+# per table 8.19 of the OpenGL 4.6 core specification
 CUBE_FACES = np.array(
     [
         [[1, 0, 0], [0, 0, -1], [0, -1, 0]],
@@ -35,20 +32,16 @@ CUBE_FACES = np.array(
     dtype=np.float64,
 )
 
-# the real spherical harmonics up to l=2 are these constants times
-# `[1, y, z, x, xy, yz, 3z^2 - 1, xz, x^2 - y^2]`, with the Condon-Shortley
-# phase as Babylon.js reads `EXT_lights_image_based`: Ramamoorthi and
-# Hanrahan 2001, "An Efficient Representation for Irradiance Environment
-# Maps", equation 3
+# real spherical harmonics to l=2 are these times
+# `[1, y, z, x, xy, yz, 3z^2 - 1, xz, x^2 - y^2]`, Ramamoorthi 2001 eq. 3
 HARMONICS = np.sqrt(np.array([1, 3, 3, 3, 15, 15, 5 / 4, 15, 15 / 4]) / (4.0 * np.pi))
 HARMONICS *= [1, -1, 1, -1, 1, -1, 1, -1, 1]
 
-# the spherical Gaussian with the same mean cosine as a GGX reflection
-# lobe, whose sharpness is `exp(polyval(SPECULAR_SHARPNESS, log(roughness)))`
-# fit within 1.1% over roughness 0.04 to 1, which blurs the environment
+# spherical Gaussian sharpness matching a GGX lobe, fit within 1.1%:
+# `exp(polyval(SPECULAR_SHARPNESS, log(roughness)))`
 SPECULAR_SHARPNESS = (0.131, 1.0381, -0.7256, 1.0728)
 
-# `prefilter` and `spherical_harmonics` by function and cube map content
+# results of `prefilter` and `spherical_harmonics` by content
 _ENVIRONMENT_DERIVED = {}
 
 
@@ -93,7 +86,7 @@ class Light(util.ABC):
     @color.setter
     def color(self, value):
         if value is None:
-            self._color = _DEFAULT_RGBA
+            self._color = _DEFAULT_RGBA.copy()
         else:
             value = visual.to_rgba(value)
             if len(value.shape) == 2:
@@ -260,21 +253,16 @@ class SpotLight(Light):
 
 class EnvironmentLight(Light):
     """
-    Light from infinitely far away in every direction: a cube map of
-    linear radiance in the frame of the node carrying it, times
-    `intensity`. This is the image based light of the glTF extension
-    `EXT_lights_image_based`, whose mip levels and coefficients are
-    `prefilter` and `spherical_harmonics` of the cube map.
+    Image based light from a cube map, as in `EXT_lights_image_based`.
 
     Attributes
     ----------
     name : str, optional
-        Name of the light and of its node.
+        Name of the light.
     intensity : float
-        Multiplies the whole environment.
+        Scale of the radiance.
     cubemap : (6, n, n, 3) float
-        Linear RGB radiance of the faces of `CUBE_FACES`, or an
-        equirectangular (h, 2h, 3) image with its top row up to resample.
+        Linear RGB radiance, or an (h, 2h, 3) equirectangular image.
     """
 
     def __init__(
@@ -283,23 +271,19 @@ class EnvironmentLight(Light):
         intensity: Floating | None = None,
         cubemap: ArrayLike | None = None,
     ):
-        # white as the cube map is the color, and dark unless passed one
         super().__init__(name=name, color=[255, 255, 255, 255], intensity=intensity)
         if cubemap is None:
             cubemap = np.zeros((6, 1, 1, 3))
         cubemap = np.asarray(cubemap, dtype=np.float64)
         if cubemap.ndim == 3:
-            # a latitude-longitude panorama with +Y its top row and a
-            # direction `d` `0.5 + atan2(d[2], d[0]) / (2 pi)` of the way
-            # across, as the Khronos glTF Sample Viewer reads them, into the
-            # smallest power of two faces whose texels mid-face, `2 / size`
-            # radians, are no wider than the image's at its equator, `pi / h`
+            # equirectangular with +Y up, as the Khronos Sample Viewer reads
+            # it, resampled to power of two faces no coarser than its equator
             height, width = cubemap.shape[:2]
             size = 2 ** int(np.ceil(np.log2(max(2.0 * height / np.pi, 1.0))))
             x, y, z = cubemap_directions(size)[0].reshape((-1, 3)).T
-            # a column from each edge on the other side so longitude wraps
+            # pad columns so longitude wraps
             wrapped = np.concatenate((cubemap[:, -1:], cubemap, cubemap[:, :1]), axis=1)
-            # blend the four pixels around each texel, pixel middles integers
+            # bilinear blend of the four nearest pixels
             limit = np.array(wrapped.shape[:2]) - 1
             row = np.arccos(np.clip(y, -1.0, 1.0)) / np.pi * height - 0.5
             column = (0.5 + np.arctan2(z, x) / (2.0 * np.pi)) * width + 0.5
@@ -316,8 +300,7 @@ class EnvironmentLight(Light):
 
 def cubemap_directions(size: Integer) -> tuple[NDArray[float64], NDArray[float64]]:
     """
-    The direction through the middle of every texel of a cube map, and
-    the exact solid angle each texel covers.
+    Direction and solid angle of every texel of a cube map.
 
     Parameters
     ------------
@@ -327,17 +310,15 @@ def cubemap_directions(size: Integer) -> tuple[NDArray[float64], NDArray[float64
     Returns
     ------------
     directions : (6, size, size, 3) float
-      Unit vector through each texel by face, row and column.
+      Unit vector through each texel.
     solid_angle : (6, size, size) float
-      Steradians each texel covers, which sum to `4 pi`.
+      Steradians of each texel.
     """
     edges = np.linspace(-1.0, 1.0, size + 1)
     middles = (edges[1:] + edges[:-1]) / 2.0
-    # `(1, s, t)` of every texel by row `t` and column `s` onto every face
     texels = np.stack(np.broadcast_arrays(1.0, middles, middles[:, None]), axis=-1)
     directions = texels @ CUBE_FACES[:, None]
-    # the solid angle from the middle of a face to the corner (u, v) is
-    # `atan2(u * v, sqrt(u^2 + v^2 + 1))`, which differences into texels
+    # solid angle from face center to corner (u, v), differenced into texels
     corner = np.arctan2(
         np.outer(edges, edges), np.sqrt(np.add.outer(edges**2, edges**2) + 1)
     )
@@ -348,21 +329,17 @@ def cubemap_directions(size: Integer) -> tuple[NDArray[float64], NDArray[float64
 
 def prefilter(cubemap: ArrayLike) -> list[NDArray]:
     """
-    The mip levels of a cube map which reflections sample, the specular
-    images of `EXT_lights_image_based`: level `k` of `n` is the radiance
-    blurred by the spherical Gaussian as wide as a GGX lobe of roughness
-    `k / (n - 1)`, integrated over every texel of the level. Cached by
-    content.
+    Specular mip levels of a cube map for `EXT_lights_image_based`.
 
     Parameters
     ------------
     cubemap : (6, n, n, 3) float
-      Radiance of the faces of `CUBE_FACES`, `n` a power of two.
+      Radiance, `n` a power of two.
 
     Returns
     ------------
     levels : list of (6, m, m, 3) float32
-      Every mip level, each half as wide as the one before.
+      Mip levels, level `k` blurred to roughness `k / (n - 1)`.
     """
     cubemap = np.asarray(cubemap, dtype=np.float64)
     key = ("prefilter", caching.hash_fast(cubemap.tobytes()), cubemap.shape)
@@ -370,15 +347,10 @@ def prefilter(cubemap: ArrayLike) -> list[NDArray]:
         return _ENVIRONMENT_DERIVED[key]
     except KeyError:
         pass
-    # each blurred level is a dense matrix between all of its texels, 150 MB
-    # of float32 at 32 across, so the mirror level is at most twice that,
-    # and the roughest level holds the lobe of roughness one with two texels
-    # across its deviation `1 / sqrt(exp(SPECULAR_SHARPNESS[-1]))`
+    # blurring is a dense texel-by-texel matrix, which bounds the mirror size
     mirror = 64
     roughest = 2 ** int(np.ceil(np.log2(4.0 * np.exp(SPECULAR_SHARPNESS[-1] / 2.0))))
     count = 1 + int(np.log2(mirror // roughest))
-    # a smaller cube map repeats each texel up to the mirror level, and
-    # float32 is twice as fast and rounds `d @ d.T - 1` under 1e-7
     repeat = max(mirror // cubemap.shape[1], 1)
     cubemap = cubemap.repeat(repeat, axis=1).repeat(repeat, axis=2).astype(np.float32)
     levels = []
@@ -391,9 +363,9 @@ def prefilter(cubemap: ArrayLike) -> list[NDArray]:
             sharpness = np.float32(np.exp(np.polyval(SPECULAR_SHARPNESS, log_roughness)))
             directions, solid_angle = cubemap_directions(width)
             directions = directions.reshape((-1, 3)).astype(np.float32)
-            # BLAS multiplies by a contiguous transpose five times faster
+            # BLAS is much faster with a contiguous transpose
             cosine = directions @ np.ascontiguousarray(directions.T)
-            # in place so the weights stay float32
+            # in place to stay float32
             weights = np.exp(sharpness * (cosine - 1.0))
             weights *= solid_angle.reshape(-1)
             blurred = (weights @ blurred.reshape((-1, 3))) / weights.sum(axis=1)[:, None]
@@ -404,23 +376,17 @@ def prefilter(cubemap: ArrayLike) -> list[NDArray]:
 
 def spherical_harmonics(cubemap: ArrayLike) -> NDArray[float64]:
     """
-    The irradiance of a cube map, the `irradianceCoefficients` of
-    `EXT_lights_image_based`: the coefficients of `HARMONICS` closest to
-    its radiance over the sphere, every texel weighted by its solid angle,
-    with band l = 0, 1, 2 scaled by pi, 2 pi / 3 and pi / 4 as a clamped
-    cosine does (Ramamoorthi and Hanrahan 2001, equation 8, and Babylon.js
-    `SHCosKernelConvolution`). Radiance which is harmonics up to l=2, like
-    a gradient, has its irradiance exactly. Cached by content.
+    Irradiance coefficients of a cube map, Ramamoorthi 2001 eq. 8.
 
     Parameters
     ------------
     cubemap : (6, n, n, c) float
-      Radiance of the faces of `CUBE_FACES`.
+      Radiance.
 
     Returns
     ------------
     irradiance : (9, c) float
-      Coefficient of each harmonic for each channel.
+      Coefficient of each harmonic per channel.
     """
     cubemap = np.asarray(cubemap, dtype=np.float64)
     key = ("harmonics", caching.hash_fast(cubemap.tobytes()), cubemap.shape)
@@ -446,32 +412,26 @@ def autolight(
     scene, camera_transform: ArrayLike | None = None
 ) -> tuple[list[Light], NDArray[float64]]:
     """
-    Generate lights for a scene that look decent: a photo studio fixed
-    in the world around the camera, with a warm key light from in front,
-    to the right and above, a cool rim light from high behind which
-    outlines things, and an environment of a warm sky and floor with a
-    broad softbox overhead and smaller ones on the key's and rim's side.
+    Generate studio lighting for a scene: key, rim and environment.
 
     Parameters
     --------------
     scene : trimesh.Scene
-      Scene to light, which is not changed.
+      Scene to light, not modified.
     camera_transform : None or (4, 4) float
-      Where the camera is, defaulting to `current_view(scene)`.
+      Camera pose, default `current_view(scene)`.
 
     Returns
     --------------
     lights : [Light]
-      The key and rim `DirectionalLight` and the `EnvironmentLight`.
+      Key and rim `DirectionalLight` and an `EnvironmentLight`.
     transforms : (3, 4, 4) float
       World pose of each light.
     """
     if camera_transform is None:
         camera_transform = current_view(scene)[1]
     camera_transform = np.asarray(camera_transform, dtype=np.float64)
-    # the studio stands with +Y the world axis nearest up on screen and +Z
-    # the camera's backwards made level, which is never vertical as up is
-    # the axis nearest the camera's +Y, and +X completing a right hand
+    # +Y is the world axis nearest screen up, +Z the leveled camera backwards
     axes = np.vstack((np.eye(3), -np.eye(3)))
     up = axes[np.argmax(axes @ camera_transform[:3, 1])]
     backwards = camera_transform[:3, 2]
@@ -479,34 +439,35 @@ def autolight(
     frame = np.eye(4)
     frame[:3, :3] = np.column_stack((np.cross(up, back), up, back))
 
+    # key, rim and three softboxes as (elevation, azimuth from +Z to +X)
+    elevation, azimuth = np.radians(
+        [[35, 45], [65, -150], [90, 0], [20, 60], [12, -70]]
+    ).T
+    towards = np.column_stack(
+        (
+            np.cos(elevation) * np.sin(azimuth),
+            np.sin(elevation),
+            np.cos(elevation) * np.cos(azimuth),
+        )
+    )
     names = set(scene.graph.nodes)
-    # (name, linear RGB, intensity in lux, towards it in the studio frame)
-    # where a white surface facing the key reflects 0.58 and the rim 0.28
+    # (name, linear RGB, intensity in lux)
     studio = (
-        ("key_light", (255, 219, 178), 2.077136, (0.579228, 0.573576, 0.579228)),
-        ("rim_light", (191, 212, 255), 1.064896, (-0.211309, 0.906308, -0.365998)),
+        ("key_light", (255, 219, 178), 2.077136),
+        ("rim_light", (191, 212, 255), 1.064896),
     )
     lights = [
         DirectionalLight(
             name=util.unique_name(name, names), color=[*color, 255], intensity=intensity
         )
-        for name, color, intensity, _ in studio
+        for name, color, intensity in studio
     ]
-    # a light's +Z points back towards where its light comes from
-    transforms = [align_vectors([0, 0, 1], frame[:3, :3] @ row[3]) for row in studio]
+    # a light's +Z points towards its source
+    transforms = [align_vectors([0, 0, 1], frame[:3, :3] @ row) for row in towards[:2]]
 
-    # the environment, two texels across the deviation `1 / sqrt(30)` of
-    # its side softboxes, in linear RGB: a gradient from the floor straight
-    # down to the sky straight up plus softboxes `exp(sharpness * (dot(d,
-    # towards) - 1))` in every direction `d`, broad overhead, then on the
-    # key's side and the rim's side
+    # floor-to-sky gradient plus spherical Gaussian softboxes, linear RGB
     directions = cubemap_directions(64)[0]
-    towards = [
-        [0.0, 1.0, 0.0],
-        [0.813798, 0.34202, 0.469846],
-        [-0.919158, 0.207912, 0.334546],
-    ]
-    lobes = np.exp([4.0, 30.0, 30.0] * (directions @ util.unitize(towards).T - 1.0))
+    lobes = np.exp([4.0, 30.0, 30.0] * (directions @ towards[2:].T - 1.0))
     rise = 0.5 + 0.5 * directions[..., 1:2]
     cubemap = np.concatenate((1.0 - rise, rise, lobes), axis=-1) @ [
         [0.10037, 0.095253, 0.09053],

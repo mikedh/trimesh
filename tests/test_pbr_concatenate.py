@@ -157,15 +157,11 @@ class PBRConcatenateTest(g.unittest.TestCase):
         packed = merged.visual.material
         result = uv_to_color(merged.visual.uv, packed.baseColorTexture)
         metal_rough = uv_to_color(merged.visual.uv, packed.metallicRoughnessTexture)
-        checks = {
-            "is pbr": isinstance(packed, PBRMaterial),
-            "vertex count": len(merged.visual.uv) == len(truth),
-            "vertex colors": g.np.abs(result.astype(int) - truth).max() <= 1,
-            # metallic is the blue channel
-            "color meshes are not metal": (metal_rough[8:, 2] == 0).all(),
-        }
-        for name, ok in checks.items():
-            assert ok, name
+        assert isinstance(packed, PBRMaterial), "is pbr"
+        assert len(merged.visual.uv) == len(truth), "vertex count"
+        assert g.np.abs(result.astype(int) - truth).max() <= 1, "vertex colors"
+        # metallic is the blue channel
+        assert (metal_rough[8:, 2] == 0).all(), "color meshes are not metal"
 
     def test_pack_colors(self):
         """Packed colors: factors multiply textures and Simple keeps its color."""
@@ -188,15 +184,12 @@ class PBRConcatenateTest(g.unittest.TestCase):
         # only the Simple materials should stay a Simple material
         simple, simple_uv = pack(list(materials[2:]), uvs[2:])
         simple_colors = uv_to_color(simple_uv, simple.image)[::3].astype(int)
-        checks = {
-            "mixed is pbr": isinstance(mixed, PBRMaterial),
-            "simple is simple": isinstance(simple, SimpleMaterial),
-            "simple colors": g.np.abs(simple_colors - expected[2:]).max() <= 1,
-        }
+        assert isinstance(mixed, PBRMaterial), "mixed is pbr"
+        assert isinstance(simple, SimpleMaterial), "simple is simple"
+        assert g.np.abs(simple_colors - expected[2:]).max() <= 1, "simple colors"
         error = g.np.abs(mixed_colors - expected).max(axis=1)
-        checks.update({name: e <= 1 for name, e in zip(names, error)})
-        for name, ok in checks.items():
-            assert ok, name
+        for name, e in zip(names, error):
+            assert e <= 1, name
 
 
 if __name__ == "__main__":

@@ -589,8 +589,9 @@ def test_no_vertices():
     scene = trimesh.Scene()
     box = trimesh.creation.box(extents=[1, 2, 3])
     box.visual = ColorVisuals()
-    box.visual.vertex_colors = np.random.uniform(size=(box.vertices.shape[0], 3))
-    box.visual.face_colors = np.random.uniform(size=(box.faces.shape[0], 3))
+    rng = np.random.default_rng(0)
+    box.visual.vertex_colors = rng.uniform(size=(box.vertices.shape[0], 3))
+    box.visual.face_colors = rng.uniform(size=(box.faces.shape[0], 3))
     scene.add_geometry(box, geom_name="BOX")
     scene.add_geometry(trimesh.creation.cone(1.0, 1.0), geom_name="CONE")
 

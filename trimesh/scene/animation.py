@@ -2,22 +2,20 @@
 animation.py
 --------------
 
-Keyframed animation of scene graph nodes as stacked matrices, and the
-skins which let scene graph nodes move the vertices of a mesh.
+Keyframed animation of scene graph nodes and mesh skins.
 """
-
-from enum import Enum
 
 import numpy as np
 
 from .. import caching
 from ..constants import log
-from ..transformations import sample_channel, trs_from_matrix, trs_matrix
+from ..transformations import quaternion_slerp, trs_from_matrix, trs_matrix
 from ..typed import (
     ArrayLike,
     Callable,
     Floating,
     Iterable,
+    NDArray,
     NDArray1D,
     NDArray2D,
     NDArray3D,
@@ -25,24 +23,65 @@ from ..typed import (
     float64,
 )
 
+# how to sample between keyframes
+INTERPOLATIONS = ("step", "linear", "cubic")
 
-class Interpolation(str, Enum):
-    """
-    How an animation is sampled between keyframes: blending the
-    translation, rotation, and scale linearly, holding each keyframe,
-    or along a cubic spline through every keyframe.
-    """
 
-    LINEAR = "linear"
-    STEP = "step"
-    CUBIC = "cubic"
+def interpolate_keyframes(
+    times: ArrayLike,
+    values: ArrayLike,
+    query: Floating | ArrayLike,
+    step: bool = False,
+    rotation: bool = False,
+) -> NDArray:
+    """
+    Sample keyframed values, clamped outside the keyframe range.
+
+    Parameters
+    ------------
+    times : (k,) float
+      Increasing keyframe times in seconds.
+    values : (k, ...) float
+      Value at each keyframe, `wxyz` quaternions if `rotation`.
+    query : float or (m,) float
+      Times to sample at.
+    step : bool
+      Hold each keyframe instead of blending.
+    rotation : bool
+      Slerp quaternions.
+
+    Returns
+    ------------
+    sampled : (...) or (m, ...) float
+      Value at each query time.
+    """
+    times = np.asarray(times, dtype=np.float64)
+    values = np.asarray(values, dtype=np.float64)
+    query = np.asarray(query, dtype=np.float64)
+    upper = np.clip(np.searchsorted(times, query), 1, len(times) - 1)
+    lower = np.maximum(upper - 1, 0)
+    width = times[upper] - times[lower]
+    # a single keyframe has zero width
+    fraction = np.clip(
+        np.divide(query - times[lower], width, out=np.zeros_like(query), where=width > 0),
+        0.0,
+        1.0,
+    )
+    if step:
+        return values[np.where(fraction >= 1.0, upper, lower)]
+    if rotation:
+        return quaternion_slerp(
+            values[lower].reshape((-1, 4)),
+            values[upper].reshape((-1, 4)),
+            np.repeat(fraction, values[0].size // 4),
+        ).reshape(values[lower].shape)
+    fraction = fraction.reshape(fraction.shape + (1,) * (values.ndim - 1))
+    return values[lower] + (values[upper] - values[lower]) * fraction
 
 
 class Animation:
     """
-    Motion of scene graph nodes on one timeline, stored as the transform
-    of every node from its parent at every keyframe and sampled between
-    them by its `Interpolation`.
+    Keyframed transforms of scene graph nodes on one timeline.
     """
 
     def __init__(
@@ -51,7 +90,7 @@ class Animation:
         nodes: Iterable,
         times: ArrayLike,
         matrices: ArrayLike,
-        interpolation: Interpolation | str = Interpolation.LINEAR,
+        interpolation: str = "linear",
     ):
         """
         Create an animation of scene graph nodes.
@@ -59,20 +98,20 @@ class Animation:
         Parameters
         ------------
         name : str
-          Animations sharing a name export as one glTF animation.
+          Name of the animation.
         nodes : (n,) sequence of hashable
-          The scene graph nodes this moves relative to their parents.
+          Scene graph nodes to animate.
         times : (k,) float
           Increasing keyframe times in seconds.
         matrices : (k, n, 4, 4) float
-          Homogeneous transform of every node from its parent at every
-          keyframe, which may be (k, 4, 4) for a single node.
-        interpolation : Interpolation or str
-          How to sample between keyframes, where a value which isn't
-          one raises a ValueError.
+          Parent-to-node transforms, or (k, 4, 4) for one node.
+        interpolation : str
+          One of `INTERPOLATIONS`.
         """
-        self.interpolation = Interpolation(interpolation)
-        times = caching.tracked_array(times, dtype=np.float64).reshape(-1)
+        if interpolation not in INTERPOLATIONS:
+            raise ValueError(f"interpolation must be one of {INTERPOLATIONS}!")
+        self.interpolation = interpolation
+        times = np.asarray(times, dtype=np.float64).reshape(-1)
         if len(times) == 0 or (np.diff(times) < 0.0).any():
             raise ValueError("times must be increasing and not empty!")
         self.name = name
@@ -80,14 +119,13 @@ class Animation:
         self._data = caching.DataStore()
         self._cache = caching.Cache(id_function=self._data.__hash__)
         self._data["times"] = times
-        # raises a ValueError if there isn't a matrix per node per keyframe
         shape = (len(times), len(self.nodes), 4, 4)
         self._data["matrices"] = np.asarray(matrices, dtype=np.float64).reshape(shape)
 
     @property
     def times(self) -> NDArray1D[float64]:
         """
-        When each keyframe occurs, which may be edited in place.
+        Keyframe times.
 
         Returns
         ------------
@@ -99,32 +137,27 @@ class Animation:
     @property
     def matrices(self) -> NDArray4D[float64]:
         """
-        The transform of every node at every keyframe, which may be
-        edited in place.
+        Transform of every node at every keyframe.
 
         Returns
         ------------
         matrices : (k, n, 4, 4) float
-          Homogeneous transform of every node from its parent.
+          Parent-to-node transforms.
         """
         return self._data["matrices"]
 
     @caching.cache_decorator
     def trs(self) -> NDArray3D[float64]:
         """
-        The matrices split into translation, rotation, and scale once
-        so sampling between keyframes is only a blend.
+        Matrices decomposed into translation, rotation and scale.
 
         Returns
         ------------
         trs : (k, n, 10) float
-          The translation, rotation quaternion ordered `w, x, y, z`, and
-          scale of every node at every keyframe, with the quaternions of
-          neighboring keyframes in the same hemisphere so a blend takes
-          the shorter way around.
+          Translation, `wxyz` quaternion and scale, hemisphere-aligned.
         """
         trs = np.concatenate(trs_from_matrix(self.matrices), axis=2)
-        # a quaternion and its negation are the same rotation
+        # flip quaternions so neighbors blend the short way around
         flips = (trs[1:, :, 3:7] * trs[:-1, :, 3:7]).sum(axis=2) < 0.0
         trs[1:, :, 3:7] *= np.cumprod(np.where(flips, -1.0, 1.0), axis=0)[..., None]
         return trs
@@ -132,13 +165,12 @@ class Animation:
     @caching.cache_decorator
     def spline(self) -> Callable | None:
         """
-        A cubic spline through every keyframe of `trs`, which is what a
-        CUBIC animation samples and exports the derivative of.
+        Cubic spline through `trs`.
 
         Returns
         ------------
         spline : None or scipy.interpolate.CubicSpline
-          Of `trs`, or None with one keyframe or if scipy isn't installed.
+          None with one keyframe or without scipy.
         """
         if len(self.times) < 2:
             return None
@@ -152,7 +184,7 @@ class Animation:
     @property
     def duration(self) -> float:
         """
-        The time of the last keyframe, which is where a player loops.
+        Time of the last keyframe.
 
         Returns
         ------------
@@ -163,8 +195,7 @@ class Animation:
 
     def interpolate(self, time: Floating) -> NDArray3D[float64]:
         """
-        The transform of every node from its parent at a time, holding
-        the first and last keyframe outside of the animation.
+        Transform of every node at a time.
 
         Parameters
         ------------
@@ -174,27 +205,24 @@ class Animation:
         Returns
         ------------
         matrices : (n, 4, 4) float
-          Homogeneous transform of every node in `nodes` order.
+          Parent-to-node transforms in `nodes` order.
         """
         times = np.asarray(self.times)
-        if self.interpolation == Interpolation.CUBIC and self.spline is not None:
+        if self.interpolation == "cubic" and self.spline is not None:
             sampled = self.spline(np.clip(time, times[0], times[-1]))
         else:
-            # held or blended between keyframes, without cubic tangents
-            mode = Interpolation.LINEAR
-            if self.interpolation == Interpolation.STEP:
-                mode = Interpolation.STEP
-            sampled = sample_channel(times, self.trs, time, mode)
-            sampled[:, 3:7] = sample_channel(times, self.trs[..., 3:7], time, mode, True)
-        # where `trs_matrix` normalizes quaternions as glTF specifies
+            step = self.interpolation == "step"
+            sampled = interpolate_keyframes(times, self.trs, time, step)
+            sampled[:, 3:7] = interpolate_keyframes(
+                times, self.trs[..., 3:7], time, step, rotation=True
+            )
+        # `trs_matrix` normalizes quaternions as glTF specifies
         return trs_matrix(sampled[:, :3], sampled[:, 3:7], sampled[:, 7:])
 
 
 class Skin:
     """
-    Scene graph nodes which move the vertices of a mesh, which glTF
-    calls a skin: every vertex moves by a blend of its joints given by
-    `mesh.vertex_attributes["joints"]` and `["weights"]`.
+    Joints which deform a mesh by linear blend skinning.
     """
 
     def __init__(self, joints: Iterable, inverse_bind_matrices: ArrayLike | None = None):
@@ -204,10 +232,9 @@ class Skin:
         Parameters
         ------------
         joints : (j,) sequence of hashable
-          Scene graph nodes in the order a vertex's joint indices use.
+          Scene graph nodes referenced by joint index.
         inverse_bind_matrices : None or (j, 4, 4) float
-          The inverse of each joint's world transform when the mesh
-          was attached to it, which is the identity if not passed.
+          Inverse bind matrices, default identity.
         """
         self.joints = list(joints)
         if inverse_bind_matrices is None:
@@ -217,10 +244,7 @@ class Skin:
 
     def deform(self, mesh, graph) -> NDArray2D[float64]:
         """
-        The vertices of a skinned mesh where its joints put them,
-        which is in world space as the node holding the mesh doesn't
-        move it, by linear blend skinning as glTF and every other
-        format defines it.
+        Vertices of a skinned mesh posed by its joints.
 
         Parameters
         ------------
@@ -234,8 +258,6 @@ class Skin:
         vertices : (n, 3) float
           Posed vertices in world space.
         """
-        # the top three rows of each joint's world transform times its
-        # inverse bind matrix, blended by the weights of every vertex
         world = np.reshape([graph.get(joint)[0] for joint in self.joints], (-1, 4, 4))
         rows = (world @ self.inverse_bind_matrices)[:, :3].reshape((-1, 12))
         joints = mesh.vertex_attributes["joints"]
@@ -246,7 +268,7 @@ class Skin:
 
     def __hash__(self) -> int:
         """
-        A hash which changes when the joints or matrices do.
+        Hash of the skin.
 
         Returns
         ------------

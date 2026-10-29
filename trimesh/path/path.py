@@ -711,53 +711,38 @@ class Path(parent.Geometry):
         ]
 
     @cache_decorator
-    def segments_indexed(self) -> tuple[NDArray[float64], NDArray[np.int64]]:
+    def segments(self) -> NDArray[float64]:
         """
-        Every entity discretized into line segments along with
-        which entity each segment came from.
+        Every entity discretized into line segments.
 
         Returns
         ---------
         segments : (n, 2, dimension) float
           The two endpoints of every line segment.
-        entity : (n,) int
-          Index of `self.entities` for every segment.
         """
         scale = self.scale
         vertices = self.vertices
-        # entities are polymorphic so they discretize one at a time
+        # entities are polymorphic
         stacked = [
             util.stack_lines(entity.discrete(vertices, scale=scale))
             for entity in self.entities
         ]
-        lines = util.vstack_empty(stacked).reshape((-1, 2, vertices.shape[1]))
         counts = [len(item) // 2 for item in stacked]
-        return lines, np.repeat(np.arange(len(counts)), counts)
+        self._cache["segments_entity"] = np.repeat(np.arange(len(counts)), counts)
+        return util.vstack_empty(stacked).reshape((-1, 2, vertices.shape[1]))
 
-    @property
-    def segments(self) -> NDArray[float64]:
-        """
-        Every entity discretized into line segments, including
-        entities which are not part of a closed path.
-
-        Returns
-        ---------
-        segments : (n, 2, dimension) float
-          The two endpoints of every line segment.
-        """
-        return self.segments_indexed[0]
-
-    @property
+    @cache_decorator
     def segments_entity(self) -> NDArray[np.int64]:
         """
-        The index of the entity every segment came from.
+        Entity index of every segment.
 
         Returns
         ---------
         segments_entity : (len(self.segments),) int
           Index of `self.entities` for every segment.
         """
-        return self.segments_indexed[1]
+        populate = self.segments  # NOQA
+        return self._cache["segments_entity"]
 
     def export(self, file_obj=None, file_type=None, **kwargs):
         """

@@ -780,11 +780,7 @@ def neighbors(edges, max_index=None, directed=False):
 
 def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None = None):
     """
-    Return a version of the mesh which will render nicely with
-    smooth shading: vertices are split along sharp edges so a
-    cylinder's caps are disconnected from its side, but not along
-    texture seams. Faces keep their order and per-vertex attributes
-    like UV coordinates and vertex colors are carried through.
+    Split vertices at sharp edges for smooth shading.
 
     Parameters
     -----------
@@ -794,14 +790,12 @@ def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None
       Angle in radians face pairs with angles
       smaller than this will appear smoothed
     facet_minarea : None
-      DEPRECATED and unused, removal April 2028: faces are smoothed by
-      `angle` alone, and the result no longer stores the groups of
-      faces as `metadata["original_components"]`.
+      DEPRECATED and unused, removal April 2028.
 
     Returns
     ---------
     smooth : trimesh.Trimesh
-      Geometry with vertices split at sharp edges
+      Mesh with vertices split at sharp edges
     """
     from .base import Trimesh
 
@@ -822,36 +816,32 @@ def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None
     corner_count = len(faces) * 3
     vertex_count = len(mesh.vertices)
 
-    # the vertex of every triangle corner with vertices merged by position
+    # vertex of every corner, merged by position
     positions, position_index = grouping.unique_rows(mesh.vertices)
     corner_vertex = position_index[faces].ravel()
 
-    # every face has three edges which run from corner to the next corner,
-    # and the corners at the lower and higher vertex of each edge
+    # each edge runs from a corner to the next, sorted by vertex
     edge_start = np.arange(corner_count)
     edge_end = edge_start - (edge_start % 3) + ((edge_start + 1) % 3)
     flip = corner_vertex > corner_vertex[edge_end]
     low = np.where(flip, edge_end, edge_start)
     high = np.where(flip, edge_start, edge_end)
 
-    # pairs of edge indices shared by exactly two faces, with each edge
-    # as one integer from its vertices so it runs either way
+    # edges shared by exactly two faces
     pairs = grouping.group_rows(
         corner_vertex[low] * vertex_count + corner_vertex[high], require_count=2
     )
-    # only connect faces with normals within the angle threshold
     normals = mesh.face_normals
     paired = normals[pairs // 3]
     pairs = pairs[util.diagonal_dot(paired[:, 0], paired[:, 1]) > np.cos(angle)]
-    # both faces of a shared edge have a corner on each of its vertices
+    # join the corners of both faces at each smooth edge
     links = np.concatenate((low[pairs], high[pairs]))
     labels = connected_component_labels(links, node_count=corner_count)
 
-    # a new vertex for every unique (original vertex, corner group)
+    # a new vertex per unique (vertex, corner group)
     flat = faces.ravel()
     if len(positions) == vertex_count:
-        # no two vertices share a position, so every corner in a group
-        # is on the same vertex and each group is one new vertex
+        # no shared positions so each group is one vertex
         inverse = labels
         new_to_old = np.zeros(labels.max() + 1, dtype=np.int64)
         new_to_old[labels] = flat
@@ -860,11 +850,10 @@ def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None
             labels * vertex_count + flat, return_index=True, return_inverse=True
         )[1:]
         new_to_old = flat[unique]
-    # the corner group of every new vertex
     group = np.zeros(len(new_to_old), dtype=np.int64)
     group[inverse] = labels
 
-    # sum the angle-weighted face normal of every corner in a group
+    # angle-weighted normals per group
     weighted = np.repeat(normals, 3, axis=0) * mesh.face_angles.reshape((-1, 1))
     summed = np.bincount(
         (labels.reshape((-1, 1)) * 3 + np.arange(3)).ravel(), weights=weighted.ravel()
@@ -873,8 +862,7 @@ def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None
     visual = mesh.visual.copy()
     visual.update_vertices(new_to_old)
 
-    # per-vertex values like skinning joints and weights follow their
-    # vertex, and anything else is kept as it is
+    # reindex per-vertex attributes
     attributes = dict(mesh.vertex_attributes)
     for key, value in mesh.vertex_attributes.items():
         if np.shape(value)[:1] == (vertex_count,):

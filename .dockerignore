@@ -7,9 +7,6 @@ docs/trimesh*.rst
 docs/examples.*.rst
 docs/README.rst
 
-# renders and reports written by the examples, and editor backups
+# renders written by the examples
 examples/*.mp4
 examples/*.glb
-**/*.report.json
-**/\#*\#
-**/*~

@@ -72,7 +72,7 @@ trimesh = [
 # this is the base extra most users will want
 easy = [
     "colorlog",
-    "manifold3d>=2.3.0",
+    "manifold3d>=2.3.0; python_version<'3.15'",
     "charset-normalizer",
     "lxml",
     "jsonschema",
@@ -84,7 +84,7 @@ easy = [
     "rtree",
     "httpx",
     "scipy",
-    "embreex; platform_machine!='aarch64'",
+    "embreex; platform_machine!='aarch64' and python_version<'3.15'",
     "pillow",
     "vhacdx",
     # old versions of mapbox_earcut produce incorrect values on numpy 2.0
@@ -96,7 +96,7 @@ recommend = [
     "pyglet",
     "scikit-image",
     "fast-simplification",
-    "python-fcl", # do collision checks
+    "python-fcl; python_version<'3.15'", # do collision checks
     "cascadio", # load `STEP` files
 ]
 
@@ -118,13 +118,13 @@ test_more = [
     "xatlas",     # provide unwrapping for texturing
     "pytest-beartype", # fail on bad type hints
     "matplotlib", # compare our color maps with theirs
-    "pymeshlab; python_version<'3.14'", # compare our vertex counts
+    "pymeshlab; python_version<'3.15'", # compare our vertex counts
     "triangle; python_version<'3.14'",  # polygon tesselator
     "ipython",  # check the notebook stuff
     "marimo",   # different notebook stuff
     "requests", # check WebResolver session compatibility
     "aiohttp",  # check WebResolver session compatibility
-    "DracoPy>=1.7.0",  # KHR_draco_mesh_compression for glTF, `attributes` added in 1.7.0
+    "DracoPy>=1.7.0; python_version<'3.15'",  # KHR_draco_mesh_compression for glTF, `attributes` added in 1.7.0
 ]
 
 # kept empty so downstream `trimesh[deprecated]` 

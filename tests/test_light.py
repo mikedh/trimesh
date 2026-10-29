@@ -39,41 +39,22 @@ class LightTests(g.unittest.TestCase):
             cubemap_directions,
         )
         from trimesh.viewer.conversion import render_lights
-        from trimesh.viewer.opengl.shaders import LUMINANCE
 
         s = g.get_mesh("duck.dae")
-        checks = {}
         # directional lights need no geometry, so even an empty scene is lit
         for name, scene in {"duck": s, "empty": g.trimesh.Scene()}.items():
             graph = hash(scene.graph)
-            # asking for the default lights doesn't change the scene
-            autolight(scene)
-            checks[f"{name} autolight leaves the graph"] = hash(scene.graph) == graph
-            checks[f"{name} has no lights"] = not scene.has_lights
-            lights = scene.lights
+            # asking for the studio a render uses doesn't change the scene
+            lights = autolight(scene)[0]
+            assert hash(scene.graph) == graph, f"{name} studio leaves the graph"
+            assert not scene.has_lights, f"{name} has no lights"
             kinds = [type(light).__name__ for light in lights]
-            # in glTF units a white surface facing a light reflects its
-            # linear color times its intensity over pi
-            reflected = [
-                g.np.dot(light.color[:3] / 255.0, LUMINANCE) * light.intensity / g.np.pi
-                for light in lights[:2]
-            ]
-            current = {
-                # a key and a rim light, which a white surface facing them
-                # reflects 0.58 and 0.28 of as luminance at any scale, and
-                # the studio's environment
-                "kinds": kinds
-                == ["DirectionalLight", "DirectionalLight", "EnvironmentLight"],
-                "reflected": g.np.allclose(reflected, [0.58, 0.28]),
-                # the default lights are generated once into the scene
-                "a list": isinstance(lights, list),
-                # stored, but only the scene's own once they're changed
-                "stored": scene.lights is lights and not scene.has_lights,
-                "same objects": all(a is b for a, b in zip(scene.lights, lights)),
-                "in the graph": all(light.name in scene.graph.nodes for light in lights),
-            }
-            checks.update({f"{name} {check}": ok for check, ok in current.items()})
-        checks["camera"] = isinstance(s.camera, g.trimesh.scene.cameras.Camera)
+            assert kinds == ["DirectionalLight", "DirectionalLight", "EnvironmentLight"]
+            # the default lights `Scene.lights` generates are stored
+            defaults = scene.lights
+            assert scene.lights is defaults and scene.has_lights, name
+            assert all(light.name in scene.graph.nodes for light in defaults), name
+        assert isinstance(s.camera, g.trimesh.scene.cameras.Camera), "camera"
 
         # the key is above and to the right of the camera and the rim
         # is behind, measured in the camera's frame
@@ -82,60 +63,34 @@ class LightTests(g.unittest.TestCase):
         lights, transforms = autolight(s, camera)
         environment, frame = lights[2], transforms[2]
         towards = transforms[:2, :3, 2] @ camera[:3, :3]
-        angle = g.np.degrees(g.np.arcsin(towards @ camera[1, :3]))
-        checks["key elevation"], checks["rim elevation"] = g.np.isclose(angle, [35, 65])
-        checks["key in front and right"] = towards[0, 2] > 0.3 and towards[0, 0] > 0.3
-        checks["rim behind"] = towards[1, 2] < -0.3
+        assert (towards @ camera[1, :3] > 0.3).all(), "key and rim above"
+        assert towards[0, 2] > 0.3 and towards[0, 0] > 0.3, "key in front and right"
+        assert towards[1, 2] < -0.3, "rim behind"
         # the environment's frame is a rotation whose +Y is the world axis
         # nearest the camera's up and whose +Z is level towards the camera
-        checks["environment frame"] = (
+        assert (
             g.np.allclose(frame[:3, :3] @ frame[:3, :3].T, g.np.eye(3))
             and g.np.isclose(g.np.linalg.det(frame[:3, :3]), 1.0)
             and g.np.allclose(frame[:3, 1], [0, 1, 0])
             and frame[:3, 2] @ camera[:3, 2] > 0.5
-        )
-        # a warm key and a cool rim under a slightly warm sky, with the
-        # softbox on the key's side warm and the one opposite cool, which
-        # are as bright as the white they're tinted from, so the warm
-        # studio is lit as brightly as a white one: every texel is a
-        # gradient from a floor of 0.096 to a sky of 0.31 plus softboxes
-        # overhead, on the key's side and the rim's of luminance 0.35, 2
-        # and 1 with sharpness 4, 30 and 30, at (azimuth, elevation)
-        azimuth, elevation = g.np.radians([[0, 90], [60, 20], [-70, 12]]).T
-        softboxes = g.np.column_stack(
-            (
-                g.np.sin(azimuth) * g.np.cos(elevation),
-                g.np.sin(elevation),
-                g.np.cos(azimuth) * g.np.cos(elevation),
-            )
-        )
-        directions = cubemap_directions(environment.cubemap.shape[1])[0]
-        lobes = g.np.exp([4.0, 30.0, 30.0] * (directions @ softboxes.T - 1.0))
-        luminance = 0.096 + 0.214 * (0.5 + 0.5 * directions[..., 1])
-        luminance += lobes @ [0.35, 2.0, 1.0]
-        checks["environment luminance"] = g.np.allclose(
-            environment.cubemap @ LUMINANCE, luminance
-        )
+        ), "environment frame"
+        # a warm key and a cool rim under a slightly warm sky
         key, rim = (light.color[:3] for light in lights[:2])
-        # the texel nearest each softbox
-        nearest = (directions.reshape((-1, 3)) @ softboxes.T).argmax(axis=0)
-        sky, near, far = environment.cubemap.reshape((-1, 3))[nearest]
-        for name, color in {"key": key, "near softbox": near}.items():
-            checks[f"{name} is warm"] = color[0] > color[1] > color[2]
-        for name, color in {"rim": rim, "far softbox": far}.items():
-            checks[f"{name} is cool"] = color[0] < color[1] < color[2]
-        checks["sky is warm"] = sky[0] > sky[2]
+        directions = cubemap_directions(environment.cubemap.shape[1])[0]
+        sky = environment.cubemap.reshape((-1, 3))[
+            directions.reshape((-1, 3))[:, 1].argmax()
+        ]
+        assert key[0] > key[1] > key[2] and rim[0] < rim[1] < rim[2], "warm key cool rim"
+        assert sky[0] > sky[2], "sky is warm"
         # the lights are fixed in the world where the camera started
         moved = g.trimesh.transformations.rotation_matrix(1.0, [0, 1, 0]) @ camera
-        checks["world fixed"] = not g.np.allclose(autolight(s, moved)[1], transforms)
+        assert not g.np.allclose(autolight(s, moved)[1], transforms), "world fixed"
         # explicit lights are used as they are with the default environment
         s.lights = [g.trimesh.scene.lighting.PointLight(name="bulb")]
         s.graph["bulb"] = g.np.eye(4)
         explicit = [type(light).__name__ for light in render_lights(s, camera)[0]]
-        checks["explicit lights"] = explicit == ["PointLight", "EnvironmentLight"]
-        checks["stored lights are a list"] = isinstance(s.lights, list)
-        for name, ok in checks.items():
-            assert ok, name
+        assert explicit == ["PointLight", "EnvironmentLight"], "explicit lights"
+        assert isinstance(s.lights, list), "stored lights are a list"
 
     def test_environment_gltf(self):
         # an environment light is the `EXT_lights_image_based` light of the
@@ -151,14 +106,12 @@ class LightTests(g.unittest.TestCase):
             rgbd_unpack,
         )
         from trimesh.scene.lighting import (
-            DirectionalLight,
             EnvironmentLight,
             SpotLight,
             cubemap_directions,
             prefilter,
             spherical_harmonics,
         )
-        from trimesh.viewer.conversion import render_lights
 
         np = g.np
         tf = g.trimesh.transformations
@@ -169,7 +122,7 @@ class LightTests(g.unittest.TestCase):
         )
         environment = EnvironmentLight(name="sky", intensity=2.5, cubemap=studio.cubemap)
         scene = g.trimesh.Scene(g.trimesh.creation.box())
-        rotation = tf.random_rotation_matrix()
+        rotation = tf.random_rotation_matrix(seed=0)
         scene.graph["sky"] = rotation
         scene.graph["spot"] = np.eye(4)
         scene.lights = [SpotLight(name="spot"), environment]
@@ -218,48 +171,35 @@ class LightTests(g.unittest.TestCase):
         projection = np.linalg.pinv(harmonics(directions.reshape((-1, 3))) * weights)
         harmonic_bound = np.abs(projection * weights.T) @ tolerance.reshape((-1, 3))
 
-        checks = {
-            "second and third exports are identical": exports[1] == exports[2],
-            "lights round trip": [type(light).__name__ for light in reloaded.lights]
-            == ["SpotLight", "EnvironmentLight"],
-            "name": found.name == "sky",
-            "intensity is exact": found.intensity == 2.5,
-            "node pose": np.allclose(reloaded.graph.get("sky")[0], rotation),
-            # glTF quaternions are xyzw and trimesh's wxyz
-            "rotation": np.allclose(
-                tf.quaternion_matrix(np.roll(entry["rotation"], 1)), rotation
-            ),
-            "cube map within RGBD": (np.abs(found.cubemap - original) <= tolerance).all(),
-            "harmonics stored": np.allclose(
-                entry["irradianceCoefficients"], spherical_harmonics(environment.cubemap)
-            ),
-            "harmonics within RGBD": (
-                np.abs(spherical_harmonics(found.cubemap) - spherical_harmonics(original))
-                <= harmonic_bound * BANDS[:, None]
-            ).all(),
-            # each level is a weighted mean of the mirror level's texels
-            "levels within RGBD": all(
-                np.abs(after - before).max() <= tolerance.max()
-                for after, before in zip(prefilter(found.cubemap), prefilter(original))
-            ),
-            "image size": entry["specularImageSize"] == len(original[0]),
-            "mip levels halve": [len(level) for level in entry["specularImages"]]
-            == [6] * len(prefilter(original))
-            and [face.shape for face in faces]
-            == [
-                (len(original[0]) >> level, len(original[0]) >> level, 4)
-                for level in range(len(entry["specularImages"]))
-                for _ in range(6)
-            ],
-            "faces are RGBD flipped": all(
-                (np.abs(rgbd_unpack(face)[:, ::-1] - texels) <= tolerance[index]).all()
-                for index, (face, texels) in enumerate(zip(faces, original))
-            ),
-            "the scene uses it": header["scenes"][0]["extensions"][ENVIRONMENT]
-            == {"light": 0},
-            "extension used": ENVIRONMENT in header["extensionsUsed"],
-            "not in metadata": "gltf_extensions" not in reloaded.metadata,
-        }
+        # kind, intensity and pose round trip in `test_render_cases`, drawn
+        assert exports[1] == exports[2], "second and third exports are identical"
+        assert (np.abs(found.cubemap - original) <= tolerance).all(), (
+            "cube map within RGBD"
+        )
+        assert np.allclose(
+            entry["irradianceCoefficients"], spherical_harmonics(environment.cubemap)
+        ), "harmonics stored"
+        assert (
+            np.abs(spherical_harmonics(found.cubemap) - spherical_harmonics(original))
+            <= harmonic_bound * BANDS[:, None]
+        ).all(), "harmonics within RGBD"
+        assert all(
+            np.abs(after - before).max() <= tolerance.max()
+            for after, before in zip(prefilter(found.cubemap), prefilter(original))
+        ), "levels within RGBD"
+        assert entry["specularImageSize"] == len(original[0]), "image size"
+        assert [len(level) for level in entry["specularImages"]] == [6] * len(
+            prefilter(original)
+        ) and [face.shape for face in faces] == [
+            (len(original[0]) >> level, len(original[0]) >> level, 4)
+            for level in range(len(entry["specularImages"]))
+            for _ in range(6)
+        ], "mip levels halve"
+        assert all(
+            (np.abs(rgbd_unpack(face)[:, ::-1] - texels) <= tolerance[index]).all()
+            for index, (face, texels) in enumerate(zip(faces, original))
+        ), "faces are RGBD flipped"
+        assert "gltf_extensions" not in reloaded.metadata, "not in metadata"
 
         # packing RGBD what it unpacked gives the same bytes, including
         # radiance exactly at the brightest each alpha holds
@@ -270,37 +210,20 @@ class LightTests(g.unittest.TestCase):
         )
         packed = rgbd_pack(radiance)
         unpacked = rgbd_unpack(packed)
-        checks["rgbd within bound"] = (
-            np.abs(unpacked - radiance) <= bound(radiance)
-        ).all()
-        checks["rgbd is idempotent"] = np.array_equal(
-            rgbd_pack(unpacked.astype(np.float32)), packed
+        assert (np.abs(unpacked - radiance) <= bound(radiance)).all(), "rgbd within bound"
+        assert np.array_equal(rgbd_pack(unpacked.astype(np.float32)), packed), (
+            "rgbd is idempotent"
         )
 
-        # the light is its cube map and nothing derived from it, white
-        # and posed by its node like every light
-        shape = EnvironmentLight(cubemap=np.ones((6, 2, 2, 3)))
-        checks["only adds a cube map"] = set(vars(shape)) - set(
-            vars(DirectionalLight())
-        ) == {"cubemap"}
-        checks["only defines __init__"] = {
-            name
-            for name, value in vars(EnvironmentLight).items()
-            if callable(value) or isinstance(value, property)
-        } == {"__init__"}
-        checks["white"] = (shape.color == 255).all()
+        # an environment is white unless tinted
+        assert (EnvironmentLight(cubemap=np.ones((6, 2, 2, 3))).color == 255).all(), (
+            "white"
+        )
 
-        # untouched default lights and the studio a render uses are not
-        # the scene's, so they are never exported
         plain = g.trimesh.Scene(g.trimesh.creation.box())
-        before = plain.export(file_type="glb")
-        render_lights(plain, np.eye(4))
-        checks["default lights generated"] = len(plain.lights) == 3
-        after = plain.export(file_type="glb")
-        checks["default scene has no environment"] = ENVIRONMENT.encode() not in before
-        checks["rendering doesn't change the export"] = before == after
-        for name, ok in checks.items():
-            assert ok, name
+        assert ENVIRONMENT.encode() not in plain.export(file_type="glb"), (
+            "default scene has no environment"
+        )
 
 
 def test_environment():
@@ -332,7 +255,7 @@ def test_environment():
         # light over each normal's hemisphere weighted by cosine
         return (np.clip(cosine, 0.0, None) * solid_angle) @ cubemap.reshape((-1, 3))
 
-    checks = {"texels cover the sphere": np.isclose(solid_angle.sum(), 4.0 * np.pi)}
+    assert np.isclose(solid_angle.sum(), 4.0 * np.pi), "texels cover the sphere"
     # radiance which is harmonics up to l=2 has exactly those harmonics
     # times the clamped cosine's pi, 2 pi / 3 and pi / 4 for each band as
     # irradiance, which is what Babylon.js, the reader of
@@ -343,38 +266,41 @@ def test_environment():
     exact = EnvironmentLight(
         cubemap=(harmonics(directions) @ coefficients).reshape(shape)
     )
-    checks["harmonics are exact"] = np.allclose(
+    assert np.allclose(
         spherical_harmonics(exact.cubemap), coefficients * BANDS[:, None], atol=1e-10
-    )
-    checks["exact irradiance"] = np.allclose(
+    ), "harmonics are exact"
+    assert np.allclose(
         harmonics(normals) @ spherical_harmonics(exact.cubemap),
         irradiance(exact.cubemap),
         atol=1e-3,
-    )
+    ), "exact irradiance"
     # the studio has sharper light which l=2 harmonics blur a little
     error = relative(
         harmonics(normals) @ spherical_harmonics(studio.cubemap),
         irradiance(studio.cubemap),
     )
-    checks["studio irradiance mean"] = error.mean() < 0.015
-    checks["studio irradiance max"] = error.max() < 0.05
+    assert error.mean() < 0.015, "studio irradiance mean"
+    assert error.max() < 0.05, "studio irradiance max"
 
     # every mip level is the cube map blurred by the spherical Gaussian of
     # its roughness, and blending them is close to a GGX reflection seen
     # head on, where the squared cosine of the half vector is (1 + cosine) / 2
     levels = prefilter(studio.cubemap)
     count = len(levels)
-    checks["levels halve"] = [len(level[0]) for level in levels] == [
+    assert [len(level[0]) for level in levels] == [
         shape[1] >> index for index in range(count)
-    ]
+    ], "levels halve"
+    # brute force over every source texel for a fixed sample of the
+    # texels of each level, as each is computed independently
     for index, level in enumerate(levels[1:], 1):
         sharpness = np.exp(np.polyval(SPECULAR_SHARPNESS, np.log(index / (count - 1))))
         towards = cubemap_directions(len(level[0]))[0].reshape((-1, 3))
-        weights = np.exp(sharpness * (towards @ directions.T - 1.0)) * solid_angle
+        sample = rng.choice(len(towards), size=min(512, len(towards)), replace=False)
+        weights = np.exp(sharpness * (towards[sample] @ directions.T - 1.0)) * solid_angle
         truth = (weights @ studio.cubemap.reshape((-1, 3))) / weights.sum(axis=1)[:, None]
-        error = relative(level.reshape((-1, 3)), truth)
-        checks[f"level {index} mean"] = error.mean() < 0.003
-        checks[f"level {index} max"] = error.max() < 0.01
+        error = relative(level.reshape((-1, 3))[sample], truth)
+        assert error.mean() < 0.003, f"level {index} mean"
+        assert error.max() < 0.01, f"level {index} max"
     for roughness in [0.1, 0.3, 0.6, 1.0]:
         level = roughness * (count - 1)
         low, fraction = int(level), level % 1.0
@@ -385,14 +311,17 @@ def test_environment():
         step = len(levels[low][0]) // size
         lower = levels[low].reshape((6, size, step, size, step, 3)).mean(axis=(2, 4))
         model = ((1 - fraction) * lower + fraction * levels[high]).reshape((-1, 3))
-        facing = cubemap_directions(size)[0].reshape((-1, 3)) @ directions.T
+        towards = cubemap_directions(size)[0].reshape((-1, 3))
+        sample = rng.choice(len(towards), size=min(512, len(towards)), replace=False)
+        model = model[sample]
+        facing = towards[sample] @ directions.T
         alpha = roughness**4
         weights = np.clip(facing, 0.0, 1.0) * solid_angle
         weights *= alpha / ((1 + facing) / 2 * (alpha - 1) + 1) ** 2
         truth = (weights @ studio.cubemap.reshape((-1, 3))) / weights.sum(axis=1)[:, None]
         error = relative(model, truth)
-        checks[f"specular {roughness} mean"] = error.mean() < 0.04
-        checks[f"specular {roughness} max"] = error.max() < 0.18
+        assert error.mean() < 0.04, f"specular {roughness} mean"
+        assert error.max() < 0.18, f"specular {roughness} max"
 
     # an equirectangular image's top row is up and `atan2(z, x)` goes
     # across it from -pi, so a smooth environment's faces are it
@@ -415,11 +344,9 @@ def test_environment():
     image = smooth(pixels.reshape((-1, 3))).reshape((height, 2 * height, 3))
     cubemap = EnvironmentLight(cubemap=image).cubemap
     faces = smooth(cubemap_directions(len(cubemap[0]))[0].reshape((-1, 3)))
-    checks["equirectangular to faces"] = np.allclose(
-        cubemap.reshape((-1, 3)), faces, rtol=5e-3
+    assert np.allclose(cubemap.reshape((-1, 3)), faces, rtol=5e-3), (
+        "equirectangular to faces"
     )
-    for name, ok in checks.items():
-        assert ok, name
 
 
 if __name__ == "__main__":

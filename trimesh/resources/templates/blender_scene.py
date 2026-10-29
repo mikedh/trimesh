@@ -2,12 +2,9 @@
 blender_scene.py
 ------------------
 
-Render a GLB exported by trimesh to numbered PNG frames, run by
-`trimesh.interfaces.blender.build` in Blender 4.3 or
-later with JSON settings as the last argument. Blender's glTF importer
-reads the scene, and this adds only what a GLB can't say: the camera,
-frames, exposure, Blender's own neutral world or a transparent film, and
-lines and points as tubes and spheres, which Blender doesn't draw.
+Render a GLB to PNG frames in Blender 4.3+, run by `trimesh.interfaces.blender.build`
+with JSON settings as the last argument. Adds only what a GLB can't hold, like
+exposure and lines and points as tubes and spheres.
 """
 
 import json
@@ -16,7 +13,6 @@ import sys
 
 import bpy
 
-# the oldest Blender this runs in, which the error trimesh raises shows
 if bpy.app.version < (4, 3, 0):
     raise RuntimeError(
         f"rendering needs Blender 4.3 or later, not {bpy.app.version_string}"
@@ -35,7 +31,7 @@ def link(tree, kind, inputs=None):
 
 
 def paint(item):
-    """Colors for an object the importer left bare: plastic or emission."""
+    """Material for an object the importer left bare: plastic or emission."""
     material = bpy.data.materials.new(item.name)
     material.use_nodes = True
     tree = material.node_tree
@@ -85,8 +81,7 @@ def main(settings):
     """Build the scene from `settings` then render or save it."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scene = bpy.context.scene
-    # set before importing as it converts keyframe seconds to frames with
-    # an integer `fps` divided by `fps_base`, which is at least one
+    # set before import, which converts seconds to frames with `fps / fps_base`
     scene.render.fps = max(round(settings["fps"]), 1)
     scene.render.fps_base = scene.render.fps / settings["fps"]
     # "COMPAT" reads light intensity in the glTF units the viewer uses
@@ -107,8 +102,6 @@ def main(settings):
     scene.view_settings.exposure = math.log2(settings["exposure"])
     scene.render.image_settings.color_mode = "RGBA"
 
-    # lines and points are as wide as pixels are across, which in world
-    # units is about the scene's scale over the image's height
     for item in [i for i in scene.objects if i.type == "MESH"]:
         bare = len(item.data.polygons) == 0
         if bare or len(item.material_slots) == 0:
@@ -119,7 +112,7 @@ def main(settings):
             # the viewer's lines and points don't cast shadows
             item.visible_shadow = False
 
-    # Blender's default world, which is a constant dim gray
+    # Blender's default world: a constant dim gray
     scene.world = bpy.data.worlds.new("world")
 
     scene.render.filepath = settings["output"]

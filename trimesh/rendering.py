@@ -2,8 +2,7 @@
 rendering.py
 --------------
 
-Deprecated: these pyglet 1 vertex list converters moved to
-`trimesh.viewer.pyglet1.conversion`.
+Deprecated: moved to `trimesh.viewer.pyglet1.conversion`.
 """
 
 import warnings
@@ -24,10 +23,10 @@ def __getattr__(name: str):
       The attribute from its new location.
     """
     if name.startswith("__"):
-        # what `inspect`, `pickle` and `pytest` probe modules for
+        # dunders probed by `inspect`, `pickle` and `pytest`
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     with warnings.catch_warnings():
-        # the one warning is this module's, not the package it moved to
+        # silence the pyglet1 package warning: this module warns below
         warnings.simplefilter("ignore", DeprecationWarning)
         from .viewer.pyglet1 import conversion
 

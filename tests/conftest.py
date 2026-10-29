@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 
-def _global_state():
+def global_rng_state() -> tuple:
     """
     Capture the global numpy RNG state as comparable values.
 
@@ -11,8 +11,8 @@ def _global_state():
     state : tuple
       The MT19937 keys, position, and cached gaussian.
     """
-    name, keys, pos, has_gauss, cached = np.random.get_state()
-    return name, keys.tobytes(), pos, has_gauss, cached
+    name, keys, position, has_gauss, cached = np.random.get_state()
+    return name, keys.tobytes(), position, has_gauss, cached
 
 
 @pytest.fixture(autouse=True)
@@ -31,9 +31,9 @@ def no_global_rng():
     is a fixed array rather than a stream: it's fine for one-shot bulk
     data but two calls in a scope return the same values.
     """
-    before = _global_state()
+    before = global_rng_state()
     yield
-    if _global_state() != before:
+    if global_rng_state() != before:
         raise AssertionError(
             "test touched the global numpy RNG: use `generic.RandomSeed`, `generic.random_transforms`, or `np.random.default_rng(seed)`"
         )

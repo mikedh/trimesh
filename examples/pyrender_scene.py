@@ -146,7 +146,3 @@ if __name__ == "__main__":
     # every node a different gray like pyrender's example
     gray = ((segmentation + 1) * 20 % 256).astype(np.uint8)
     Image.fromarray(gray).save(os.path.join(directory, "pyrender_segmentation.png"))
-    # and as a turntable gif, with only Pillow
-    scene.render(
-        os.path.join(directory, "pyrender_scene.gif"), resolution=[640, 480], **RENDER
-    )

@@ -42,7 +42,6 @@ def test_video():
     random = g.np.random.default_rng(0)
     # without hardware encoders, as on a typical machine
     software = {"h264_not_an_encoder": "", "libx264": ffmpeg.PROFILES["libx264"]}
-    checks = {}
     with g.TemporaryDirectory() as directory:
         for width, height, fps, channels, level in CASES:
             # a smooth gradient with noise, a little different every frame
@@ -80,20 +79,16 @@ def test_video():
                 decoded = every[0].astype(float)
                 # the padded row and column repeat the last of the frame
                 error = g.np.abs(decoded - truth).mean()
-                checks.update(
-                    {
-                        f"{name} frames": len(every) == len(frames),
-                        f"{name} size": (stream["width"], stream["height"]) == padded,
-                        f"{name} fps": stream["r_frame_rate"] == f"{fps}/1",
-                        f"{name} pixel format": stream["pix_fmt"] == "yuv420p",
-                        f"{name} level": stream["level"] == level,
-                        f"{name} strict decode": strict.returncode == 0
-                        and not strict.stderr,
-                        f"{name} codec error": error <= STEP / 2,
-                        f"{name} fallback": profiles is None
-                        or video.encoder == "libx264",
-                    }
+                assert len(every) == len(frames), f"{name} frames"
+                assert (stream["width"], stream["height"]) == padded, f"{name} size"
+                assert stream["r_frame_rate"] == f"{fps}/1", f"{name} fps"
+                assert stream["pix_fmt"] == "yuv420p", f"{name} pixel format"
+                assert stream["level"] == level, f"{name} level"
+                assert strict.returncode == 0 and not strict.stderr, (
+                    f"{name} strict decode"
                 )
+                assert error <= STEP / 2, f"{name} codec error"
+                assert profiles is None or video.encoder == "libx264", f"{name} fallback"
         # a frame of another size is an error rather than a corrupt video
         with g.pytest.raises(ValueError, match="but video is"):
             encode(path, [g.np.zeros((64, 64, 3)), g.np.zeros((64, 32, 3))], 30)
@@ -106,9 +101,7 @@ def test_video():
             with g.pytest.raises(ValueError) as none_work:
                 encode(path, frames[:1], 30)
         words = [ffmpeg._ffmpeg_executable, "h264_nope", "h264_nor_this", "gif"]
-        checks["no encoder is explained"] = all(w in str(none_work.value) for w in words)
-    for name, ok in checks.items():
-        assert ok, name
+        assert all(w in str(none_work.value) for w in words), "no encoder is explained"
 
 
 def test_without_ffmpeg():

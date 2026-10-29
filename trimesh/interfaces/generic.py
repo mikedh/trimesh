@@ -8,8 +8,7 @@ from tempfile import NamedTemporaryFile
 from .. import exchange
 from ..util import log
 
-# keyword arguments for `subprocess` which keep a console window from
-# flashing up on Windows, and nothing at all everywhere else
+# `subprocess` keywords to hide the console window on Windows
 HIDDEN_CONSOLE = {}
 if platform.system() == "Windows":
     _startupinfo = subprocess.STARTUPINFO()

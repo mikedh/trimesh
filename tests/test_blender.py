@@ -61,7 +61,6 @@ def test_engines():
 
     g.require_rendering()
     dolly = g.dolly_scene("box", 0.8)
-    checks = {}
     for name, scene, still in [("mixed", mixed_scene(), True), ("dolly", dolly, False)]:
         staged, count = stage(scene, resolution=RESOLUTION, fps=FPS, still=still)
         with g.tempfile.TemporaryDirectory() as directory:
@@ -84,10 +83,10 @@ def test_engines():
         # pixel their projections are off, either side of the viewer's edge
         band = ndimage.binary_dilation(opengl, iterations=2)
         band &= ~ndimage.binary_erosion(opengl, iterations=2)
-        checks[f"{name} frames"] = len(frames) == count
-        checks[f"{name} size"] = all(f.shape == (120, 160, 4) for f in frames)
-        checks[f"{name} silhouettes"] = (
-            opengl.any(axis=(1, 2)).all() and not ((blend ^ opengl) & ~band).any()
+        assert len(frames) == count, f"{name} frames"
+        assert all(f.shape == (120, 160, 4) for f in frames), f"{name} size"
+        assert opengl.any(axis=(1, 2)).all() and not ((blend ^ opengl) & ~band).any(), (
+            f"{name} silhouettes"
         )
         if name == "dolly":
             # the box slides the same way in both engines
@@ -95,11 +94,8 @@ def test_engines():
                 (mask * g.np.arange(160)).sum(axis=(1, 2)) / mask.sum(axis=(1, 2))
                 for mask in (opengl, blend)
             ]
-            checks["dolly slides"] = g.np.ptp(columns[0]) > 5.0
-            checks["dolly slides alike"] = g.np.allclose(*columns, atol=2.0)
-
-    for name, ok in checks.items():
-        assert ok, name
+            assert g.np.ptp(columns[0]) > 5.0, "dolly slides"
+            assert g.np.allclose(*columns, atol=2.0), "dolly slides alike"
 
 
 def test_minimum_version():
