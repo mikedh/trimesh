@@ -154,17 +154,26 @@ class TextureVisuals(Visuals):
         vis = color.ColorVisuals(vertex_colors=colors)
         return vis
 
-    def face_subset(self, face_index):
+    def face_subset(self, face_index, copy_material: bool = True):
         """
-        Get a copy of the visuals for a subset of faces.
+        Get the visuals for a subset of faces.
 
-        The material is shared with the original rather than copied,
-        as copying large texture images for every subset is expensive.
+        Parameters
+        ------------
+        face_index : (n,) int or (n,) bool
+          Faces to keep
+        copy_material
+          If True the material (and its texture image) is copied.
+          If False the material is shared with the original, which
+          is much cheaper for large textures but means that editing
+          the material of one will also change the other.
         """
         uv = None
         if self.uv is not None:
             indices = np.unique(self.mesh.faces[face_index].flatten())
             uv = self.uv[indices]
+        if copy_material:
+            return self.copy(uv)
         return TextureVisuals(
             uv=uv,
             material=self.material,

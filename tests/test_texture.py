@@ -155,10 +155,15 @@ class TextureTest(g.unittest.TestCase):
         b.apply_translation([b.extents[0] * 1.25, 0, 0])
         c = a + b
 
-        parts = c.split(only_watertight=False)
+        parts = c.split(only_watertight=False, copy_material=False)
         assert len(parts) >= 2
         assert all(p.visual.material is c.visual.material for p in parts)
         assert all(len(p.visual.uv) == len(p.vertices) for p in parts)
+
+        # default behavior still copies the material
+        parts = c.split(only_watertight=False)
+        assert len(parts) >= 2
+        assert all(p.visual.material is not c.visual.material for p in parts)
 
     def test_concatentate_multi(self):
         colors = [
