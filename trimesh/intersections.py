@@ -457,8 +457,11 @@ def slice_faces_plane(
     have_uv = uv is not None
 
     # Construct a mask for the faces to slice.
-    if face_index is not None:
-        faces = faces[face_index]
+    if face_index is None:
+        mask = np.ones(len(faces), dtype=bool)
+    else:
+        mask = np.zeros(len(faces), dtype=bool)
+        mask[face_index] = True
 
     if cached_dots is not None:
         dots = cached_dots
@@ -487,14 +490,15 @@ def slice_faces_plane(
     # (0,0,0),  (-1,0,0),  (-1,-1,0), (-1,-1,-1) <- inside
     # (1,0,0),  (1,1,0),   (1,1,1)               <- outside
     # (1,0,-1), (1,-1,-1), (1,1,-1)              <- onedge
-    onedge = np.logical_and(signs_asum >= 2, np.abs(signs_sum) <= 1)
+    onedge = np.logical_and(signs_asum >= 2, np.abs(signs_sum) <= 1) & mask
 
-    inside = signs_sum == -signs_asum
+    # faces not in the mask are kept unchanged
+    inside = (signs_sum == -signs_asum) | ~mask
 
     # for any faces that lie exactly on-the-plane
     # we want to only include them if their normal
     # is backwards from the slicing normal
-    on_plane = signs_asum == 0
+    on_plane = (signs_asum == 0) & mask
     if on_plane.any():
         # compute the normals and whether
         # face is degenerate here
