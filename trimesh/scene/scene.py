@@ -551,7 +551,7 @@ class Scene(Geometry3D):
           Summed area of every instanced geometry
         """
         # get the area of every geometry that has a volume attribute
-        volume = {n: g.volume for n, g in self.geometry.items() if hasattr(g, "area")}
+        volume = {n: g.volume for n, g in self.geometry.items() if hasattr(g, "volume")}
         # sum the area including instancing
         return sum(
             (volume.get(self.graph[n][1], 0.0) for n in self.graph.nodes_geometry), 0.0
