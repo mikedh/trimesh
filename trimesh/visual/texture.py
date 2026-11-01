@@ -156,13 +156,17 @@ class TextureVisuals(Visuals):
 
     def face_subset(self, face_index):
         """
-        Get a copy of
+        Get a copy of the visuals for a subset of faces.
+
+        The material is shared rather than copied: its images
+        can be large and `split` calls this for every piece.
         """
-        if self.uv is not None:
-            indices = np.unique(self.mesh.faces[face_index].flatten())
-            return self.copy(self.uv[indices])
-        else:
-            return self.copy()
+        uv = self.uv
+        if uv is not None:
+            uv = uv[np.unique(self.mesh.faces[face_index].flatten())]
+        return TextureVisuals(
+            uv=uv, material=self.material, face_materials=copy.copy(self.face_materials)
+        )
 
     def update_vertices(self, mask):
         """
