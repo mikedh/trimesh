@@ -67,8 +67,10 @@ class Camera:
         return Camera(
             name=copy.deepcopy(self.name),
             resolution=copy.deepcopy(self.resolution),
-            focal=copy.deepcopy(self.focal),
-            fov=copy.deepcopy(self.fov),
+            focal=copy.deepcopy(self.focal) if not self._focal_computed else None,
+            fov=copy.deepcopy(self.fov) if self._focal_computed else None,
+            z_near=self.z_near,
+            z_far=self.z_far,
         )
 
     @property
