@@ -259,6 +259,27 @@ def test_transform_return():
     assert isinstance(Box().apply_transform(g.transforms[0]), Box)
 
 
+def test_mirrored_scale():
+    # a uniform scale combined with a reflection has a negative
+    # determinant and should scale the primitive rather than raise
+    for p in generate_primitives():
+        if isinstance(p, g.trimesh.primitives.Extrusion):
+            # extrusions don't support scaling at all
+            continue
+        m = p.to_mesh()
+        p.apply_scale(-2.0)
+        m.apply_scale(-2.0)
+
+        # the stored transform should be a rigid reflection
+        assert g.tf.is_rigid(p.primitive.transform)
+        assert g.tf.flips_winding(p.primitive.transform)
+
+        mesh = p.to_mesh()
+        assert mesh.is_volume
+        assert g.np.isclose(mesh.volume, m.volume, rtol=1e-6)
+        assert g.np.allclose(p.bounds, m.bounds, atol=1e-6)
+
+
 def test_cyl_buffer():
     # test our inflation of cylinder primitives
     c = g.trimesh.primitives.Cylinder(
