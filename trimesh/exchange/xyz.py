@@ -23,19 +23,21 @@ def load_xyz(file_obj, delimiter=None, **kwargs):
     """
     # read the whole file into memory as a string
     raw = util.decode_text(file_obj.read()).strip()
-    # get the first line to look at
-    first = raw[: raw.find("\n")].strip()
-    # guess the column count by looking at the first line
-    columns = len(first.split())
-    if columns < 3:
-        raise ValueError("not enough columns in xyz file!")
-
+    # get the first line to look at, including files with only one point
+    newline = raw.find("\n")
+    first = raw[:newline].strip() if newline >= 0 else raw
     if delimiter is None and "," in first:
         # if no delimiter passed and file has commas
         delimiter = ","
     if delimiter is not None:
         # replace delimiter with whitespace so split works
         raw = raw.replace(delimiter, " ")
+        first = first.replace(delimiter, " ")
+
+    # count columns after normalizing the delimiter
+    columns = len(first.split())
+    if columns < 3:
+        raise ValueError("not enough columns in xyz file!")
 
     # use string splitting to get array
     array = np.array(raw.split(), dtype=np.float64)
