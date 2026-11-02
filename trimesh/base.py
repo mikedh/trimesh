@@ -1443,6 +1443,16 @@ class Trimesh(Geometry3D):
           If passed will be used instead of `mesh.face_adjacency`
         engine
           Which graph engine to use for the connected components.
+        solids
+          If True, group watertight shells by geometric containment
+          so cavity shells stay with their enclosing solid. Containment is
+          evaluated with ray tests and assumes shells are disjoint: results
+          are undefined for shells that touch or intersect one another.
+        orient
+          If True and `solids` is True, orient grouped solid shells
+          so exteriors have positive volume and cavities have negative volume.
+          Orientation flips whole shells based on their signed volume; shells
+          with internally inconsistent winding are left untouched.
         kwargs
           Will be passed to `mesh.submesh`
 
