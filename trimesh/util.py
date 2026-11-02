@@ -1297,7 +1297,7 @@ def array_to_encoded(
             packed = packed.decode("utf-8")
         encoded["base64"] = packed
     elif encoding == "binary":
-        encoded["binary"] = array.tobytes(order="C")
+        encoded["binary"] = flat.astype(dtype, copy=False).tobytes()
     else:
         raise ValueError(f"encoding {encoding} is not available!")
     return encoded
