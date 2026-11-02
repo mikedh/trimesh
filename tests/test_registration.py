@@ -480,6 +480,66 @@ class RegistrationTest(g.unittest.TestCase):
         assert "interpolated_normals" in qres
 
 
+@g.pytest.mark.parametrize("reflection", [False, True])
+@g.pytest.mark.parametrize("translation", [False, True])
+@g.pytest.mark.parametrize("scale", [False, True])
+@g.pytest.mark.parametrize("mirrored", [False, True])
+def test_procrustes_weighted_correspondence_repetition(
+    reflection, translation, scale, mirrored
+):
+    # Integer weights must give the same fit as repeating each correspondence.
+    # Noise is needed: exact rigid pairs fit even with an unweighted covariance.
+    a = g.np.array(
+        [[0, 0, 0], [2, 0, 0], [0, 1, 0], [0, 0, 3], [2, 1, 1], [7, 5, 2]],
+        dtype=g.np.float64,
+    )
+    b = a[:, [1, 2, 0]] + [0.5, -0.2, 0.1]
+    if mirrored:
+        b[:, 0] *= -1.0
+    b[4] += [1.0, -2.0, 0.5]
+    weights = g.np.array([5, 4, 3, 2, 1, 0])
+    options = {"reflection": reflection, "translation": translation, "scale": scale}
+    expected, _, expected_cost = g.trimesh.registration.procrustes(
+        g.np.repeat(a, weights, axis=0), g.np.repeat(b, weights, axis=0), **options
+    )
+    matrix, transformed, cost = g.trimesh.registration.procrustes(
+        a, b, weights=weights, **options
+    )
+    g.np.testing.assert_allclose(matrix, expected, rtol=1e-12, atol=1e-12)
+    g.np.testing.assert_allclose(
+        transformed, g.trimesh.transform_points(a, expected), rtol=1e-12, atol=1e-12
+    )
+    g.np.testing.assert_allclose(cost, expected_cost, rtol=1e-12, atol=1e-12)
+    assert g.np.isclose(
+        cost, (((b - transformed) ** 2).sum(axis=1) * weights).sum() / weights.sum()
+    )
+    # Weights need not be integers or normalized; the matrix-only path agrees.
+    matrix_only = g.trimesh.registration.procrustes(
+        a, b, weights=weights * 0.37, return_cost=False, **options
+    )
+    g.np.testing.assert_allclose(matrix_only, expected, rtol=1e-12, atol=1e-12)
+
+
+@g.pytest.mark.parametrize("binary", [False, True])
+@g.pytest.mark.parametrize("reflection", [False, True])
+def test_procrustes_equal_weights_rank_deficient(binary, reflection):
+    a = g.np.array([[0.1, 0.3, 0.2], [2.4, 0.5, 0.7], [0.2, 1.3, -0.4]])
+    b = a[:, [1, 2, 0]] + [0.5, -0.2, 0.1]
+    b[0] += [0.2, -0.3, 0.5]
+    expected, _, _ = g.trimesh.registration.procrustes(a, b, reflection=reflection)
+    weights = g.np.ones(len(a))
+    if binary:
+        a = g.np.vstack([a, [4, 5, 6]])
+        b = g.np.vstack([b, [-6, -5, -4]])
+        weights = g.np.array([1, 1, 1, 0])
+    # Centering three points leaves an unconstrained direction: do not alter
+    # the legacy SVD's choice by unnecessarily rescaling the covariance.
+    matrix, _, _ = g.trimesh.registration.procrustes(
+        a, b, weights=weights, reflection=reflection
+    )
+    g.np.testing.assert_array_equal(matrix, expected)
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()
