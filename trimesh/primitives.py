@@ -199,7 +199,9 @@ class Primitive(Trimesh):
         # copy the current transform
         current = prim.transform.copy()
         # see if matrix has scaling from the matrix
-        scale = np.linalg.det(matrix[:3, :3]) ** (1.0 / 3.0)
+        # use the magnitude so a mirrored scale like `apply_scale(-2)`
+        # keeps the reflection in the rigid transform instead of NaN
+        scale = np.abs(np.linalg.det(matrix[:3, :3])) ** (1.0 / 3.0)
 
         # the objects we handle re-scaling for
         # note that `Extrusion` is NOT supported
