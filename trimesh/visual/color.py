@@ -399,7 +399,7 @@ class ColorVisuals(Visuals):
         """
         self._update_key(mask, "face_colors")
 
-    def face_subset(self, face_index: ArrayLike):
+    def face_subset(self, face_index: ArrayLike, copy_material: bool = True):
         """
         Given a mask of face indices, return a sliced version.
 
@@ -407,6 +407,8 @@ class ColorVisuals(Visuals):
         ----------
         face_index: (n,) int, mask for faces
                     (n,) bool, mask for faces
+        copy_material
+          Unused, for compatibility with `TextureVisuals`.
 
         Returns
         ----------

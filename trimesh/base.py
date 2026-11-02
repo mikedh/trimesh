@@ -2972,6 +2972,9 @@ class Trimesh(Geometry3D):
         append : bool
           Return a single mesh which has the faces appended.
           if this flag is set, only_watertight is ignored
+        copy_material : bool
+          If False textured submeshes share the material with this
+          mesh rather than copying the texture image.
 
         Returns
         ---------
