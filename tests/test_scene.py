@@ -6,6 +6,17 @@ except BaseException:
     import generic as g
 
 
+def test_volume_skips_geometry_without_volume():
+    path = g.trimesh.load_path([[0, 0], [1, 0], [0, 1], [0, 0]])
+    scene = g.trimesh.Scene(path)
+    assert scene.volume == 0.0
+
+    mesh = g.trimesh.creation.box(extents=[1, 2, 3])
+    scene.add_geometry(mesh, geom_name="box", node_name="first")
+    scene.graph.update(frame_to="second", geometry="box", matrix=np.eye(4))
+    assert np.isclose(scene.volume, 12.0)
+
+
 def test_scene():
     for file_name in ["cycloidal.ply", "sphere.ply"]:
         mesh = g.get_mesh(file_name)
