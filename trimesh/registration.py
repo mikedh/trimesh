@@ -301,11 +301,10 @@ def procrustes(
     # Use SVD to find optimal orthogonal matrix R
     # constrained to det(R) = 1 if necessary.
 
-    a_scaled = (a_nonzero - acenter) / ascale
-    # Keep equal-weight covariance unchanged, including rank-deficient fits.
-    if (w_norm != w_norm[:1]).any():
-        a_scaled *= w_norm
-    target = np.dot(((b_nonzero - bcenter) / bscale).T, a_scaled)
+    # weight the covariance so the rotation is optimal for the weights
+    target = np.dot(
+        ((b_nonzero - bcenter) / bscale).T, ((a_nonzero - acenter) / ascale) * w_norm
+    )
 
     u, _s, vh = np.linalg.svd(target)
 

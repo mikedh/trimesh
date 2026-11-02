@@ -35,9 +35,17 @@ class VisualTest(g.unittest.TestCase):
             (PBRMaterial(baseColorTexture=image), "baseColorTexture"),
         ]:
             m.visual = g.trimesh.visual.TextureVisuals(uv=uv, material=material)
+            # by default every piece gets its own copy of the material
             parts = m.split(only_watertight=False)
             assert len(parts) == 2
+            assert all(p.visual.material is not material for p in parts)
+            assert all(getattr(p.visual.material, key) is not image for p in parts)
+
+            # opting out shares the material object and its image
+            parts = m.split(only_watertight=False, copy_material=False)
+            assert len(parts) == 2
             for p in parts:
+                assert p.visual.material is material
                 assert getattr(p.visual.material, key) is image
                 # each vertex of a piece keeps the UV of its source vertex
                 _, index = g.spatial.cKDTree(m.vertices).query(p.vertices)

@@ -24,8 +24,8 @@ def load_xyz(file_obj, delimiter=None, **kwargs):
     # read the whole file into memory as a string
     raw = util.decode_text(file_obj.read()).strip()
     # get the first line to look at, including files with only one point
-    newline = raw.find("\n")
-    first = raw[:newline].strip() if newline >= 0 else raw
+    first, _, _ = raw.partition("\n")
+    first = first.strip()
     if delimiter is None and "," in first:
         # if no delimiter passed and file has commas
         delimiter = ","

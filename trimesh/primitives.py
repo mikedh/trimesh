@@ -149,9 +149,11 @@ class Primitive(Trimesh):
         # copy metadata
         primitive_copy.metadata = self.metadata.copy()
 
-        for k, v in self._data.data.items():
-            if k not in primitive_copy._data:
-                primitive_copy._data[k] = v
+        # carry over values stored outside the constructor
+        # arguments, like an overridden density or center mass
+        primitive_copy._data.update(
+            {k: v for k, v in self._data.data.items() if k not in primitive_copy._data}
+        )
 
         return primitive_copy
 

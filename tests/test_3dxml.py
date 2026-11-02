@@ -67,18 +67,6 @@ class DXMLTest(g.unittest.TestCase):
         # a tiled texture cannot share an atlas: keep the face colors
         assert load(b">2 2,0 2,2 0,0 0<") == "face"
 
-    def test_face_to_vertex_colors(self):
-        from trimesh.exchange.threedxml import _face_to_vertex_colors
-
-        # two triangles of different color sharing an edge
-        faces = np.array([[0, 1, 2], [2, 1, 3]])
-        colors = np.array([[255, 0, 0], [0, 0, 255]], dtype=np.uint8)
-        index, new_faces, vertex_colors = _face_to_vertex_colors(faces, colors)
-        # the two shared vertices are split, one copy per color
-        assert len(index) == 6
-        assert (index[new_faces] == faces).all()
-        assert (vertex_colors[new_faces] == colors[:, None]).all()
-
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

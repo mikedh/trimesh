@@ -559,9 +559,12 @@ class Scene(Geometry3D):
         """
         # get the area of every geometry that has a volume attribute
         volume = {n: g.volume for n, g in self.geometry.items() if hasattr(g, "volume")}
-        # sum the area including instancing
-        return sum(
-            (volume.get(self.graph[n][1], 0.0) for n in self.graph.nodes_geometry), 0.0
+        # sum the volume including instancing
+        return float64(
+            sum(
+                (volume.get(self.graph[n][1], 0.0) for n in self.graph.nodes_geometry),
+                0.0,
+            )
         )
 
     @caching.cache_decorator

@@ -82,7 +82,8 @@ mesh.moment_inertia
 # if there are multiple bodies in the mesh we can split the mesh by
 # connected components of face adjacency
 # by default only the watertight bodies are returned: two of the truck's 272
-mesh.split()
+# share the texture between pieces rather than copying the 8k image 272 times
+mesh.split(copy_material=False)
 
 # facets are groups of coplanar adjacent faces
 # set each facet to a random color

@@ -26,11 +26,6 @@ from ..visual.color import color_to_uv
 from ..visual.material import SimpleMaterial, pack
 from ..visual.texture import TextureVisuals
 
-# how far outside 0.0-1.0 a UV may be, as a fraction of the image, and
-# still be clipped into an atlas: exporters leave edges a hair outside
-# (SolidWorks wrote -0.003), while a tiled texture is far outside
-_UV_TOLERANCE = 1e-2
-
 
 def load_3DXML(file_obj, *args, **kwargs):
     """
@@ -245,10 +240,10 @@ def load_3DXML(file_obj, *args, **kwargs):
                             for i in face.attrib["strips"].split(",")
                         ]
                         # convert strips to (m, 3) int triangles
-                        triangles.extend(util.triangle_strips_to_faces(strips))
+                        triangles.append(util.triangle_strips_to_faces(strips))
 
                     if "triangles" in face.attrib:
-                        triangles.extend(
+                        triangles.append(
                             np.fromstring(
                                 face.attrib["triangles"], sep=" ", dtype=np.int64
                             ).reshape((-1, 3))
@@ -260,9 +255,10 @@ def load_3DXML(file_obj, *args, **kwargs):
                             for i in face.attrib["fans"].split(",")
                         ]
                         # convert fans to (m, 3) int triangles
-                        triangles.extend(util.triangle_fans_to_faces(fans))
+                        triangles.append(util.triangle_fans_to_faces(fans))
 
                     rep_faces.extend(triangles)
+                    count = sum(len(t) for t in triangles)
 
                     # store the material information as (m, 3) uint8 FACE COLORS
                     faceColor = colors.get(material_id, [128, 128, 128])
@@ -270,18 +266,23 @@ def load_3DXML(file_obj, *args, **kwargs):
                     colorElement = face.find("{*}SurfaceAttributes/{*}Color")
                     if colorElement is not None:
                         faceColor = get_rgba(colorElement)[:3]
-                    rep_colors.append(np.tile(faceColor, (len(triangles), 1)))
-            mesh_faces.append(np.reshape(rep_faces, (-1, 3)).astype(np.int64))
+                    rep_colors.append(np.tile(faceColor, (count, 1)))
+            # stack the (m, 3) chunks of this Rep into one array each
+            mesh_faces.append(
+                util.vstack_empty(rep_faces).reshape((-1, 3)).astype(np.int64, copy=False)
+            )
             mesh_colors.append(
-                np.vstack(rep_colors).astype(np.uint8)
-                if rep_colors
-                else np.zeros((0, 3), dtype=np.uint8)
+                util.vstack_empty(rep_colors).reshape((-1, 3)).astype(np.uint8)
             )
 
         # save each mesh as the kwargs for a trimesh.Trimesh constructor
         # aka, a Trimesh object can be created with trimesh.Trimesh(**mesh)
         # this avoids needing trimesh- specific imports in this IO function
         mesh = {}
+        # how far outside 0.0-1.0 a UV may be, as a fraction of the image,
+        # and still be clipped into an atlas: exporters leave edges a hair
+        # outside (SolidWorks wrote -0.003), while a tiled texture is far outside
+        uv_tolerance = 1e-2
         # a Rep is textured when it carries both UVs and an image
         textured = [
             uv is not None and image is not None for uv, image in zip(mesh_uv, rep_images)
@@ -291,7 +292,7 @@ def load_3DXML(file_obj, *args, **kwargs):
             # which keeps any tiling (UVs outside 0.0-1.0) intact
             mesh["visual"] = TextureVisuals(uv=np.vstack(mesh_uv), image=rep_images[0])
         elif any(textured) and all(
-            ((uv >= -_UV_TOLERANCE) & (uv <= 1.0 + _UV_TOLERANCE)).all()
+            ((uv >= -uv_tolerance) & (uv <= 1.0 + uv_tolerance)).all()
             for uv, is_textured in zip(mesh_uv, textured)
             if is_textured
         ):
@@ -308,13 +309,16 @@ def load_3DXML(file_obj, *args, **kwargs):
                     uvs.append(np.clip(mesh_uv[i], 0.0, 1.0))
                     continue
                 # a vertex shared by faces of different colors cannot
-                # carry one color, so split it per color
-                index, mesh_faces[i], vertex_colors = _face_to_vertex_colors(
-                    mesh_faces[i], mesh_colors[i]
-                )
+                # carry one color: give every face its own vertices and
+                # let the vertex merge after loading re-join the ones
+                # that share a position and a color
+                index = mesh_faces[i].reshape(-1)
                 mesh_vertices[i] = mesh_vertices[i][index]
                 mesh_normals[i] = mesh_normals[i][index]
-                material, uv = color_to_uv(vertex_colors=vertex_colors)
+                mesh_faces[i] = np.arange(len(index)).reshape((-1, 3))
+                material, uv = color_to_uv(
+                    vertex_colors=np.repeat(mesh_colors[i], 3, axis=0)
+                )
                 materials.append(material)
                 uvs.append(uv)
             material, uv = pack(materials=materials, uvs=uvs)
@@ -450,41 +454,6 @@ def load_3DXML(file_obj, *args, **kwargs):
     result = {"class": "Scene", "geometry": geom_final, "graph": graph_kwargs}
 
     return result
-
-
-def _face_to_vertex_colors(faces, face_colors):
-    """
-    Convert face colors to vertex colors, splitting every
-    vertex used by faces of more than one color.
-
-    Parameters
-    ------------
-    faces : (m, 3) int
-      Triangles referencing vertices
-    face_colors : (m, c) uint8
-      Color of each face
-
-    Returns
-    ------------
-    index : (p,) int
-      Original vertex of each new vertex
-    faces : (m, 3) int
-      Triangles referencing the new vertices
-    vertex_colors : (p, c) uint8
-      Color of each new vertex
-    """
-    # an id for the color of each face
-    _, color_id = np.unique(face_colors, axis=0, return_inverse=True)
-    color_id = color_id.reshape(-1)
-    # every (vertex, color) pair used by a face becomes one vertex
-    pairs = np.column_stack((faces.reshape(-1), np.repeat(color_id, 3)))
-    unique, inverse = np.unique(pairs, axis=0, return_inverse=True)
-    vertex_colors = face_colors[
-        np.repeat(np.arange(len(faces)), 3)[
-            np.unique(inverse.reshape(-1), return_index=True)[1]
-        ]
-    ]
-    return unique[:, 0], inverse.reshape((-1, 3)), vertex_colors
 
 
 def print_element(element):

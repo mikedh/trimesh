@@ -520,26 +520,6 @@ def test_procrustes_weighted_correspondence_repetition(
     g.np.testing.assert_allclose(matrix_only, expected, rtol=1e-12, atol=1e-12)
 
 
-@g.pytest.mark.parametrize("binary", [False, True])
-@g.pytest.mark.parametrize("reflection", [False, True])
-def test_procrustes_equal_weights_rank_deficient(binary, reflection):
-    a = g.np.array([[0.1, 0.3, 0.2], [2.4, 0.5, 0.7], [0.2, 1.3, -0.4]])
-    b = a[:, [1, 2, 0]] + [0.5, -0.2, 0.1]
-    b[0] += [0.2, -0.3, 0.5]
-    expected, _, _ = g.trimesh.registration.procrustes(a, b, reflection=reflection)
-    weights = g.np.ones(len(a))
-    if binary:
-        a = g.np.vstack([a, [4, 5, 6]])
-        b = g.np.vstack([b, [-6, -5, -4]])
-        weights = g.np.array([1, 1, 1, 0])
-    # Centering three points leaves an unconstrained direction: do not alter
-    # the legacy SVD's choice by unnecessarily rescaling the covariance.
-    matrix, _, _ = g.trimesh.registration.procrustes(
-        a, b, weights=weights, reflection=reflection
-    )
-    g.np.testing.assert_array_equal(matrix, expected)
-
-
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

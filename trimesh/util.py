@@ -1634,6 +1634,7 @@ def submesh(
     only_watertight: bool = False,
     min_faces: Integer | None = None,
     append: bool = False,
+    copy_material: bool = True,
 ):
     """
     Return a subset of a mesh.
@@ -1653,6 +1654,9 @@ def submesh(
     append : bool
         Return a single mesh which has the faces appended,
         if this flag is set, only_watertight is ignored
+    copy_material
+        If False textured submeshes share the material with the
+        source mesh instead of copying its texture image.
 
     Returns
     ---------
@@ -1702,7 +1706,7 @@ def submesh(
         faces.append(mask[current])
         vertices.append(original_vertices[unique])
 
-        visuals.append(mesh.visual.face_subset(index))
+        visuals.append(mesh.visual.face_subset(index, copy_material=copy_material))
 
     if len(vertices) == 0:
         return []
