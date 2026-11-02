@@ -19,6 +19,30 @@ class VisualTest(g.unittest.TestCase):
         distances, _index = tree.query(check, k=1)
         assert distances.max() < 1e-8
 
+    def test_split_shares_texture(self):
+        # every piece of a split must reference the source image:
+        # a copy per piece runs out of memory on large textures
+        from PIL import Image
+
+        from trimesh.visual.material import PBRMaterial, SimpleMaterial
+
+        box = g.trimesh.creation.box()
+        m = g.trimesh.util.concatenate([box, box.copy().apply_translation([5, 0, 0])])
+        uv = g.np.random.default_rng(0).random((len(m.vertices), 2))
+        image = Image.new("RGBA", (64, 64))
+        for material, key in [
+            (SimpleMaterial(image=image), "image"),
+            (PBRMaterial(baseColorTexture=image), "baseColorTexture"),
+        ]:
+            m.visual = g.trimesh.visual.TextureVisuals(uv=uv, material=material)
+            parts = m.split(only_watertight=False)
+            assert len(parts) == 2
+            for p in parts:
+                assert getattr(p.visual.material, key) is image
+                # each vertex of a piece keeps the UV of its source vertex
+                _, index = g.spatial.cKDTree(m.vertices).query(p.vertices)
+                assert g.np.allclose(p.visual.uv, uv[index])
+
     def test_face_subset_color_visuals(self):
         import trimesh
 

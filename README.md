@@ -81,12 +81,14 @@ mesh.moment_inertia
 
 # if there are multiple bodies in the mesh we can split the mesh by
 # connected components of face adjacency
-# since this example mesh is a single watertight body we get a list of one mesh
+# by default only the watertight bodies are returned: two of the truck's 272
 mesh.split()
 
 # facets are groups of coplanar adjacent faces
 # set each facet to a random color
 # colors are 8 bit RGBA by default (n, 4) np.uint8
+# the truck is textured, so convert its texture to colors first
+mesh.visual = mesh.visual.to_color()
 for facet in mesh.facets:
     mesh.visual.face_colors[facet] = trimesh.visual.random_color()
 
