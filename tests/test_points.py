@@ -76,6 +76,21 @@ def test_empty():
     assert not p.is_empty
 
 
+def test_normals_small_pointcloud():
+    points = g.np.array([[0, 0, 2], [1, 0, 2], [0, 1, 2], [1, 1, 2]])
+    cloud = g.trimesh.PointCloud(points)
+    for size in (3, 4, 30):
+        normals = cloud.estimate_normals(cluster_size=size)
+        assert normals.shape == points.shape
+        g.np.testing.assert_allclose(g.np.abs(normals[:, 2]), 1)
+        g.np.testing.assert_allclose(normals[:, :2], 0, atol=1e-12)
+    for count in (0, 1, 2):
+        with g.pytest.raises(ValueError, match="three neighbors"):
+            g.trimesh.PointCloud(points[:count]).estimate_normals()
+    with g.pytest.raises(ValueError, match="three neighbors"):
+        cloud.estimate_normals(cluster_size=2)
+
+
 def test_vertex_only():
     """
     Test to make sure we can instantiate a mesh with just

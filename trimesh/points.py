@@ -779,9 +779,12 @@ class PointCloud(Geometry3D):
 
         Parameters
         ------------
-        cluster_size : float
+        cluster_size : int
           Number of nearest neighbors for each point to compute normals from
         """
+        cluster_size = min(cluster_size, len(self.vertices))
+        if cluster_size < 3:
+            raise ValueError("At least three neighbors are required to estimate normals")
         _, indices = self.kdtree.query(self.vertices, k=cluster_size)
         points = self.vertices[indices]
         centroids = np.mean(points, axis=1, keepdims=True)
