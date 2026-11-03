@@ -82,13 +82,11 @@ def rle_to_brle(rle, dtype=None):
     """
     curr_val = 0
     out = [0]
-    acc = 0
     for value, count in np.reshape(rle, (-1, 2)):
-        acc += count
         if value not in (0, 1):
             raise ValueError("Invalid run length encoding for conversion to BRLE")
         if value == curr_val:
-            out[-1] += count
+            out[-1] += int(count)
         else:
             out.append(int(count))
             curr_val = value
@@ -131,7 +129,7 @@ def merge_brle_lengths(lengths):
     accumulating = False
     for length in lengths[1:]:
         if accumulating:
-            out[-1] += length
+            out[-1] += int(length)
             accumulating = False
         else:
             if length == 0:
@@ -310,7 +308,7 @@ def merge_rle_lengths(values, lengths):
         if length == 0:
             continue
         if value == curr:
-            ret_lengths[-1] += length
+            ret_lengths[-1] += int(length)
         else:
             curr = value
             ret_lengths.append(int(length))
