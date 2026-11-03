@@ -576,6 +576,10 @@ def points_to_barycentric(triangles, points, method="cramer"):
     w = points - triangles[:, 0].reshape((-1, dim))
 
     if method == "cross":
+        if dim == 2:
+            # Embed planar vectors in XY so cross products remain (n, 3).
+            edge_vectors = np.pad(edge_vectors, ((0, 0), (0, 0), (0, 1)))
+            w = np.pad(w, ((0, 0), (0, 1)))
         return method_cross()
     return method_cramer()
 

@@ -6,6 +6,28 @@ except BaseException:
 from trimesh.triangles import barycentric_to_points, points_to_barycentric
 
 
+@g.pytest.mark.parametrize("dimension", [2, 3])
+@g.pytest.mark.parametrize("reverse_winding", [False, True])
+def test_barycentric_cross_dimensions(dimension, reverse_winding):
+    triangle = g.np.array([[2.0, -1.0], [6.0, 0.0], [3.0, 2.0]])
+    if reverse_winding:
+        triangle = triangle[::-1]
+    if dimension == 3:
+        triangle = g.np.column_stack((triangle, g.np.full(3, 5.0)))
+
+    # Vertices, an edge, the interior, and a point outside the triangle.
+    expected = g.np.array(
+        [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0.5, 0.5, 0], [0.2, 0.3, 0.5], [-1, 1, 1]]
+    )
+    points = expected @ triangle
+    triangles = g.np.tile(triangle, (len(points), 1, 1))
+
+    for method in ["cross", "cramer"]:
+        actual = points_to_barycentric(triangles, points, method=method)
+        g.np.testing.assert_allclose(actual, expected, atol=1e-14)
+        g.np.testing.assert_allclose(barycentric_to_points(triangles, actual), points)
+
+
 class TrianglesTest(g.unittest.TestCase):
     def test_barycentric(self):
         for m in g.get_meshes(4):
