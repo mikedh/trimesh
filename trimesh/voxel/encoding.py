@@ -505,7 +505,13 @@ class RunLengthEncoding(Encoding):
 
     @caching.cache_decorator
     def sum(self):
-        return (self._data[::2] * self._data[1::2]).sum()
+        values = self._data[::2].astype(self._dtype, copy=False)
+        result_dtype = np.asarray(values[:0].sum()).dtype
+        dtype = np.float32 if result_dtype == np.float16 else result_dtype
+        result = (
+            values.astype(dtype, copy=False) * self._data[1::2].astype(dtype, copy=False)
+        ).sum()
+        return result.astype(result_dtype)
 
     @caching.cache_decorator
     def size(self):

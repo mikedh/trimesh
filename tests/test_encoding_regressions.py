@@ -47,3 +47,21 @@ def test_run_length_factories_infer_default_storage(dtype):
         enc.BinaryRunLengthEncoding.from_rle(rle),
     ):
         np.testing.assert_array_equal(result.dense, expected)
+
+
+@pytest.mark.parametrize(
+    "runs,storage_dtype,value_dtype",
+    [
+        ([200, 2, 100, 3], np.uint8, np.uint8),
+        ([100, 3, -50, 2], np.int8, np.int8),
+        ([2, 3, 0, 2], np.int64, bool),
+        ([10000, 10, -10000, 10], np.int64, np.float16),
+    ],
+)
+def test_run_length_sum_uses_dense_arithmetic(runs, storage_dtype, value_dtype):
+    encoded = enc.RunLengthEncoding(
+        np.array(runs, dtype=storage_dtype), dtype=value_dtype
+    )
+    expected = encoded.dense.sum()
+    assert encoded.sum == expected
+    assert encoded.sum.dtype == expected.dtype
