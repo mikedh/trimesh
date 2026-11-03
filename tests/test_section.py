@@ -537,20 +537,64 @@ def test_slice_cap_classification_boundary(engine):
 @g.pytest.mark.parametrize("engine", ["earcut", "triangle"])
 def test_slice_cap_topology_controls(engine):
     g.pytest.importorskip("mapbox_earcut" if engine == "earcut" else "triangle")
-    # An annular cap must preserve its hole, rather than filling the center.
-    mesh = g.trimesh.creation.annulus(r_min=0.3, r_max=1.0, height=2.0)
-    capped = mesh.slice_plane([0, 0, 0], [0, 0, 1], cap=True, engine=engine)
-    assert capped.is_volume
-    assert capped.is_watertight
-    assert capped.euler_number == 0
-    assert g.np.isclose(capped.volume, mesh.volume / 2)
-    uncapped = mesh.slice_plane([0, 0, 0], [0, 0, 1], cap=False)
-    assert not uncapped.is_watertight
+    # A middle layer isolates hole preservation from unrelated triangulation
+    # sensitivity to collinear boundary points introduced by crossing side faces.
+    ring = g.np.array(
+        [
+            [-1, -1],
+            [1, -1],
+            [1, 1],
+            [-1, 1],
+            [-0.5, -0.5],
+            [0.5, -0.5],
+            [0.5, 0.5],
+            [-0.5, 0.5],
+        ]
+    )
+    outer = g.np.arange(4)
+    following = (outer + 1) % 4
+    cap = g.np.vstack(
+        (
+            g.np.column_stack((outer, following, following + 4)),
+            g.np.column_stack((outer, following + 4, outer + 4)),
+        )
+    )
+    vertices = g.np.vstack(
+        [g.np.column_stack((ring, g.np.full(8, z))) for z in [-1.0, 0.0, 1.0]]
+    )
+    first = g.np.array([0, 1, 2, 3, 5, 4, 7, 6])
+    second = g.np.array([1, 2, 3, 0, 4, 7, 6, 5])
+    sides = g.np.vstack(
+        (
+            g.np.column_stack((first, second, second + 8)),
+            g.np.column_stack((first, second + 8, first + 8)),
+        )
+    )
+    faces = g.np.vstack((cap[:, ::-1], cap + 16, sides, sides + 8))
+    mesh = g.trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
+    assert mesh.is_volume
+    assert mesh.volume == 6.0
+    hole = g.Polygon(ring[4:])
+    for sign in [-1, 1]:
+        capped = mesh.slice_plane([0, 0, 0], [0, 0, sign], cap=True, engine=engine)
+        assert capped.is_volume
+        assert capped.is_watertight
+        assert capped.is_winding_consistent
+        assert capped.euler_number == 0
+        assert (g.np.bincount(capped.edges_unique_inverse) == 2).all()
+        assert capped.volume == 3.0
+        cap_faces = (capped.triangles[:, :, 2] == 0.0).all(axis=1)
+        assert capped.area_faces[cap_faces].sum() == 3.0
+        assert (capped.face_normals[cap_faces, 2] * sign < 0).all()
+        for triangle in capped.triangles[cap_faces]:
+            assert g.Polygon(triangle[:, :2]).intersection(hole).area == 0.0
+        uncapped = mesh.slice_plane([0, 0, 0], [0, 0, sign], cap=False)
+        assert not uncapped.is_watertight
     # No-contact cuts keep the original solid or remove it entirely.
     kept = mesh.slice_plane([0, 0, 2], [0, 0, -1], cap=True, engine=engine)
     removed = mesh.slice_plane([0, 0, 2], [0, 0, 1], cap=True, engine=engine)
     assert kept.is_volume
-    assert g.np.isclose(kept.volume, mesh.volume)
+    assert kept.volume == 6.0
     assert len(removed.faces) == 0
 
 
