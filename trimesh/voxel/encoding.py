@@ -481,12 +481,14 @@ class RunLengthEncoding(Encoding):
 
     @staticmethod
     def from_rle(rle_data, dtype=None):
-        if dtype != rle_data.dtype:
+        if dtype is not None and dtype != rle_data.dtype:
             rle_data = runlength.rle_to_rle(rle_data, dtype=dtype)
         return RunLengthEncoding(rle_data)
 
     @staticmethod
     def from_brle(brle_data, dtype=None):
+        if dtype is None:
+            dtype = np.asarray(brle_data).dtype
         return RunLengthEncoding(runlength.brle_to_rle(brle_data, dtype=dtype))
 
     @caching.cache_decorator
@@ -590,7 +592,7 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
 
     @staticmethod
     def from_brle(brle_data, dtype=None):
-        if dtype != brle_data.dtype:
+        if dtype is not None and dtype != brle_data.dtype:
             brle_data = runlength.brle_to_brle(brle_data, dtype=dtype)
         return BinaryRunLengthEncoding(brle_data)
 

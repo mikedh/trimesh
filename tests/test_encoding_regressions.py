@@ -33,3 +33,17 @@ def test_run_length_flip_preserves_value_dtype(dtype):
     assert flipped.dtype == np.dtype(dtype)
     assert flipped.dense.dtype == np.dtype(dtype)
     np.testing.assert_array_equal(flipped.dense, data[::-1])
+
+
+@pytest.mark.parametrize("dtype", [np.uint8, np.int64])
+def test_run_length_factories_infer_default_storage(dtype):
+    rle = np.array([0, 2, 1, 3], dtype=dtype)
+    brle = np.array([2, 3], dtype=dtype)
+    expected = [0, 0, 1, 1, 1]
+    for result in (
+        enc.RunLengthEncoding.from_rle(rle),
+        enc.RunLengthEncoding.from_brle(brle),
+        enc.BinaryRunLengthEncoding.from_brle(brle),
+        enc.BinaryRunLengthEncoding.from_rle(rle),
+    ):
+        np.testing.assert_array_equal(result.dense, expected)
