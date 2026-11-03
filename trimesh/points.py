@@ -49,8 +49,9 @@ def point_plane_distance(points, plane_normal, plane_origin=None):
 
 def major_axis(points):
     """
-    Returns an approximate vector representing the major
-    axis of the passed points.
+    Return the dominant principal axis of a point cloud.
+
+    The points are centered so the axis is independent of translation.
 
     Parameters
     -------------
@@ -60,11 +61,15 @@ def major_axis(points):
     Returns
     -------------
     axis : (dimension,) float
-      Vector along approximate major axis
+      Unit vector along the direction of greatest variance.
+      The sign is arbitrary. Coincident points return a zero vector.
     """
-    _U, S, V = np.linalg.svd(points)
-    axis = util.unitize(np.dot(S, V))
-    return axis
+    points = np.asarray(points, dtype=float64)
+    centered = points - points.mean(axis=0)
+    _, singular, vectors = np.linalg.svd(centered, full_matrices=False)
+    if singular[0] == 0.0:
+        return np.zeros(points.shape[1], dtype=float64)
+    return vectors[0]
 
 
 def plane_fit(points):

@@ -140,6 +140,41 @@ def test_plane():
             assert g.np.allclose(g.np.abs(cosines), g.np.ones_like(cosines))
 
 
+@g.pytest.mark.parametrize("dimension", [2, 3])
+@g.pytest.mark.parametrize("translated", [False, True])
+def test_major_axis(dimension, translated):
+    # The first coordinate has the largest spread, with nonzero spread in
+    # every other direction so mixing singular vectors cannot pass.
+    radii = g.np.array([3.0, 1.0, 0.5])[:dimension]
+    points = g.np.vstack((g.np.diag(radii), -g.np.diag(radii)))
+    rotation = g.tf.rotation_matrix(g.np.pi / 5, [0, 0, 1])[:dimension, :dimension]
+    points = points @ rotation.T
+    if translated:
+        points += g.np.array([10.0, -30.0, 20.0])[:dimension]
+    original = points.copy()
+
+    axis = g.trimesh.points.major_axis(points)
+
+    # Principal axes have arbitrary sign, but must align with the known
+    # longest direction and remain unchanged by the point-cloud offset.
+    assert axis.shape == (dimension,)
+    assert g.np.isclose(g.np.linalg.norm(axis), 1.0)
+    assert g.np.isclose(abs(g.np.dot(axis, rotation[:, 0])), 1.0)
+    assert g.np.array_equal(points, original)
+
+
+def test_major_axis_two_points():
+    points = [[1.0, 2.0, 3.0], [4.0, 6.0, 3.0]]
+    axis = g.trimesh.points.major_axis(points)
+    expected = g.np.array([3.0, 4.0, 0.0]) / 5.0
+    assert g.np.isclose(abs(g.np.dot(axis, expected)), 1.0)
+
+
+def test_major_axis_coincident_points():
+    axis = g.trimesh.points.major_axis(g.np.zeros((4, 3)))
+    assert g.np.array_equal(axis, g.np.zeros(3))
+
+
 def test_kmeans(cluster_count=5, points_per_cluster=100):
     """
     Test K-means clustering
