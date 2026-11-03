@@ -481,12 +481,14 @@ class RunLengthEncoding(Encoding):
 
     @staticmethod
     def from_rle(rle_data, dtype=None):
-        if dtype != rle_data.dtype:
+        if dtype is not None and dtype != rle_data.dtype:
             rle_data = runlength.rle_to_rle(rle_data, dtype=dtype)
         return RunLengthEncoding(rle_data)
 
     @staticmethod
     def from_brle(brle_data, dtype=None):
+        if dtype is None:
+            dtype = np.asarray(brle_data).dtype
         return RunLengthEncoding(runlength.brle_to_rle(brle_data, dtype=dtype))
 
     @caching.cache_decorator
@@ -503,7 +505,13 @@ class RunLengthEncoding(Encoding):
 
     @caching.cache_decorator
     def sum(self):
-        return (self._data[::2] * self._data[1::2]).sum()
+        values = self._data[::2].astype(self._dtype, copy=False)
+        result_dtype = np.asarray(values[:0].sum()).dtype
+        dtype = np.float32 if result_dtype == np.float16 else result_dtype
+        result = (
+            values.astype(dtype, copy=False) * self._data[1::2].astype(dtype, copy=False)
+        ).sum()
+        return result.astype(result_dtype)
 
     @caching.cache_decorator
     def size(self):
@@ -512,7 +520,7 @@ class RunLengthEncoding(Encoding):
     def _flip(self, axes):
         if axes != (0,):
             raise ValueError(f"encoding is 1D - cannot flip on axis {axes!s}")
-        return RunLengthEncoding(runlength.rle_reverse(self._data))
+        return RunLengthEncoding(runlength.rle_reverse(self._data), dtype=self._dtype)
 
     @caching.cache_decorator
     def sparse_components(self):
@@ -590,7 +598,7 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
 
     @staticmethod
     def from_brle(brle_data, dtype=None):
-        if dtype != brle_data.dtype:
+        if dtype is not None and dtype != brle_data.dtype:
             brle_data = runlength.brle_to_brle(brle_data, dtype=dtype)
         return BinaryRunLengthEncoding(brle_data)
 
@@ -598,7 +606,7 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
     def stripped(self):
         if self.is_empty:
             return _empty_stripped(self.shape)
-        data, padding = runlength.rle_strip(self._data)
+        data, padding = runlength.brle_strip(self._data)
         if padding == (0, 0):
             encoding = self
         else:
@@ -639,7 +647,7 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
         return runlength.brle_gather_1d(self._data, indices)
 
     def gather_nd(self, indices):
-        indices = np.squeeze(indices)
+        indices = np.squeeze(indices, axis=-1)
         return self.gather(indices)
 
     def sorted_gather(self, ordered_indices):
