@@ -232,7 +232,7 @@ def brle_to_dense(brle_data, vals=None):
         vals = np.asarray(vals)
         if vals.shape != (2,):
             raise ValueError(f"vals.shape must be (2,), got {vals.shape}")
-    ft = np.repeat(_ft[np.newaxis, :], (len(brle_data) + 1) // 2, axis=0).flatten()
+    ft = np.repeat(vals[np.newaxis, :], (len(brle_data) + 1) // 2, axis=0).flatten()
     return np.repeat(ft[: len(brle_data)], np.asarray(brle_data, dtype=int)).flatten()
 
 

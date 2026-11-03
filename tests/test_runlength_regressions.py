@@ -15,3 +15,11 @@ def test_binary_reverse_matches_dense(counts):
     np.testing.assert_array_equal(
         rl.brle_to_dense(rl.brle_reverse(reversed_counts)), rl.brle_to_dense(counts)
     )
+
+
+@pytest.mark.parametrize("values", [[7, 9], [1.5, -2.5], ["free", "occupied"]])
+def test_binary_decode_replacement_values(values):
+    values = np.asarray(values)
+    decoded = rl.brle_to_dense([2, 3, 1, 0], vals=values)
+    np.testing.assert_array_equal(decoded, values[[0, 0, 1, 1, 1, 0]])
+    assert decoded.dtype == values.dtype
