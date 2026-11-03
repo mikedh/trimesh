@@ -596,10 +596,10 @@ def brle_gather_1d(brle_data, indices):
 
 def brle_reverse(brle_data):
     """Equivalent to dense_to_brle(brle_to_dense(brle_data)[-1::-1])."""
+    brle_data = np.asanyarray(brle_data)
     if len(brle_data) % 2 == 0:
-        brle_data = np.concatenate([brle_data, [0]], axis=0)
-    end = -1 if brle_data[-1] == 0 else None
-    return brle_data[-1:end:-1]
+        brle_data = np.pad(brle_data, (0, 1))
+    return brle_data[::-1]
 
 
 def rle_reverse(rle_data):
