@@ -5,6 +5,16 @@ except BaseException:
 
 
 class IntervalTest(g.unittest.TestCase):
+    def test_intersection_broadcast(self):
+        interval = g.trimesh.interval.intersection
+        ranges = g.np.array([[0, 2], [3, 1], [4, 5], [8, 9]], dtype=float)
+        original = ranges.copy()
+        expected = g.np.array([[1, 2], [1, 3], [0, 0], [0, 0]])
+        g.np.testing.assert_array_equal(interval(ranges, [1, 4]), expected)
+        g.np.testing.assert_array_equal(interval([1, 4], ranges), expected)
+        g.np.testing.assert_array_equal(ranges, original)
+        assert interval(ranges[:0], [1, 4]).shape == (0, 2)
+
     def test_intersection(self):
         pairs = g.np.array(
             [

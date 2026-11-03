@@ -33,13 +33,14 @@ def intersection(a: ArrayLike, b: NDArray[float64]) -> NDArray[float64]:
     b = np.array(b, dtype=np.float64)
 
     # convert to vectorized form
-    is_1D = a.shape == (2,)
+    is_1D = a.shape == (2,) and b.shape == (2,)
     a = a.reshape((-1, 2))
     b = b.reshape((-1, 2))
 
     # make sure they're min-max
     a.sort(axis=1)
     b.sort(axis=1)
+    a, b = np.broadcast_arrays(a, b)
     a_low, a_high = a.T
     b_low, b_high = b.T
 
