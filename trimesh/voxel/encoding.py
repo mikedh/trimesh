@@ -598,7 +598,7 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
     def stripped(self):
         if self.is_empty:
             return _empty_stripped(self.shape)
-        data, padding = runlength.rle_strip(self._data)
+        data, padding = runlength.brle_strip(self._data)
         if padding == (0, 0):
             encoding = self
         else:
