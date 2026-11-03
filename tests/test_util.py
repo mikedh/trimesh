@@ -65,6 +65,32 @@ def test_jsonify():
     assert data["thing"].b == trip["thing"]["b"]
 
 
+@g.pytest.mark.parametrize("encoding", ["utf-8", "latin-1"])
+@g.pytest.mark.parametrize("count", [1, 2, 3, 8])
+def test_decode_byte_keys(encoding, count):
+    values = [object() for _ in range(count)]
+    store = {f"clé{i}".encode(encoding): value for i, value in enumerate(values)}
+    unchanged = {"plain": object(), 17: object()}
+    store.update(unchanged)
+    expected = {f"clé{i}": value for i, value in enumerate(values)}
+    expected.update(unchanged)
+
+    assert trimesh.util.decode_keys(store, encoding=encoding) is store
+    assert store == expected
+
+
+@g.pytest.mark.parametrize("encoding", ["base64", "binary"])
+def test_decode_array_byte_keys(encoding):
+    array = np.arange(12, dtype=np.int32).reshape(4, 3)
+    encoded = trimesh.util.array_to_encoded(array, encoding=encoding)
+    encoded = {key.encode("utf-8"): value for key, value in encoded.items()}
+
+    decoded = trimesh.util.encoded_to_array(encoded)
+    assert decoded.dtype == array.dtype
+    assert decoded.shape == array.shape
+    np.testing.assert_array_equal(decoded, array)
+
+
 def test_align():
     log.info("Testing vector alignment")
     target = np.array([0, 0, 1])

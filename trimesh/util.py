@@ -1327,7 +1327,7 @@ def decode_keys(store: dict[Any, Any], encoding: str = "utf-8") -> dict[str, Any
     In [2]: trimesh.util.decode_keys(d)
     Out[2]: {1020: 'nah', 'hi': 'stuff'}
     """
-    keys = store.keys()
+    keys = list(store)
     for key in keys:
         if hasattr(key, "decode"):
             decoded = key.decode(encoding)
