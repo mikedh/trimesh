@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+import pytest
 
 import trimesh
 
@@ -28,6 +29,52 @@ def test_unitize_multi():
 
     length = np.sum(vectors[1:] ** 2, axis=1) ** 0.5
     assert np.allclose(length, 1.0)
+
+
+@pytest.mark.parametrize(
+    "dtype, scale",
+    [
+        (np.int8, 20),
+        (np.uint8, 20),
+        (np.int16, 100),
+        (np.uint16, 100),
+        (np.int32, 10000),
+        (np.uint32, 20000),
+        (np.int64, 1000000000),
+        (np.uint64, 2000000000),
+    ],
+)
+def test_unitize_integer_vectors(dtype, scale):
+    vector = np.array([3 * scale, 4 * scale, 0], dtype=dtype)
+    original = vector.copy()
+
+    single = trimesh.unitize(vector)
+    batch, valid = trimesh.unitize(
+        np.vstack((vector, np.zeros(3, dtype=dtype))), check_valid=True
+    )
+
+    np.testing.assert_allclose(single, [0.6, 0.8, 0.0])
+    np.testing.assert_allclose(batch, [[0.6, 0.8, 0.0]])
+    np.testing.assert_array_equal(valid, [True, False])
+    np.testing.assert_array_equal(vector, original)
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_unitize_float_vectors_keep_dtype(dtype):
+    vector = np.array([3.0, 4.0, 0.0], dtype=dtype)
+
+    result = trimesh.unitize(vector)
+
+    assert result.dtype == vector.dtype
+    np.testing.assert_allclose(result, [0.6, 0.8, 0.0])
+
+
+def test_unitize_boolean_vectors():
+    vector = np.array([True, True, False])
+
+    result = trimesh.unitize(vector)
+
+    np.testing.assert_allclose(result, [2**-0.5, 2**-0.5, 0.0])
 
 
 def test_jsonify():

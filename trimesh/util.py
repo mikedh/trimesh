@@ -150,6 +150,9 @@ def unitize(
     """
     # make sure we have a numpy array
     vectors = np.asanyarray(vectors)
+    # integer products can overflow before the norm is computed
+    if vectors.dtype.kind in "biu":
+        vectors = vectors.astype(np.float64)
 
     # allow user to set zero threshold
     if threshold is None:
