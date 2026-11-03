@@ -485,6 +485,75 @@ class SliceTest(g.unittest.TestCase):
             assert g.np.isclose(dot.min(), 0.0)
 
 
+@g.pytest.mark.parametrize("engine", ["earcut", "triangle"])
+@g.pytest.mark.parametrize("scale", [0.01, 1.0, 100.0])
+@g.pytest.mark.parametrize("offset", [-0.5, 0.0, 0.5])
+@g.pytest.mark.parametrize("normal", [[1.0, -1.0, 7.0], [-1.0, 0.0, 1.0]])
+def test_slice_cap_near_vertex(scale, offset, normal, engine):
+    """Classified on-plane endpoints must not produce cracks in either cap."""
+    g.pytest.importorskip("mapbox_earcut" if engine == "earcut" else "triangle")
+    mesh = g.trimesh.creation.box(extents=[scale] * 3)
+    normal = g.trimesh.unitize(normal)
+    origin = mesh.vertices[0] + offset * g.tol.merge * normal
+    # Slicing already treats points within tol.merge as on the plane. The
+    # geometric bounds account for that existing classification uncertainty.
+    distance_bound = g.tol.merge + 32 * g.np.finfo(float).eps * scale
+    volume_bound = mesh.area * distance_bound
+    halves = []
+    original = mesh.vertices.copy()
+    for direction in [normal, -normal]:
+        sliced = mesh.slice_plane(origin, direction, cap=True, engine=engine)
+        assert sliced.is_watertight
+        assert sliced.is_winding_consistent
+        assert sliced.is_volume
+        assert sliced.euler_number == 2
+        assert (g.np.bincount(sliced.edges_unique_inverse) == 2).all()
+        assert (g.np.diff(g.np.sort(sliced.faces, axis=1), axis=1) > 0).all()
+        assert ((sliced.vertices - origin) @ direction >= -distance_bound).all()
+        halves.append(sliced)
+    assert abs(sum(s.volume for s in halves) - mesh.volume) <= volume_bound
+    g.np.testing.assert_array_equal(mesh.vertices, original)
+
+
+@g.pytest.mark.parametrize("engine", ["earcut", "triangle"])
+def test_slice_cap_classification_boundary(engine):
+    """A plane close to a box edge retains the same closed topology."""
+    g.pytest.importorskip("mapbox_earcut" if engine == "earcut" else "triangle")
+    mesh = g.trimesh.creation.box()
+    normal = g.np.array([-1.0, 0.0, 1.0])
+    for x in [0.0, 1e-9, 1e-8, 1e-7]:
+        origin = [x, 0.0, 0.0]
+        halves = [
+            mesh.slice_plane(origin, n, cap=True, engine=engine)
+            for n in [normal, -normal]
+        ]
+        for sliced in halves:
+            assert sliced.is_volume
+            assert sliced.is_watertight
+            assert sliced.euler_number == 2
+        assert g.np.isclose(sum(s.volume for s in halves), mesh.volume)
+
+
+@g.pytest.mark.parametrize("engine", ["earcut", "triangle"])
+def test_slice_cap_topology_controls(engine):
+    g.pytest.importorskip("mapbox_earcut" if engine == "earcut" else "triangle")
+    # An annular cap must preserve its hole, rather than filling the center.
+    mesh = g.trimesh.creation.annulus(r_min=0.3, r_max=1.0, height=2.0)
+    capped = mesh.slice_plane([0, 0, 0], [0, 0, 1], cap=True, engine=engine)
+    assert capped.is_volume
+    assert capped.is_watertight
+    assert capped.euler_number == 0
+    assert g.np.isclose(capped.volume, mesh.volume / 2)
+    uncapped = mesh.slice_plane([0, 0, 0], [0, 0, 1], cap=False)
+    assert not uncapped.is_watertight
+    # No-contact cuts keep the original solid or remove it entirely.
+    kept = mesh.slice_plane([0, 0, 2], [0, 0, -1], cap=True, engine=engine)
+    removed = mesh.slice_plane([0, 0, 2], [0, 0, 1], cap=True, engine=engine)
+    assert kept.is_volume
+    assert g.np.isclose(kept.volume, mesh.volume)
+    assert len(removed.faces) == 0
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -553,6 +553,12 @@ def slice_faces_plane(
     denom = np.dot(d, plane_normal)
     denom[denom == 0.0] = 1e-12  # prevent division by zero
     dist = np.divide(num, denom)
+    # Vertices classified on the plane must be reused as edge endpoints.
+    # Recomputing their intersections can create nearby, distinct vertices
+    # and leave cracks when the sliced boundary is capped.
+    cut_signs = signs[onedge]
+    dist[cut_signs == 0] = 0.0
+    dist[np.roll(cut_signs, -1, axis=1) == 0] = 1.0
     # intersection points for each segment
     int_points = dist[:, :, None] * d + o
 
