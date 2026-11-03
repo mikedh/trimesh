@@ -23,3 +23,13 @@ def test_binary_gather_nd_preserves_query_axis(indices):
     actual = binary.gather_nd(indices)
     np.testing.assert_array_equal(actual, data[indices[:, 0]])
     assert actual.shape == (len(indices),)
+
+
+@pytest.mark.parametrize("dtype", [bool, np.float32, np.int16])
+def test_run_length_flip_preserves_value_dtype(dtype):
+    data = np.array([0, 1, 1, 0, 0], dtype=dtype)
+    encoded = enc.RunLengthEncoding.from_dense(data, dtype=dtype)
+    flipped = encoded.flip(0)
+    assert flipped.dtype == np.dtype(dtype)
+    assert flipped.dense.dtype == np.dtype(dtype)
+    np.testing.assert_array_equal(flipped.dense, data[::-1])

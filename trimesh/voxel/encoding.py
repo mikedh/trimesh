@@ -512,7 +512,7 @@ class RunLengthEncoding(Encoding):
     def _flip(self, axes):
         if axes != (0,):
             raise ValueError(f"encoding is 1D - cannot flip on axis {axes!s}")
-        return RunLengthEncoding(runlength.rle_reverse(self._data))
+        return RunLengthEncoding(runlength.rle_reverse(self._data), dtype=self._dtype)
 
     @caching.cache_decorator
     def sparse_components(self):
