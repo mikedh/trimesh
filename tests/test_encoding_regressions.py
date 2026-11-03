@@ -13,3 +13,13 @@ def test_binary_stripped_matches_dense(data):
     np.testing.assert_array_equal(stripped.dense, expected.dense)
     np.testing.assert_array_equal(padding, expected_padding)
     np.testing.assert_array_equal(np.pad(stripped.dense, padding[0]), data)
+
+
+@pytest.mark.parametrize("indices", [[], [[1]], [[0], [1], [2]]])
+def test_binary_gather_nd_preserves_query_axis(indices):
+    data = np.array([False, True, False])
+    indices = np.asarray(indices, dtype=np.int64).reshape((-1, 1))
+    binary = enc.BinaryRunLengthEncoding.from_dense(data)
+    actual = binary.gather_nd(indices)
+    np.testing.assert_array_equal(actual, data[indices[:, 0]])
+    assert actual.shape == (len(indices),)

@@ -639,7 +639,7 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
         return runlength.brle_gather_1d(self._data, indices)
 
     def gather_nd(self, indices):
-        indices = np.squeeze(indices)
+        indices = np.squeeze(indices, axis=-1)
         return self.gather(indices)
 
     def sorted_gather(self, ordered_indices):
