@@ -64,11 +64,18 @@ class Camera:
         """
         Safely get a copy of the current camera.
         """
+        # only pass the intrinsic that was set so the copy
+        # keeps the same one fixed when the resolution changes
+        if self._focal_computed:
+            intrinsic = {"fov": copy.deepcopy(self.fov)}
+        else:
+            intrinsic = {"focal": copy.deepcopy(self.focal)}
         return Camera(
             name=copy.deepcopy(self.name),
             resolution=copy.deepcopy(self.resolution),
-            focal=copy.deepcopy(self.focal),
-            fov=copy.deepcopy(self.fov),
+            z_near=self.z_near,
+            z_far=self.z_far,
+            **intrinsic,
         )
 
     @property
@@ -246,7 +253,8 @@ class Camera:
         angles : (n, 2) float
           Ray spherical coordinate angles in radians.
         """
-        return np.arctan(-ray_pixel_coords(self))
+        xy, _pixels = ray_pixel_coords(self)
+        return np.arctan(-xy)
 
     def look_at(self, points, **kwargs):
         """
@@ -267,7 +275,23 @@ class Camera:
         Returns
         --------------
         transform : (4, 4) float
-          Transformation matrix from world to camera
+          Transformation matrix from camera to world coordinates.
+          Use its inverse to transform world points into camera coordinates.
+
+        Examples
+        --------
+        Transform the camera origin into world coordinates, and the world
+        origin into camera coordinates using the inverse pose.
+
+        >>> import numpy as np
+        >>> import trimesh
+        >>> camera = trimesh.scene.Camera(fov=(60, 45))
+        >>> pose = camera.look_at([[0, 0, 0]], distance=2.0)
+        >>> trimesh.transform_points([[0, 0, 0]], pose).tolist()
+        [[0.0, 0.0, 2.0]]
+        >>> world_to_camera = np.linalg.inv(pose)
+        >>> trimesh.transform_points([[0, 0, 0]], world_to_camera).tolist()
+        [[0.0, 0.0, -2.0]]
         """
         return look_at(points, fov=self.fov, **kwargs)
 
@@ -303,7 +327,8 @@ def look_at(points, fov, rotation=None, distance=None, center=None, pad=None):
     Returns
     --------------
     transform : (4, 4) float
-      Transformation matrix from world to camera
+      Transformation matrix from camera to world coordinates.
+      Use its inverse to transform world points into camera coordinates.
     """
 
     if rotation is None:

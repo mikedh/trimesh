@@ -259,6 +259,27 @@ def test_transform_return():
     assert isinstance(Box().apply_transform(g.transforms[0]), Box)
 
 
+def test_mirrored_scale():
+    # a uniform scale combined with a reflection has a negative
+    # determinant and should scale the primitive rather than raise
+    for p in generate_primitives():
+        if isinstance(p, g.trimesh.primitives.Extrusion):
+            # extrusions don't support scaling at all
+            continue
+        m = p.to_mesh()
+        p.apply_scale(-2.0)
+        m.apply_scale(-2.0)
+
+        # the stored transform should be a rigid reflection
+        assert g.tf.is_rigid(p.primitive.transform)
+        assert g.tf.flips_winding(p.primitive.transform)
+
+        mesh = p.to_mesh()
+        assert mesh.is_volume
+        assert g.np.isclose(mesh.volume, m.volume, rtol=1e-6)
+        assert g.np.allclose(p.bounds, m.bounds, atol=1e-6)
+
+
 def test_cyl_buffer():
     # test our inflation of cylinder primitives
     c = g.trimesh.primitives.Cylinder(
@@ -341,6 +362,28 @@ def test_copy():
         assert box.density == box_copy.density
         assert g.np.allclose(box.center_mass, box_copy.center_mass)
         assert box.metadata["foo"] == box_copy.metadata["foo"]
+
+
+@g.pytest.mark.parametrize(
+    "kind, attribute, value, override",
+    [
+        (Cylinder, "sections", 8, 12),
+        (Capsule, "sections", 8, 12),
+        (Sphere, "subdivisions", 1, 2),
+        (g.trimesh.primitives.Extrusion, "mid_plane", True, False),
+    ],
+)
+@g.pytest.mark.parametrize("mutable", [True, False])
+def test_copy_primitive_attributes(kind, attribute, value, override, mutable):
+    primitive = kind(**{attribute: value}, mutable=mutable)
+    copied = primitive.copy()
+    assert getattr(copied.primitive, attribute) == value
+    assert g.np.array_equal(primitive.faces, copied.faces)
+    assert g.np.allclose(primitive.vertices, copied.vertices, rtol=1e-12, atol=1e-12)
+    copied.primitive.transform = g.tf.translation_matrix([1, 2, 3])
+    assert g.np.array_equal(primitive.transform, g.np.eye(4))
+    overridden = primitive.copy(**{attribute: override})
+    assert getattr(overridden.primitive, attribute) == override
 
 
 def test_sphere_subdivisions():

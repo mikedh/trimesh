@@ -4,13 +4,13 @@ jupyter==1.1.1
 
 # get sphinx version range from furo install
 furo==2025.12.19
-myst-parser==5.0.0
-pyopenssl==26.0.0
+myst-parser==5.1.0
+pyopenssl==26.4.0
 autodocsumm==0.2.15
 jinja2==3.1.6
-matplotlib==3.10.8
-nbconvert==7.17.1
+matplotlib==3.11.2
+nbconvert==7.17.2
 
 # render the test-coverage report into the site
-coverage==7.14.1
+coverage==7.17.0
 

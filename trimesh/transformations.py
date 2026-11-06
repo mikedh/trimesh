@@ -2092,7 +2092,7 @@ def planar_matrix(offset=None, theta=None, point=None, scale=None):
     point :  (2, ) float
       Point to rotate around
     scale : (2,) float or None
-      Scale to apply
+      Scale to apply before the rotation and offset
 
     Returns
     ----------
@@ -2124,7 +2124,7 @@ def planar_matrix(offset=None, theta=None, point=None, scale=None):
     if scale is not None:
         S = np.eye(3)
         S[:2, :2] *= scale
-        T = np.dot(S, T)
+        T = np.dot(T, S)
 
     return T
 

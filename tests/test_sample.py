@@ -84,7 +84,7 @@ class SampleTest(g.unittest.TestCase):
         radii = g.np.linalg.norm(samples, axis=1)
         assert (radii < 1.00000001).all()
 
-    def sample_volume_rectangular(self):
+    def test_sample_volume_rectangular(self):
         # check to see if our OBB volume sampling runs
         m = g.get_mesh("rabbit.obj")
         obb = m.bounding_box_oriented

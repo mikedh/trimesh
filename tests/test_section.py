@@ -306,13 +306,23 @@ class SliceTest(g.unittest.TestCase):
             face_index=body_face_index,
         )
 
-        # Ideally we would assert that the triangles in `body_face_index` were
-        # sliced if they are on in front of side of the slicing plane, and the
-        # triangles not in `body_face_index` were preserved. This is easier to
-        # verify visually.
-        # sliced.show()
+        # faces not in `body_face_index` should be unchanged and the
+        # rest should match slicing them on their own as a submesh
+        cut = bunny.submesh([body_face_index], append=True).slice_plane(
+            plane_origin=slicing_plane_origin, plane_normal=slicing_plane_normal
+        )
+        expected = g.np.vstack((bunny.triangles[~body_face_mask], cut.triangles))
+        rows = g.trimesh.grouping.hashable_rows
+        assert g.np.array_equal(
+            g.np.sort(rows(sliced.triangles.reshape((-1, 9)))),
+            g.np.sort(rows(expected.reshape((-1, 9)))),
+        )
 
-        assert len(sliced.faces) > 0
+        # faces not in `face_index` should be kept even if on the plane
+        box = g.trimesh.creation.box()
+        top = box.face_normals[:, 2] > 0.5
+        sliced = box.slice_plane([0, 0, 0.5], [0, 0, 1], face_index=~top)
+        assert g.np.array_equal(sliced.triangles, box.triangles[top])
 
     def test_textured_mesh(self):
         # Create a plane mesh with UV == xy
