@@ -853,6 +853,80 @@ class GLTFTest(g.unittest.TestCase):
         # make sure the color vertex attributes survived the roundtrip
         assert g.np.allclose(r.visual.vertex_attributes["color"], colors)
 
+    def test_vertex_colors_unsigned_short(self):
+        # COLOR_0 stored as normalized UNSIGNED_SHORT should be
+        # rescaled to 0-255 rather than truncated modulo 256
+        # https://github.com/mikedh/trimesh/issues/2669
+        import base64
+        import json
+
+        vertices = g.np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=g.np.float32)
+        faces = g.np.array([0, 1, 2], dtype=g.np.uint32)
+        colors = g.np.array(
+            [[65535, 0, 30000, 65535], [65280, 1000, 513, 65535], [0, 300, 40000, 0]],
+            dtype=g.np.uint16,
+        )
+        blob = vertices.tobytes() + faces.tobytes() + colors.tobytes()
+        uri = "data:application/octet-stream;base64," + base64.b64encode(blob).decode(
+            "ascii"
+        )
+        header = {
+            "asset": {"version": "2.0"},
+            "scene": 0,
+            "scenes": [{"nodes": [0]}],
+            "nodes": [{"mesh": 0}],
+            "meshes": [
+                {
+                    "primitives": [
+                        {
+                            "attributes": {"POSITION": 0, "COLOR_0": 2},
+                            "indices": 1,
+                            "mode": 4,
+                        }
+                    ]
+                }
+            ],
+            "buffers": [{"byteLength": len(blob), "uri": uri}],
+            "bufferViews": [
+                {"buffer": 0, "byteOffset": 0, "byteLength": 36},
+                {"buffer": 0, "byteOffset": 36, "byteLength": 12},
+                {"buffer": 0, "byteOffset": 48, "byteLength": 24},
+            ],
+            "accessors": [
+                {
+                    "bufferView": 0,
+                    "componentType": 5126,
+                    "count": 3,
+                    "type": "VEC3",
+                    "min": [0, 0, 0],
+                    "max": [1, 1, 0],
+                },
+                {
+                    "bufferView": 1,
+                    "componentType": 5125,
+                    "count": 3,
+                    "type": "SCALAR",
+                },
+                {
+                    "bufferView": 2,
+                    "componentType": 5123,
+                    "normalized": True,
+                    "count": 3,
+                    "type": "VEC4",
+                },
+            ],
+        }
+
+        scene = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(json.dumps(header).encode("utf-8")),
+            file_type="gltf",
+        )
+        mesh = next(iter(scene.geometry.values()))
+
+        expected = g.np.round(colors / 257.0).astype(g.np.uint8)
+        assert mesh.visual.kind == "vertex"
+        assert g.np.array_equal(mesh.visual.vertex_colors, expected)
+
     def test_vertex_colors_import(self):
         # get a mesh with face colors
         m = g.get_mesh("cubevc.glb")
