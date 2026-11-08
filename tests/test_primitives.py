@@ -399,5 +399,37 @@ def test_capsule_sections():
     assert g.np.allclose(moved.vertices - unmoved.vertices, [1.0, 2.0, 3.0])
 
 
+def test_copy_keeps_resolution():
+    # `Primitive.copy` should keep non-default mesh resolution
+    # and mid-plane settings rather than resetting them
+    # https://github.com/mikedh/trimesh/issues/2613
+    from shapely.geometry import Point
+
+    primitives = [
+        g.trimesh.primitives.Cylinder(radius=1.0, height=2.0, sections=7),
+        g.trimesh.primitives.Capsule(radius=1.0, height=2.0, sections=9),
+        g.trimesh.primitives.Sphere(radius=1.0, subdivisions=1),
+        g.trimesh.primitives.Extrusion(
+            polygon=Point([0, 0]).buffer(1.0), height=2.0, mid_plane=True
+        ),
+    ]
+    for p in primitives:
+        c = p.copy()
+        for key in p.primitive._defaults.keys():
+            if key == "polygon":
+                assert c.primitive.polygon.equals(p.primitive.polygon)
+            else:
+                assert g.np.allclose(
+                    getattr(c.primitive, key), getattr(p.primitive, key)
+                ), key
+        # the copied mesh should match the original
+        assert c.faces.shape == p.faces.shape
+        assert g.np.allclose(c.vertices, p.vertices)
+
+    # attributes passed to `copy` should still take precedence
+    cylinder = g.trimesh.primitives.Cylinder(sections=7)
+    assert cylinder.copy(sections=12).primitive.sections == 12
+
+
 if __name__ == "__main__":
     test_extrude_midplane()

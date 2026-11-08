@@ -136,6 +136,12 @@ class Primitive(Trimesh):
         kwargs.update(self.to_dict())
         # remove the type indicator, i.e. `Cylinder`
         kwargs.pop("kind")
+        # `to_dict` only holds what the JSON schema covers, so carry
+        # over the remaining attributes like `sections`, `subdivisions`
+        # or `mid_plane` unless they were passed explicitly
+        for key in self.primitive._defaults.keys():
+            if key not in kwargs:
+                kwargs[key] = getattr(self.primitive, key)
         # create a new object with kwargs
         primitive_copy = type(self)(**kwargs)
 
