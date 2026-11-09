@@ -27,6 +27,16 @@ def test_linear_srgb():
     assert g.np.allclose(roundtrip, original)
 
 
+def test_rgba_integer():
+    from trimesh.visual.color import to_rgba
+
+    for dtype in [g.np.uint8, g.np.uint16, g.np.uint32]:
+        half = g.np.iinfo(dtype).max // 2
+
+        check = to_rgba(g.np.array([half, half, half], dtype=dtype))
+        assert g.np.allclose(check, [127, 127, 127, 255], atol=1), check
+
+
 def test_visual():
     mesh = g.get_mesh("featuretype.STL")
 
@@ -464,3 +474,4 @@ if __name__ == "__main__":
     # test_to_rgba_float()
     # test_interpolate()
     test_linear_srgb()
+    test_rgba_integer()

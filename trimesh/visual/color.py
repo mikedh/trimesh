@@ -621,6 +621,15 @@ def to_rgba(colors: Any, dtype: DTypeLike = np.uint8) -> NDArray:
         # before the `astype` on the return
         if dtype.kind in "iu":
             colors = colors.round()
+    elif colors.dtype.kind in "iu" and dtype != colors.dtype:
+        # integer colors, but they need to be rescaled
+        scale = opaque / float(np.iinfo(colors.dtype).max)
+
+        # do the scaling as floats with rounding
+        # would this be faster with a big integer intermediate
+        # probably but then we'd have to be careful to not
+        # overflow a large intermediate vector
+        colors = (colors.astype(np.float64) * scale).round().astype(dtype)
 
     if util.is_shape(colors, (-1, 3)):
         # add an opaque alpha for RGB colors
