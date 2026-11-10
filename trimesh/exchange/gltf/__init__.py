@@ -1000,13 +1000,8 @@ def _append_mesh(
         if not key.startswith("_"):
             key = "_" + key
 
-        # GLTF has no floating point type larger than 32 bits so clip
-        # any float64 or larger to float32
-        if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
-            data = attrib.astype(float32)
-        else:
-            # force little-endian to match GLTF binary format
-            data = attrib.astype(attrib.dtype.newbyteorder("<"), copy=False)
+        # cast to a dtype GLTF can store in little-endian
+        data = _attribute_cast(attrib)
 
         if len(data.shape) == 1:
             data = data[:, np.newaxis]
@@ -1080,6 +1075,47 @@ def _build_views(buffer_items):
         assert (len(current_item) % 4) == 0
         current_pos += len(current_item)
     return views
+
+
+def _attribute_cast(array: NDArray) -> NDArray:
+    """
+    Cast a custom attribute to a little-endian dtype GLTF can store.
+
+    GLTF has no floating point type larger than 32 bits, no 64 bit
+    integers, no signed 32 bit integers and no booleans. Integers are
+    stored in the smallest supported type that holds their values and
+    fall back to float32 if none does.
+
+    Parameters
+    -----------
+    array : (n,) or (n, d) array
+      Custom attribute data.
+
+    Returns
+    ----------
+    cast : (n,) or (n, d) array
+      Same data with a dtype GLTF supports.
+    """
+    little = array.dtype.newbyteorder("<")
+    if little.str[1:] in _dtypes_lookup:
+        # already supported so only force little-endian
+        return array.astype(little, copy=False)
+
+    if array.dtype.kind == "f":
+        return array.astype(float32)
+    if array.dtype.kind == "b":
+        return array.astype(np.uint8)
+    if array.dtype.kind in "iu":
+        if array.size == 0:
+            return array.astype(np.uint8)
+        low, high = array.min(), array.max()
+        for name in ("u1", "i1", "u2", "i2", "u4"):
+            info = np.iinfo(name)
+            if low >= info.min and high <= info.max:
+                return array.astype("<" + name)
+        log.warning("integer attribute out of GLTF range, casting to float32")
+        return array.astype(float32)
+    return array
 
 
 def _build_accessor(array):
@@ -1248,13 +1284,8 @@ def _append_path(path, name, tree, buffer_items):
         if not key.startswith("_"):
             key = "_" + key
 
-        # GLTF has no floating point type larger than 32 bits so clip
-        # any float64 or larger to float32
-        if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
-            data = attrib.astype(float32)
-        else:
-            # force little-endian to match GLTF binary format
-            data = attrib.astype(attrib.dtype.newbyteorder("<"), copy=False)
+        # cast to a dtype GLTF can store in little-endian
+        data = _attribute_cast(attrib)
 
         if not all(util.is_instance_named(e, "Line") for e in path.entities):
             log.warning(
