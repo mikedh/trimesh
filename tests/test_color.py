@@ -37,6 +37,18 @@ def test_rgba_integer():
         assert g.np.allclose(check, [127, 127, 127, 255], atol=1), check
 
 
+def test_rgba_signed_integer():
+    from trimesh.visual.color import to_rgba
+
+    # signed integers, including a default `np.array` or python list,
+    # are 0-255 values and shouldn't be rescaled by the dtype's range
+    for dtype in [g.np.int16, g.np.int32, g.np.int64]:
+        check = to_rgba(g.np.array([100, 50, 0, 255], dtype=dtype))
+        assert (check == [100, 50, 0, 255]).all(), check
+    assert (to_rgba([255, 0, 0]) == [255, 0, 0, 255]).all()
+    assert (to_rgba([[255, 0, 0, 128]]) == [[255, 0, 0, 128]]).all()
+
+
 def test_visual():
     mesh = g.get_mesh("featuretype.STL")
 
