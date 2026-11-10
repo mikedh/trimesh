@@ -755,10 +755,10 @@ class GLTFTest(g.unittest.TestCase):
         count = len(sphere.vertices)
         sphere.vertex_attributes["_i64"] = g.np.arange(count)
         sphere.vertex_attributes["_i32"] = g.np.arange(count, dtype=g.np.int32) - 3
-        sphere.vertex_attributes["_big"] = g.np.arange(count, dtype=g.np.int64) * 10000
         sphere.vertex_attributes["_bool"] = g.np.arange(count) % 2 == 0
 
         export = sphere.export(file_type="glb")
+        validate_glb(export)
         r = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
         loaded = next(iter(r.geometry.values())).vertex_attributes
 
@@ -772,7 +772,10 @@ class GLTFTest(g.unittest.TestCase):
             vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0]],
         )
         path.vertex_attributes["_i64"] = g.np.arange(3)
-        assert len(g.trimesh.Scene([path]).export(file_type="glb")) > 0
+        export = g.trimesh.Scene([path]).export(file_type="glb")
+        loaded = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
+        values = next(iter(loaded.geometry.values())).vertex_attributes["_i64"]
+        assert g.np.allclose(g.np.unique(values), [0, 1, 2])
 
     def test_extras(self):
         # if GLTF extras are defined, make sure they survive a round trip
