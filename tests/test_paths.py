@@ -456,6 +456,18 @@ def test_path_dict_export():
     assert g.np.isclose(rt.area, path.area)
 
 
+def test_curve_bounds():
+    # the bounds of a curve should not be the control polygon
+    vertices = g.np.array([[0, 0], [0, 1], [1, 1], [1, 0]], dtype=g.np.float64)
+    path = g.trimesh.path.Path2D(
+        entities=[g.trimesh.path.entities.Bezier([0, 1, 2, 3])], vertices=vertices
+    )
+    discrete = path.entities[0].discrete(path.vertices)
+    assert g.np.allclose(path.bounds, [discrete.min(axis=0), discrete.max(axis=0)])
+    # a cubic bezier with this control polygon peaks at y=0.75
+    assert g.np.isclose(path.bounds[1][1], 0.75, atol=1e-3)
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     # g.unittest.main()

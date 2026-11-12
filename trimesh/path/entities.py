@@ -750,6 +750,24 @@ class Curve(Entity):
         mid = self.points[len(self.points) // 2]
         return [[self.points[0], mid], [mid, self.points[-1]]]
 
+    def bounds(self, vertices):
+        """
+        Return the AABB of the curve, which is tighter than the
+        control points as the curve does not reach the control hull.
+
+        Parameters
+        -----------
+        vertices : (n, dimension) float
+          Vertices in space
+
+        Returns
+        -----------
+        bounds : (2, dimension) float
+          Coordinates of AABB, in (min, max) form
+        """
+        discrete = self.discrete(vertices)
+        return np.array([discrete.min(axis=0), discrete.max(axis=0)])
+
 
 class Bezier(Curve):
     """
