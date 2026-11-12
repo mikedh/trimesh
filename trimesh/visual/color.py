@@ -621,8 +621,10 @@ def to_rgba(colors: Any, dtype: DTypeLike = np.uint8) -> NDArray:
         # before the `astype` on the return
         if dtype.kind in "iu":
             colors = colors.round()
-    elif colors.dtype.kind in "iu" and dtype != colors.dtype:
-        # integer colors, but they need to be rescaled
+    elif colors.dtype.kind == "u" and dtype != colors.dtype:
+        # unsigned integer colors, but they need to be rescaled
+        # signed integers (i.e. a default `np.array([255, 0, 0])`)
+        # have no normalized range so they are passed through
         scale = opaque / float(np.iinfo(colors.dtype).max)
 
         # do the scaling as floats with rounding
