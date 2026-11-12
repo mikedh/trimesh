@@ -1000,13 +1000,8 @@ def _append_mesh(
         if not key.startswith("_"):
             key = "_" + key
 
-        # GLTF has no floating point type larger than 32 bits so clip
-        # any float64 or larger to float32
-        if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
-            data = attrib.astype(float32)
-        else:
-            # force little-endian to match GLTF binary format
-            data = attrib.astype(attrib.dtype.newbyteorder("<"), copy=False)
+        # cast to a dtype GLTF can store in little-endian
+        data = _attribute_cast(attrib)
 
         if len(data.shape) == 1:
             data = data[:, np.newaxis]
@@ -1080,6 +1075,29 @@ def _build_views(buffer_items):
         assert (len(current_item) % 4) == 0
         current_pos += len(current_item)
     return views
+
+
+def _attribute_cast(array: NDArray) -> NDArray:
+    """
+    Cast a custom attribute to a little-endian dtype GLTF can store.
+
+    GLTF has no 64 bit types, signed 32 bit integers or booleans
+    so anything without a GLTF component type is cast to float32.
+
+    Parameters
+    -----------
+    array : (n,) or (n, d) array
+      Custom attribute data.
+
+    Returns
+    ----------
+    cast : (n,) or (n, d) array
+      Same data with a dtype GLTF supports.
+    """
+    little = array.dtype.newbyteorder("<")
+    if little.str[1:] in _dtypes_lookup:
+        return array.astype(little, copy=False)
+    return array.astype(float32)
 
 
 def _build_accessor(array):
@@ -1248,13 +1266,8 @@ def _append_path(path, name, tree, buffer_items):
         if not key.startswith("_"):
             key = "_" + key
 
-        # GLTF has no floating point type larger than 32 bits so clip
-        # any float64 or larger to float32
-        if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
-            data = attrib.astype(float32)
-        else:
-            # force little-endian to match GLTF binary format
-            data = attrib.astype(attrib.dtype.newbyteorder("<"), copy=False)
+        # cast to a dtype GLTF can store in little-endian
+        data = _attribute_cast(attrib)
 
         if not all(util.is_instance_named(e, "Line") for e in path.entities):
             log.warning(
