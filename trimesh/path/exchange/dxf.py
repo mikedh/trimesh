@@ -412,9 +412,10 @@ def convert_entities(blob, blob_raw=None, blocks=None, return_name=False):
             # offset its vertices to the current index
             entities[-1].points += len(vertices)
         # transform the block's vertices based on the entity settings
+        # DXF rotates counterclockwise, the opposite sign to `planar_matrix`
         vertices.extend(
             tf.transform_points(
-                cv, tf.planar_matrix(offset=offset, theta=np.radians(angle), scale=scale)
+                cv, tf.planar_matrix(offset=offset, theta=-np.radians(angle), scale=scale)
             )
         )
 

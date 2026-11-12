@@ -4,9 +4,55 @@ except BaseException:
     import generic as g
 
 import numpy as np
+import pytest
+
+
+@pytest.mark.parametrize("intrinsic", ["focal", "fov"])
+@pytest.mark.parametrize("cached", [False, True])
+def test_copy_intrinsics(intrinsic, cached):
+    camera = g.trimesh.scene.Camera(
+        name="camera", resolution=(320, 240), **{intrinsic: (60, 40)}
+    )
+    if cached:
+        # Copying should work whether derived intrinsics have been read or not.
+        _ = camera.focal, camera.fov
+    copied = camera.copy()
+    assert copied.name == camera.name
+    assert copied is not camera
+    np.testing.assert_allclose(copied.K, camera.K)
+
+    copied.resolution = (640, 480)
+    np.testing.assert_array_equal(camera.resolution, (320, 240))
+    camera.resolution = copied.resolution
+    # A copy must retain which intrinsic stays fixed when resolution changes.
+    np.testing.assert_allclose(copied.focal, camera.focal)
+    np.testing.assert_allclose(copied.fov, camera.fov)
+
+
+@pytest.mark.parametrize("scene", [False, True])
+def test_copy_clipping(scene):
+    camera = g.trimesh.scene.Camera(fov=(60, 40), z_near=0.5, z_far=5000)
+    copied = g.trimesh.Scene(camera=camera).copy().camera if scene else camera.copy()
+    assert copied.z_near == camera.z_near
+    assert copied.z_far == camera.z_far
+    copied.z_near = 1.0
+    assert camera.z_near == 0.5
 
 
 class CameraTests(g.unittest.TestCase):
+    def test_angles(self):
+        for resolution in [(1, 1), (4, 3), (7, 5)]:
+            camera = g.trimesh.scene.Camera(resolution=resolution, fov=(60, 45))
+            angles = camera.angles()
+            rays, pixels = camera.to_rays()
+
+            assert angles.shape == (np.prod(resolution), 2)
+            expected = np.arctan((camera.resolution / 2.0 - pixels - 0.5) / camera.focal)
+            np.testing.assert_allclose(angles, expected, atol=1e-15)
+            np.testing.assert_allclose(
+                np.tan(angles), rays[:, :2] / rays[:, 2:3], atol=1e-15
+            )
+
     def test_K(self):
         resolution = (320, 240)
         fov = (60, 40)

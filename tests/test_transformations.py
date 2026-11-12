@@ -189,6 +189,10 @@ class TransformTest(g.unittest.TestCase):
         planar = tr.planar_matrix(offset=[0, 0], theta=0.0)
         assert g.np.allclose(planar, g.np.eye(3))
 
+        # scale is applied before the offset so the offset is not scaled
+        planar = tr.planar_matrix(offset=[10, 0], theta=g.np.pi / 2, scale=[2, 3])
+        assert g.np.allclose(planar, [[0, 3, 10], [-2, 0, 0], [0, 0, 1]])
+
         as_3D = tr.planar_matrix_to_3D(g.np.eye(3))
         assert g.np.allclose(as_3D, g.np.eye(4))
 

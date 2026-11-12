@@ -22,6 +22,8 @@ import collections
 import json
 
 from .. import util
+from ..visual.color import color_to_uv
+from ..visual.material import SimpleMaterial, pack
 from ..visual.texture import TextureVisuals
 
 
@@ -165,7 +167,8 @@ def load_3DXML(file_obj, *args, **kwargs):
         mesh_normals = []
         mesh_vertices = []
         mesh_uv = []
-        mesh_image = None
+        # the texture image of each Rep, or None for a Rep without one
+        rep_images = []
 
         if part_file not in as_etree and part_file in archive:
             # the data is stored in some binary format
@@ -176,6 +179,7 @@ def load_3DXML(file_obj, *args, **kwargs):
         # the geometry is stored in a Rep
         for Rep in as_etree[part_file].iter("{*}Rep"):
             rep_faces = []  # faces sharing the same list of vertices
+            rep_colors = []  # (m, 3) uint8 color of each face in rep_faces
             vertices = Rep.find("{*}VertexBuffer/{*}Positions")
             if vertices is None:
                 continue
@@ -197,8 +201,11 @@ def load_3DXML(file_obj, *args, **kwargs):
                 ).reshape((-1, 3))
             )
 
+            mesh_image = None
             uv = Rep.find("{*}VertexBuffer/{*}TextureCoordinates")
-            if uv is not None:  # texture coordinates are available
+            if uv is None:
+                mesh_uv.append(None)
+            else:  # texture coordinates are available
                 rep_uv = np.fromstring(
                     uv.text.replace(",", " "), sep=" ", dtype=np.float64
                 )
@@ -216,7 +223,9 @@ def load_3DXML(file_obj, *args, **kwargs):
                 (material_file, material_id) = (
                     material.attrib["id"].split("urn:3DXML:")[-1].split("#")
                 )
-                mesh_image = images.get(material_id)  # texture for this Rep, if any
+                if uv is not None:
+                    mesh_image = images.get(material_id)  # texture for this Rep, if any
+            rep_images.append(mesh_image)
 
             for faces in Rep.iter("{*}Faces"):
                 triangles = []  # mesh triangles for this Faces element
@@ -231,10 +240,10 @@ def load_3DXML(file_obj, *args, **kwargs):
                             for i in face.attrib["strips"].split(",")
                         ]
                         # convert strips to (m, 3) int triangles
-                        triangles.extend(util.triangle_strips_to_faces(strips))
+                        triangles.append(util.triangle_strips_to_faces(strips))
 
                     if "triangles" in face.attrib:
-                        triangles.extend(
+                        triangles.append(
                             np.fromstring(
                                 face.attrib["triangles"], sep=" ", dtype=np.int64
                             ).reshape((-1, 3))
@@ -246,9 +255,10 @@ def load_3DXML(file_obj, *args, **kwargs):
                             for i in face.attrib["fans"].split(",")
                         ]
                         # convert fans to (m, 3) int triangles
-                        triangles.extend(util.triangle_fans_to_faces(fans))
+                        triangles.append(util.triangle_fans_to_faces(fans))
 
                     rep_faces.extend(triangles)
+                    count = sum(len(t) for t in triangles)
 
                     # store the material information as (m, 3) uint8 FACE COLORS
                     faceColor = colors.get(material_id, [128, 128, 128])
@@ -256,19 +266,70 @@ def load_3DXML(file_obj, *args, **kwargs):
                     colorElement = face.find("{*}SurfaceAttributes/{*}Color")
                     if colorElement is not None:
                         faceColor = get_rgba(colorElement)[:3]
-                    mesh_colors.append(np.tile(faceColor, (len(triangles), 1)))
-            mesh_faces.append(rep_faces)
+                    rep_colors.append(np.tile(faceColor, (count, 1)))
+            # stack the (m, 3) chunks of this Rep into one array each
+            mesh_faces.append(
+                util.vstack_empty(rep_faces).reshape((-1, 3)).astype(np.int64, copy=False)
+            )
+            mesh_colors.append(
+                util.vstack_empty(rep_colors).reshape((-1, 3)).astype(np.uint8)
+            )
 
         # save each mesh as the kwargs for a trimesh.Trimesh constructor
         # aka, a Trimesh object can be created with trimesh.Trimesh(**mesh)
         # this avoids needing trimesh- specific imports in this IO function
         mesh = {}
+        # how far outside 0.0-1.0 a UV may be, as a fraction of the image,
+        # and still be clipped into an atlas: exporters leave edges a hair
+        # outside (SolidWorks wrote -0.003), while a tiled texture is far outside
+        uv_tolerance = 1e-2
+        # a Rep is textured when it carries both UVs and an image
+        textured = [
+            uv is not None and image is not None for uv, image in zip(mesh_uv, rep_images)
+        ]
+        if textured and all(textured) and all(i is rep_images[0] for i in rep_images):
+            # every Rep shares one image: use the UVs as they are,
+            # which keeps any tiling (UVs outside 0.0-1.0) intact
+            mesh["visual"] = TextureVisuals(uv=np.vstack(mesh_uv), image=rep_images[0])
+        elif any(textured) and all(
+            ((uv >= -uv_tolerance) & (uv <= 1.0 + uv_tolerance)).all()
+            for uv, is_textured in zip(mesh_uv, textured)
+            if is_textured
+        ):
+            # a part mixing images, or images and plain colors: bake the
+            # colors into UVs and pack everything into one atlas, which
+            # only works when no UV relies on wrapping
+            materials = []
+            uvs = []
+            for i, is_textured in enumerate(textured):
+                if is_textured:
+                    materials.append(SimpleMaterial(image=rep_images[i]))
+                    # pack wraps anything outside 0.0-1.0, which would
+                    # move an edge a hair outside to the opposite side
+                    uvs.append(np.clip(mesh_uv[i], 0.0, 1.0))
+                    continue
+                # a vertex shared by faces of different colors cannot
+                # carry one color: give every face its own vertices and
+                # let the vertex merge after loading re-join the ones
+                # that share a position and a color
+                index = mesh_faces[i].reshape(-1)
+                mesh_vertices[i] = mesh_vertices[i][index]
+                mesh_normals[i] = mesh_normals[i][index]
+                mesh_faces[i] = np.arange(len(index)).reshape((-1, 3))
+                material, uv = color_to_uv(
+                    vertex_colors=np.repeat(mesh_colors[i], 3, axis=0)
+                )
+                materials.append(material)
+                uvs.append(uv)
+            material, uv = pack(materials=materials, uvs=uvs)
+            mesh["visual"] = TextureVisuals(uv=uv, material=material)
+        else:
+            # no texture, or one that tiles across a part that has other
+            # images or plain faces: the UVs do not cover every vertex
+            # and cannot share an atlas, so keep the per-face colors
+            mesh["face_colors"] = np.vstack(mesh_colors)
         (mesh["vertices"], mesh["faces"]) = util.append_faces(mesh_vertices, mesh_faces)
         mesh["vertex_normals"] = np.vstack(mesh_normals)
-        if mesh_uv and mesh_image:
-            mesh["visual"] = TextureVisuals(uv=np.vstack(mesh_uv), image=mesh_image)
-        else:
-            mesh["face_colors"] = np.vstack(mesh_colors)
 
         # as far as I can tell, all 3DXML files are exported as
         # implicit millimeters (it isn't specified in the file)

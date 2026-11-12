@@ -334,6 +334,13 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
             models.append(x)
         return str(models.index(x) + 1)
 
+    def object_id(node, data):
+        # nodes with children are written as a `components` object
+        # which also references the node's own geometry
+        if len(graph[node]) > 0:
+            return model_id(("node", node))
+        return model_id(data.get("geometry", node))
+
     # 3mf archive dict {path: BytesIO}
     file_obj = io.BytesIO()
 
@@ -399,13 +406,22 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
                             continue
 
                         attribs = {
-                            "id": model_id(node),
+                            "id": model_id(("node", node)),
                             "name": node,
                             "type": "model",
                             "p:UUID": str(uuid.uuid4()),
                         }
                         with xf.element("object", **attribs):
                             with xf.element("components"):
+                                geom = mesh.graph.transforms.node_data[node].get(
+                                    "geometry"
+                                )
+                                if geom is not None:
+                                    xf.write(
+                                        etree.Element(
+                                            "component", {"objectid": model_id(geom)}
+                                        )
+                                    )
                                 for next, data in graph[node].items():
                                     transform = " ".join(
                                         str(i)
@@ -417,9 +433,7 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
                                         etree.Element(
                                             "component",
                                             {
-                                                "objectid": model_id(data["geometry"])
-                                                if "geometry" in data
-                                                else model_id(next),
+                                                "objectid": object_id(next, data),
                                                 "transform": transform,
                                             },
                                         )
@@ -438,7 +452,7 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
                             etree.Element(
                                 "item",
                                 {
-                                    "objectid": model_id(data.get("geometry", node)),
+                                    "objectid": object_id(node, data),
                                     "transform": transform,
                                     uuid_tag: str(uuid.uuid4()),
                                     "partnumber": node,
