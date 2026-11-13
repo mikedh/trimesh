@@ -67,6 +67,11 @@ def nearby_faces(mesh, points: ArrayLike):
     # axis aligned bounds
     bounds = np.column_stack((points - distance_vertex, points + distance_vertex))
 
+    if util.has_module("trimkit"):
+        # one batch query answers [point, face] rows sorted by point
+        pairs = rtree.intersection(bounds)
+        counts = np.bincount(pairs[:, 0], minlength=len(points))
+        return np.array_split(pairs[:, 1], np.cumsum(counts)[:-1])
     try:
         # use the batch API added in 1.4.0 and fixed to actually work in 1.4.1
         hit_ids, hit_counts = rtree.intersection_v(bounds[:, :3], bounds[:, 3:])

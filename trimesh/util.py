@@ -104,10 +104,14 @@ def random_generator(seed: Seed = None) -> np.random.Generator:
     return np.random.default_rng(seed)
 
 
+# whether each module name looked up by `has_module` is installed
+_HAS_MODULE = {}
+
+
 def has_module(name: str) -> bool:
     """
     Check to see if a module is installed by name without
-    actually importing the module.
+    actually importing the module, remembering the answer.
 
     Parameters
     ------------
@@ -119,9 +123,15 @@ def has_module(name: str) -> bool:
     installed : bool
       True if module is installed
     """
-    from importlib.util import find_spec
+    try:
+        return _HAS_MODULE[name]
+    except KeyError:
+        from importlib.util import find_spec
 
-    return find_spec(name) is not None
+        # cache misses too: a miss scans every entry of `sys.path`
+        installed = find_spec(name) is not None
+        _HAS_MODULE[name] = installed
+        return installed
 
 
 def unitize(
@@ -1880,7 +1890,7 @@ def convert_like(item, like):
     return item
 
 
-def bounds_tree(bounds: ArrayLike) -> Any:
+def bounds_tree(bounds: ArrayLike):
     """
     Given a set of axis aligned bounds create an r-tree for
     broad-phase collision detection.
@@ -1894,11 +1904,10 @@ def bounds_tree(bounds: ArrayLike) -> Any:
 
     Returns
     ---------
-    tree : Rtree
-      Tree containing bounds by index
+    tree : trimkit.Boxes or rtree.index.Index
+      Tree containing bounds by index, queried with
+      `tree.intersection((minx, miny, maxx, maxy))`
     """
-    import rtree
-
     # make sure we've copied bounds
     bounds = np.array(bounds, dtype=np.float64, copy=True)
     if len(bounds.shape) == 3:
@@ -1915,6 +1924,14 @@ def bounds_tree(bounds: ArrayLike) -> Any:
     if (dimension % 2) != 0:
         raise ValueError("Bounds must be (n,dimension*2)!")
     dimension = int(dimension / 2)
+
+    try:
+        from trimkit import Boxes
+
+        # (min..., max...) rows are (2, dimension) corners in memory
+        return Boxes(bounds.reshape((len(bounds), 2, dimension)))
+    except ImportError:
+        import rtree
 
     properties = rtree.index.Property(dimension=dimension)
     # stream load was verified working on import above

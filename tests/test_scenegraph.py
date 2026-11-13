@@ -169,7 +169,10 @@ def test_scene_transform():
 
 
 def test_simplify():
-    if not g.trimesh.util.has_module("fast_simplification"):
+    if not (
+        g.trimesh.util.has_module("trimkit")
+        or g.trimesh.util.has_module("fast_simplification")
+    ):
         return
 
     # get a scene graph

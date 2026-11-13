@@ -24,7 +24,9 @@ def convex_decomposition(mesh, **kwargs) -> list[dict]:
     ----------
     mesh : trimesh.Trimesh
       Mesh to be decomposed into convex parts
-    **kwargs : VHACD keyword arguments
+    **kwargs
+      Passed to `trimkit.decompose` if installed, i.e. `maximum_hulls`,
+      otherwise the VHACD keyword arguments above for `vhacdx`.
 
     Returns
     -------
@@ -32,7 +34,18 @@ def convex_decomposition(mesh, **kwargs) -> list[dict]:
       List of **kwargs for Trimeshes that are nearly
       convex and approximate the original.
     """
-    from vhacdx import compute_vhacd
+    try:
+        from trimkit import decompose
+
+        hulls = decompose(
+            mesh.vertices.view(np.ndarray), mesh.faces.view(np.ndarray), **kwargs
+        )
+        return [
+            {"vertices": hull_vertices, "faces": hull_faces}
+            for hull_vertices, hull_faces in hulls
+        ]
+    except ImportError:
+        from vhacdx import compute_vhacd
 
     # the faces are triangulated in a (len(face), ...vertex-index)
     # for vtkPolyData
@@ -44,6 +57,6 @@ def convex_decomposition(mesh, **kwargs) -> list[dict]:
     )
 
     return [
-        {"vertices": v, "faces": f}
-        for v, f in compute_vhacd(mesh.vertices, faces, **kwargs)
+        {"vertices": hull_vertices, "faces": hull_faces}
+        for hull_vertices, hull_faces in compute_vhacd(mesh.vertices, faces, **kwargs)
     ]

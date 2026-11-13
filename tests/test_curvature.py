@@ -43,21 +43,24 @@ class CurvatureTest(g.unittest.TestCase):
         assert len(m.vertex_defects) == len(m.vertices)
 
 
-@g.pytest.mark.parametrize("batch", [False, True])
-def test_mean_curvature_box(batch, monkeypatch):
+def test_mean_curvature_box(monkeypatch):
+    # A unit cube has 12 unit edges with exterior angle pi/2; the
+    # mean curvature measure is half their sum. The distant ball is empty.
     mesh = g.trimesh.creation.box()
-    if not batch:
+    points = [[0, 0, 0], [10, 0, 0], [0, 0, 0]]
+    truth = [3 * g.np.pi, 0, 3 * g.np.pi]
+    actual = g.trimesh.curvature.discrete_mean_curvature_measure(mesh, points, 2.0)
+    assert g.np.allclose(actual, truth)
 
+    tree = mesh.face_adjacency_tree
+    if hasattr(tree, "intersection_v"):
+        # rtree also has a per-box fallback when its batch query fails
         def no_batch(*args, **kwargs):
             raise NotImplementedError
 
-        monkeypatch.setattr(mesh.face_adjacency_tree, "intersection_v", no_batch)
-
-    # A unit cube has 12 unit edges with exterior angle pi/2; the
-    # mean curvature measure is half their sum. The distant ball is empty.
-    points = [[0, 0, 0], [10, 0, 0], [0, 0, 0]]
-    actual = g.trimesh.curvature.discrete_mean_curvature_measure(mesh, points, 2.0)
-    assert g.np.allclose(actual, [3 * g.np.pi, 0, 3 * g.np.pi])
+        monkeypatch.setattr(tree, "intersection_v", no_batch)
+        actual = g.trimesh.curvature.discrete_mean_curvature_measure(mesh, points, 2.0)
+        assert g.np.allclose(actual, truth)
 
 
 if __name__ == "__main__":

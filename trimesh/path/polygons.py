@@ -2,7 +2,7 @@ import numpy as np
 from shapely import ops
 from shapely.geometry import Polygon
 
-from .. import bounds, geometry, graph, grouping
+from .. import bounds, geometry, graph, grouping, util
 from ..constants import log
 from ..constants import tol_path as tol
 from ..iteration import reduce_cascade
@@ -20,13 +20,6 @@ except BaseException as E:
     from ..exceptions import ExceptionWrapper
 
     nx = ExceptionWrapper(E)
-try:
-    from rtree.index import Index
-except BaseException as E:
-    # create a dummy module which will raise the ImportError
-    from ..exceptions import ExceptionWrapper
-
-    Index = ExceptionWrapper(E)
 
 
 def enclosure_tree(polygons):
@@ -79,26 +72,30 @@ def enclosure_tree(polygons):
     # make sure we don't have orphaned polygon
     contains.add_nodes_from(bounds.keys())
 
-    if len(bounds) > 0:
+    # the polygon index and (minx, miny, maxx, maxy) of each valid polygon
+    keys = list(bounds.keys())
+    boxes = np.array(list(bounds.values()), dtype=np.float64).reshape((-1, 4))
+    if len(keys) > 0:
         # if there are no valid bounds tree creation will fail
         # and we won't be calling `tree.intersection` anywhere
         # we could return here but having multiple return paths
         # seems more dangerous than iterating through an empty graph
-        tree = Index(zip(bounds.keys(), bounds.values(), [None] * len(bounds)))
+        tree = util.bounds_tree(boxes)
 
     # loop through every polygon
-    for i, b in bounds.items():
+    for polygon_index, box in zip(keys, boxes):
         # we first query for bounding box intersections from the R-tree
-        for j in tree.intersection(b):
+        # which holds positions into `keys` rather than polygon indexes
+        for other in (keys[position] for position in tree.intersection(box)):
             # if we are checking a polygon against itself continue
-            if i == j:
+            if polygon_index == other:
                 continue
             # do a more accurate polygon in polygon test
             # for the enclosure tree information
-            if polygons[i].contains(polygons[j]):
-                contains.add_edge(i, j)
-            elif polygons[j].contains(polygons[i]):
-                contains.add_edge(j, i)
+            if polygons[polygon_index].contains(polygons[other]):
+                contains.add_edge(polygon_index, other)
+            elif polygons[other].contains(polygons[polygon_index]):
+                contains.add_edge(other, polygon_index)
 
     # a root or exterior curve has an even number of parents
     # wrap in dict call to avoid networkx view

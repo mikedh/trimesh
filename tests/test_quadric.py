@@ -5,24 +5,38 @@ except BaseException:
 
 
 def test_quadric_simplification():
-    if not g.trimesh.util.has_module("fast_simplification"):
+    # the faces asked for, and a surface that stays within an output
+    # edge of the input both ways: the symmetric Hausdorff distance
+    if not (
+        g.trimesh.util.has_module("trimkit")
+        or g.trimesh.util.has_module("fast_simplification")
+    ):
         return
 
-    m = g.get_mesh("rabbit.obj")
-    assert len(m.faces) > 600
+    mesh = g.get_mesh("rabbit.obj")
+    assert len(mesh.faces) > 600
 
-    # should be about half as large
-    a = m.simplify_quadric_decimation(percent=0.5)
-    assert g.np.isclose(len(a.faces), len(m.faces) // 2, rtol=0.2)
-
-    # should have the requested number of faces
-    a = m.simplify_quadric_decimation(face_count=200)
-    assert len(a.faces) == 200
+    for kwargs, count in [
+        ({"percent": 0.5}, len(mesh.faces) // 2),
+        ({"face_count": 200}, 200),
+        ({"face_count": 60}, 60),
+    ]:
+        simplified = mesh.simplify_quadric_decimation(**kwargs)
+        assert len(simplified.faces) == count
+        hausdorff = max(
+            g.np.abs(
+                g.trimesh.proximity.signed_distance(mesh, simplified.vertices)
+            ).max(),
+            g.np.abs(
+                g.trimesh.proximity.signed_distance(simplified, mesh.vertices)
+            ).max(),
+        )
+        assert hausdorff <= simplified.edges_unique_length.mean()
 
     # see if aggression does anything
-    a = m.simplify_quadric_decimation(percent=0.25, aggression=5)
-    assert len(a.faces) > 0
+    simplified = mesh.simplify_quadric_decimation(percent=0.25, aggression=5)
+    assert len(simplified.faces) > 0
 
 
 if __name__ == "__main__":
-    test_quadric_simplification()
+    g.trimesh.util.attach_to_log()

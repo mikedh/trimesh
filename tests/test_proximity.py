@@ -265,6 +265,24 @@ class NearestTest(g.unittest.TestCase):
         assert all(len(i) == 1 for i in q)
 
 
+def test_nearby_faces_hold_the_closest():
+    # the closest point on the mesh is always on one of the candidate faces
+    # per the `nearby_faces` contract: checked against every face, brute force
+    with g.RandomSeed() as random:
+        triangles = random.random((300, 3, 3))
+        mesh = g.trimesh.Trimesh(**g.trimesh.triangles.to_kwargs(triangles))
+        points = random.random((200, 3)) * 1.5 - 0.25
+    candidates = g.trimesh.proximity.nearby_faces(mesh, points)
+    _, distance, _ = g.trimesh.proximity.closest_point_naive(mesh, points)
+    assert len(candidates) == len(points)
+    for point, faces, truth in zip(points, candidates, distance):
+        faces = g.np.asarray(faces, dtype=g.np.int64)
+        closest = g.trimesh.triangles.closest_point(
+            mesh.triangles[faces], g.np.tile(point, (len(faces), 1))
+        )
+        assert g.np.isclose(g.np.linalg.norm(closest - point, axis=1).min(), truth)
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

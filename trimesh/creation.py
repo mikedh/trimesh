@@ -32,6 +32,7 @@ except BaseException as E:
 _data = get_json("creation.json")
 # check available triangulation engines without importing them
 _engines = [
+    ("trimkit", util.has_module("trimkit")),
     ("earcut", util.has_module("mapbox_earcut")),
     ("manifold", util.has_module("manifold3d")),
     ("triangle", util.has_module("triangle")),
@@ -596,7 +597,8 @@ def triangulate_polygon(
     triangle_args
         Passed to triangle.triangulate i.e: 'p', 'pq30', 'pY'="don't insert vert"
     engine
-      None or 'earcut' will use earcut, 'triangle' will use triangle
+      None picks the first installed of 'trimkit', 'earcut',
+      'manifold' and 'triangle', or pass one of them by name
     force_vertices
       Many operations can't handle new vertices being inserted, so this will
       attempt to generate a triangulation without new vertices and raise a
@@ -619,7 +621,16 @@ def triangulate_polygon(
 
     vertices = None
 
-    if engine == "earcut":
+    if engine == "trimkit":
+        from trimkit import triangulate
+
+        # rings as shapely gives them, with the closing vertex
+        vertices, faces = triangulate(
+            np.array(polygon.exterior.coords, dtype=np.float64),
+            [np.array(i.coords, dtype=np.float64) for i in polygon.interiors],
+        )
+
+    elif engine == "earcut":
         from mapbox_earcut import triangulate_float64
 
         # get vertices as sequence where exterior

@@ -95,15 +95,24 @@ def test_align():
 
 
 def test_bounds_tree():
-    # draw inside the block: `g.random` gave every attempt the same
-    # boxes so two of these three rounds were a no-op
-    with g.RandomSeed() as r:
-        for _attempt in range(3):
-            for dimension in [2, 3]:
-                t = r.random((1000, 3, dimension))
-                bounds = g.np.column_stack((t.min(axis=1), t.max(axis=1)))
-                tree = g.trimesh.util.bounds_tree(bounds)
-                assert 0 in tree.intersection(bounds[0])
+    # every query answers exactly the boxes it overlaps, touching
+    # included, on `trimkit` or on `rtree`
+    with g.RandomSeed() as random:
+        for dimension in [2, 3]:
+            triangles = random.random((1000, 3, dimension)) * 10.0
+            bounds = g.np.column_stack((triangles.min(axis=1), triangles.max(axis=1)))
+            # a box that only touches the first one at its corner
+            bounds[1] = g.np.tile(bounds[0, dimension:], 2)
+            tree = g.trimesh.util.bounds_tree(bounds)
+            low, high = bounds[:, :dimension], bounds[:, dimension:]
+            for query in bounds[:100]:
+                truth = g.np.flatnonzero(
+                    (low <= query[dimension:]).all(axis=1)
+                    & (high >= query[:dimension]).all(axis=1)
+                )
+                found = g.np.sort(g.np.fromiter(tree.intersection(query), dtype=int))
+                assert g.np.array_equal(found, truth)
+            assert 1 in tree.intersection(bounds[0])
 
 
 def test_stack():
@@ -136,6 +145,9 @@ def test_has_module():
     assert g.trimesh.util.has_module("numpy")
     # not-a-thing
     assert not g.trimesh.util.has_module("foobarrionananan")
+    # misses are remembered so a repeat lookup doesn't scan `sys.path`
+    assert g.trimesh.util._HAS_MODULE["foobarrionananan"] is False
+    assert g.trimesh.util._HAS_MODULE["numpy"] is True
 
 
 def test_strips():

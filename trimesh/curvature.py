@@ -123,18 +123,28 @@ def discrete_mean_curvature_measure(mesh, points, radius):
     mins = points - radius
     maxs = points + radius
 
-    try:
-        # use the batch API added in 1.4.0 and fixed to actually work in 1.4.1
-        hit_ids, hit_counts = tree.intersection_v(mins, maxs)
-        candidates = np.asarray(hit_ids, dtype=np.int64)
-        counts = np.asarray(hit_counts, dtype=np.intp)
-    except BaseException:
-        # fall back to a list comprehension
-        per_point = [list(tree.intersection(b)) for b in np.column_stack((mins, maxs))]
-        counts = np.array([len(c) for c in per_point], dtype=np.intp)
-        candidates = np.fromiter(
-            (i for c in per_point for i in c), dtype=np.int64, count=int(counts.sum())
-        )
+    if util.has_module("trimkit"):
+        # one batch query answers [point, edge] rows sorted by point
+        pairs = tree.intersection(np.stack((mins, maxs), axis=1))
+        candidates = pairs[:, 1]
+        counts = np.bincount(pairs[:, 0], minlength=len(points))
+    else:
+        try:
+            # use the batch API added in 1.4.0 and fixed to actually work in 1.4.1
+            hit_ids, hit_counts = tree.intersection_v(mins, maxs)
+            candidates = np.asarray(hit_ids, dtype=np.int64)
+            counts = np.asarray(hit_counts, dtype=np.intp)
+        except BaseException:
+            # fall back to a list comprehension
+            per_point = [
+                list(tree.intersection(box)) for box in np.column_stack((mins, maxs))
+            ]
+            counts = np.array([len(c) for c in per_point], dtype=np.intp)
+            candidates = np.fromiter(
+                (i for c in per_point for i in c),
+                dtype=np.int64,
+                count=int(counts.sum()),
+            )
 
     if len(candidates) == 0:
         return np.zeros(len(points))

@@ -77,11 +77,6 @@ except BaseException as E:
     Image = ExceptionWrapper(E)
 
 try:
-    from rtree.index import Index
-except BaseException as E:
-    Index = ExceptionWrapper(E)
-
-try:
     from .path import Path2D, Path3D
 except BaseException as E:
     Path2D = ExceptionWrapper(E)
@@ -895,14 +890,15 @@ class Trimesh(Geometry3D):
         return self.vertices.view(np.ndarray)[self.faces]
 
     @cache_decorator
-    def triangles_tree(self) -> Index:
+    def triangles_tree(self):
         """
         An R-tree containing each face of the mesh.
 
         Returns
         ----------
-        tree : rtree.index
+        tree : trimkit.Boxes or rtree.index.Index
           Each triangle in self.faces has a rectangular cell
+          queried with `tree.intersection(bounds)`
         """
         return triangles.bounds_tree(self.triangles)
 
@@ -2458,7 +2454,7 @@ class Trimesh(Geometry3D):
         may be split into as many as necessary by the unwrapping
         algorithm, depending on how many uv maps they appear in.
 
-        Requires `pip install xatlas`
+        Requires `trimkit` or `pip install xatlas`
 
         Parameters
         ------------
@@ -2470,9 +2466,14 @@ class Trimesh(Geometry3D):
         unwrapped : trimesh.Trimesh
           Mesh with unwrapped uv coordinates
         """
-        import xatlas
+        try:
+            from trimkit import parametrize
+        except ImportError:
+            from xatlas import parametrize
 
-        vmap, faces, uv = xatlas.parametrize(self.vertices, self.faces)
+        vmap, faces, uv = parametrize(
+            self.vertices.view(np.ndarray), self.faces.view(np.ndarray)
+        )
 
         result = Trimesh(
             vertices=self.vertices[vmap],
@@ -2724,7 +2725,8 @@ class Trimesh(Geometry3D):
         aggression: Integer | None = None,
     ) -> "Trimesh":
         """
-        A thin wrapper around `pip install fast-simplification`.
+        Collapse edges by quadric error with `trimkit.simplify` where
+        installed, otherwise `pip install fast-simplification`.
 
         Parameters
         -----------
@@ -2738,13 +2740,25 @@ class Trimesh(Geometry3D):
         aggression
           An integer between `0` and `10`, the scale being roughly
           `0` is "slow and good" and `10` being "fast and bad."
+          Only used by `fast_simplification`.
 
         Returns
         ---------
         simple : trimesh.Trimesh
           Simplified version of mesh.
         """
-        from fast_simplification import simplify
+        try:
+            from trimkit import simplify
+
+            if face_count is None:
+                # `percent` is the fraction of faces to remove
+                face_count = round(len(self.faces) * (1.0 - percent))
+            vertices, faces, _ = simplify(
+                self.vertices.view(np.ndarray), self.faces.view(np.ndarray), face_count
+            )
+            return Trimesh(vertices=vertices, faces=faces)
+        except ImportError:
+            from fast_simplification import simplify
 
         # create keyword arguments as dict so we can filter out `None`
         # values as the C wrapper as of writing is not happy with `None`
@@ -3263,13 +3277,13 @@ class Trimesh(Geometry3D):
         return degree
 
     @cache_decorator
-    def face_adjacency_tree(self) -> Index:
+    def face_adjacency_tree(self):
         """
         An R-tree of face adjacencies.
 
         Returns
         --------
-        tree
+        tree : trimkit.Boxes or rtree.index.Index
           Where each edge in self.face_adjacency has a
           rectangular cell
         """
