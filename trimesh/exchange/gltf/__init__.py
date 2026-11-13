@@ -45,6 +45,34 @@ _shapes = {
     "MAT4": (4, 4),
 }
 
+
+def _color_accessor_to_uint8(colors: NDArray) -> NDArray:
+    """
+    Convert data from a `COLOR_0` accessor into a new array
+    the visual classes can consume.
+
+    The glTF spec only allows `COLOR_0` to be FLOAT, normalized
+    UNSIGNED_BYTE or normalized UNSIGNED_SHORT. Normalized
+    UNSIGNED_SHORT values span 0-65535 and have to be rescaled
+    to 0-255 rather than cast, which would wrap them modulo 256.
+
+    Parameters
+    ------------
+    colors : (n, 3) or (n, 4)
+      Raw values from a `COLOR_0` accessor.
+
+    Returns
+    ------------
+    converted : (n, 3) or (n, 4)
+      A copy of the colors, with UNSIGNED_SHORT rescaled to uint8.
+    """
+    colors = np.asanyarray(colors)
+    if colors.dtype == np.uint16:
+        # 65535 / 255 == 257 exactly
+        return np.round(colors / 257.0).astype(np.uint8)
+    return colors.copy()
+
+
 # a default PBR metallic material
 _default_material = {
     "pbrMetallicRoughness": {
@@ -1675,15 +1703,15 @@ def _read_buffers(
                     if "COLOR_0" in attr:
                         try:
                             # try to load vertex colors from the accessors
-                            colors = access[attr["COLOR_0"]]
+                            colors = _color_accessor_to_uint8(access[attr["COLOR_0"]])
                             if len(colors) == len(kwargs["vertices"]):
                                 if visuals is None:
                                     # just pass to mesh as vertex color
-                                    kwargs["vertex_colors"] = colors.copy()
+                                    kwargs["vertex_colors"] = colors
                                 else:
                                     # we ALSO have texture so save as vertex
                                     # attribute
-                                    visuals.vertex_attributes["color"] = colors.copy()
+                                    visuals.vertex_attributes["color"] = colors
                         except BaseException:
                             # survive failed colors
                             log.debug("failed to load colors", exc_info=True)
@@ -1736,15 +1764,15 @@ def _read_buffers(
                     if "COLOR_0" in attr:
                         try:
                             # try to load vertex colors from the accessors
-                            colors = access[attr["COLOR_0"]]
+                            colors = _color_accessor_to_uint8(access[attr["COLOR_0"]])
                             if len(colors) == len(kwargs["vertices"]):
                                 if visuals is None:
                                     # just pass to mesh as vertex color
-                                    kwargs["vertex_colors"] = colors.copy()
+                                    kwargs["vertex_colors"] = colors
                                 else:
                                     # we ALSO have texture so save as vertex
                                     # attribute
-                                    visuals.vertex_attributes["color"] = colors.copy()
+                                    visuals.vertex_attributes["color"] = colors
                         except BaseException:
                             # survive failed colors
                             log.debug("failed to load colors", exc_info=True)
