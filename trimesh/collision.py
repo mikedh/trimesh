@@ -477,7 +477,7 @@ class CollisionManager:
           The geometry of the collision object
         transform : (4,4) float
           Homogeneous transform matrix for the object
-        return_names : bool
+        return_name : bool
           If true, return name of the closest object
         return_data : bool
           If true, a DistanceData object is returned as well

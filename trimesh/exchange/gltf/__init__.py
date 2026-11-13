@@ -101,7 +101,7 @@ def export_gltf(
       want to include non-unit normals for shading reasons.
     resolver : trimesh.resolvers.Resolver
       If passed will use to write each file.
-    tree_postprocesser : None or callable
+    tree_postprocessor : None or callable
       Run this on the header tree before exiting.
     embed_buffers : bool
       Embed the buffer into JSON file as a base64 string in the URI
