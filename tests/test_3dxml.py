@@ -67,6 +67,30 @@ class DXMLTest(g.unittest.TestCase):
         # a tiled texture cannot share an atlas: keep the face colors
         assert load(b">2 2,0 2,2 0,0 0<") == "face"
 
+    def test_face_color_keeps_alpha(self):
+        import io
+        import zipfile
+
+        # blocks.3dxml with one of its face colors made see-through
+        with open(g.os.path.join(g.dir_models, "blocks.3dxml"), "rb") as f:
+            source = zipfile.ZipFile(f)
+            buffer = io.BytesIO()
+            with zipfile.ZipFile(buffer, "w") as target:
+                for name in source.namelist():
+                    data = source.read(name)
+                    if name == "Abaqus_Geometry.3DRep":
+                        data = data.replace(
+                            b'blue="0.454902" alpha="1"', b'blue="0.454902" alpha="0.25"'
+                        )
+                    target.writestr(name, data)
+        buffer.seek(0)
+        s = g.trimesh.load(buffer, file_type="3dxml")
+        colors = s.geometry["Abaqus_Geometry"].visual.face_colors
+        assert set(np.unique(colors[:, 3])) == {63, 255}
+        # the opaque file stays opaque
+        v = g.get_mesh("blocks.3dxml").geometry["Abaqus_Geometry"].visual
+        assert (v.face_colors[:, 3] == 255).all()
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
