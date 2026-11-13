@@ -84,7 +84,8 @@ def load_3DXML(file_obj, *args, **kwargs):
                 rgb = (np.array(json.loads(diffuse.attrib["Value"])) * 255).astype(
                     np.uint8
                 )
-                colors[material_id] = rgb
+                # the diffuse color has no alpha: opaque
+                colors[material_id] = np.append(rgb[:3], 255).astype(np.uint8)
             texture = rend.find("{*}Attr[@Name='TextureImage']")
             if texture is not None:
                 tex_file, tex_id = texture.attrib["Value"].split(":")[-1].split("#")
@@ -179,7 +180,7 @@ def load_3DXML(file_obj, *args, **kwargs):
         # the geometry is stored in a Rep
         for Rep in as_etree[part_file].iter("{*}Rep"):
             rep_faces = []  # faces sharing the same list of vertices
-            rep_colors = []  # (m, 3) uint8 color of each face in rep_faces
+            rep_colors = []  # (m, 4) uint8 color of each face in rep_faces
             vertices = Rep.find("{*}VertexBuffer/{*}Positions")
             if vertices is None:
                 continue
@@ -260,19 +261,20 @@ def load_3DXML(file_obj, *args, **kwargs):
                     rep_faces.extend(triangles)
                     count = sum(len(t) for t in triangles)
 
-                    # store the material information as (m, 3) uint8 FACE COLORS
-                    faceColor = colors.get(material_id, [128, 128, 128])
+                    # store the material information as (m, 4) uint8 FACE COLORS
+                    faceColor = colors.get(material_id, [128, 128, 128, 255])
                     # each Face may have its own color
                     colorElement = face.find("{*}SurfaceAttributes/{*}Color")
                     if colorElement is not None:
-                        faceColor = get_rgba(colorElement)[:3]
+                        # keep the alpha: a transparent face (glass) stays so
+                        faceColor = get_rgba(colorElement)
                     rep_colors.append(np.tile(faceColor, (count, 1)))
-            # stack the (m, 3) chunks of this Rep into one array each
+            # stack the (m, 3) faces and (m, 4) colors of this Rep into one array each
             mesh_faces.append(
                 util.vstack_empty(rep_faces).reshape((-1, 3)).astype(np.int64, copy=False)
             )
             mesh_colors.append(
-                util.vstack_empty(rep_colors).reshape((-1, 3)).astype(np.uint8)
+                util.vstack_empty(rep_colors).reshape((-1, 4)).astype(np.uint8)
             )
 
         # save each mesh as the kwargs for a trimesh.Trimesh constructor
