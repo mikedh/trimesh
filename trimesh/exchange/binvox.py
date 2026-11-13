@@ -422,7 +422,7 @@ class Binvoxer:
         wireframe: also render the model in wireframe (helps with thin parts).
         fit: only write voxels in the voxel bounding box.
         block_id: when converting to schematic, use this as the block ID.
-        use_matrial_block_id: when converting from obj to schematic, parse
+        use_material_block_id: when converting from obj to schematic, parse
             block ID from material spec "usemtl blockid_<id>" (ids 1-255 only).
         use_offscreen_pbuffer: use offscreen pbuffer instead of onscreen
             window.
