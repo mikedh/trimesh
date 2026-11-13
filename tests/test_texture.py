@@ -57,14 +57,15 @@ class TextureTest(g.unittest.TestCase):
         # create a local web server to test remote assets
         with g.serve_meshes() as address:
             # see if web resolvers work
+            session = g.urllib.request.build_opener()
             tex = g.trimesh.exchange.load.load_remote(
-                url=address + "/fuze.obj", process=False
+                url=address + "/fuze.obj", process=False, session=session
             ).geometry["fuze.obj"]
             g.check_fuze(tex)
 
             # see if web + zip resolvers work
             scene = g.trimesh.exchange.load.load_remote(
-                url=address + "/fuze.zip", process=False
+                url=address + "/fuze.zip", process=False, session=session
             )
 
             # zip files get loaded into a scene

@@ -13,8 +13,8 @@ import os
 from pathlib import Path
 from typing import TypeAlias
 
-# URL parsing for remote resources via WebResolver
-from urllib.parse import urlparse
+# URL string parsing only: the network is reached through a passed `session`
+from urllib.parse import quote, urlparse  # noqa: TID251
 
 from . import caching, util
 from .typed import HttpSessionLike, Mapping
@@ -367,9 +367,11 @@ class WebResolver(Resolver):
         url : str
           Location where a mesh was stored or
           directory where mesh was stored.
-        session : HttpSessionLike or None
-          Optional HTTP session used for fetches. Accepts
-          `httpx.Client` or `requests.Session`.
+        session : HttpSessionLike
+          HTTP session used for every fetch, required as trimesh
+          never opens a network connection on its own. Accepts
+          `urllib.request.build_opener()`, `httpx.Client`
+          or `requests.Session`.
         timeout : float
           Per-request timeout in seconds.
         """
@@ -383,26 +385,20 @@ class WebResolver(Resolver):
             raise ValueError(f"scheme {parsed.scheme!r} not in ('http', 'https')")
 
         if session is None:
-            # an explicit session will be required in a future release
-            import warnings
-
-            warnings.warn(
-                "`WebResolver` without a `session` is deprecated "
-                + "and will require one in a future release. "
-                + "pass an `httpx.Client` or `requests.Session`.",
-                category=DeprecationWarning,
-                stacklevel=2,
+            raise ValueError(
+                "`WebResolver` requires a `session`: pass "
+                + "`urllib.request.build_opener()`, an `httpx.Client` "
+                + "or a `requests.Session`."
             )
 
         self.session = session
         self.timeout = timeout
 
         # per-library request kwargs: httpx and requests disagree on
-        # the redirect kwarg name — this is also where any future
+        # the redirect kwarg name -- this is also where any future
         # library-specific options should live
-        library = "httpx" if session is None else type(session).__module__.split(".")[0]
+        library = type(session).__module__.split(".")[0]
         if library == "httpx":
-            # also the bare httpx module fallback when no session was passed
             self.request_kwargs = {"follow_redirects": True, "timeout": timeout}
         elif library == "requests":
             self.request_kwargs = {"allow_redirects": True, "timeout": timeout}
@@ -412,7 +408,8 @@ class WebResolver(Resolver):
             # synchronous fetch can never legally drive one
             raise ValueError(
                 "`aiohttp` sessions are async-only and bound to their creation "
-                + "loop: pass an `httpx.Client` or `requests.Session` instead"
+                + "loop: pass `urllib.request.build_opener()`, an `httpx.Client` "
+                + "or a `requests.Session` instead"
             )
         else:
             # a duck-typed session gets `get(url)` with no assumed kwargs
@@ -461,26 +458,15 @@ class WebResolver(Resolver):
         name : str
           Asset name, i.e. 'quadknot.obj.mtl'
         """
-        import httpx
-
         # remove leading and trailing whitespace
         name = name.strip()
-
-        # the caller's session or the bare httpx module, both expose `.get`
-        client = self.session or httpx
-        response = client.get(self.base_url + name, **self.request_kwargs)
-
-        if response.status_code >= 300:
-            # try to strip off filesystem crap
-            if name.startswith("./"):
-                name = name[2:]
-            response = client.get(self.base_url + name, **self.request_kwargs)
-
-        # now raise if we don't have
-        response.raise_for_status()
-
-        # return the bytes of the response
-        return response.content
+        try:
+            return self.fetch(self.base_url + name)
+        except Exception:
+            if not name.startswith("./"):
+                raise
+            # try again with the filesystem crap stripped off
+            return self.fetch(self.base_url + name[2:])
 
     def get_base(self) -> bytes:
         """
@@ -493,12 +479,34 @@ class WebResolver(Resolver):
         content
           The value at `self.url`
         """
-        import httpx
+        return self.fetch(self.url)
 
-        # just fetch the url we were created with
-        response = (self.session or httpx).get(self.url, **self.request_kwargs)
-        response.raise_for_status()
-        return response.content
+    def fetch(self, url: str) -> bytes:
+        """
+        Fetch a full URL through the session, raising the
+        session's own error for any unsuccessful response.
+
+        Parameters
+        -------------
+        url
+          Full URL to fetch, i.e. `https://stuff.com/hi.glb`
+
+        Returns
+        --------
+        content
+          The bytes of the response body.
+        """
+        if hasattr(self.session, "get"):
+            # `httpx.Client`, `requests.Session` or a duck-typed `get`
+            response = self.session.get(url, **self.request_kwargs)
+            response.raise_for_status()
+            return response.content
+        # `urllib.request.OpenerDirector` follows redirects and raises
+        # `urllib.error.HTTPError` on its own but unlike httpx and requests
+        # doesn't percent-encode names like `fuze uv.jpg` itself
+        safe = ":/?#[]@!$&'()*+,;=%~"
+        with self.session.open(quote(url, safe=safe), timeout=self.timeout) as response:
+            return response.read()
 
     def namespaced(self, namespace: str) -> "WebResolver":
         """
@@ -553,9 +561,10 @@ class GithubResolver(Resolver):
           The full commit hash: pass either this OR branch.
         save
           A path if you want to save results locally.
-        session : HttpSessionLike or None
-          Optional HTTP session used for fetches. Accepts
-          `httpx.Client` or `requests.Session`.
+        session : HttpSessionLike
+          HTTP session used for every fetch, required. Accepts
+          `urllib.request.build_opener()`, `httpx.Client`
+          or `requests.Session`.
         timeout : float
           Per-request timeout in seconds.
         """

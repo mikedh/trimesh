@@ -12,7 +12,7 @@ import os
 import subprocess
 
 import jsmin
-import requests
+import requests  # noqa: TID251 build-time asset download
 from lxml import html
 
 cwd = os.path.abspath(os.path.expanduser(os.path.dirname(__file__)))

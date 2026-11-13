@@ -25,6 +25,7 @@ import itertools
 import contextlib
 import subprocess
 import collections
+import urllib.request
 import numpy as np
 import pytest
 

@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.10"
-version = "5.2.1"
+version = "6.0.0rc0"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -18,6 +18,8 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Natural Language :: English",
     "Topic :: Scientific/Engineering",
     "Topic :: Multimedia :: Graphics",
@@ -73,27 +75,33 @@ easy = [
     "lxml",
     "jsonschema",
     "networkx",
-    "svg.path",
     "pycollada",
     "shapely",
     "xxhash",
-    "rtree",
-    "httpx",
     "scipy",
-    "embreex; platform_machine!='aarch64'",
     "pillow",
-    "vhacdx",
-    # old versions of mapbox_earcut produce incorrect values on numpy 2.0
-    "mapbox_earcut >= 1.0.2",
+
+    # bundle of mature C/C++ collision, ray, simplification
+    "trimkit; python_version>='3.15'",
+
+    #### these are the bindings replaced by `trimkit`
+    "svg.path; python_version<'3.15'",
+    "rtree; python_version<'3.15'",
+    "embreex; platform_machine!='aarch64' and python_version<'3.15'",
+    "vhacdx; python_version<'3.15'",
+    "mapbox_earcut >= 1.0.2; python_version<'3.15'",
 ]
 
 recommend = [
     "sympy",
     "pyglet<2",
     "scikit-image",
-    "fast-simplification",
-    "python-fcl", # do collision checks
     "cascadio", # load `STEP` files
+
+    #### Supplanted by `trimkit`
+    "fast-simplification; python_version<'3.15'",
+    "python-fcl; python_version<'3.15'", # do collision checks
+
 ]
 
 # stuff to run simple testing
@@ -118,6 +126,7 @@ test_more = [
     "triangle; python_version<'3.14'",  # polygon tesselator
     "ipython",  # check the notebook stuff
     "marimo",   # different notebook stuff
+    "httpx",    # check WebResolver session compatibility
     "requests", # check WebResolver session compatibility
     "aiohttp",  # check WebResolver session compatibility
     "DracoPy>=1.7.0",  # KHR_draco_mesh_compression for glTF, `attributes` added in 1.7.0
@@ -194,6 +203,10 @@ flake8-implicit-str-concat = {"allow-multiline" = false}
 "matplotlib".msg = "you forgot to remove a debug plot"
 "numpy.empty".msg = "uninitialized arrays are haunted: try numpy.zeros"
 "numpy.empty_like".msg = "uninitialized arrays are haunted: try numpy.zeros"
+"urllib".msg = "trimesh never opens a network connection: callers pass a `session`"
+"httpx".msg = "trimesh never opens a network connection: callers pass a `session`"
+"aiohttp".msg = "trimesh never opens a network connection: callers pass a `session`"
+"requests".msg = "trimesh never opens a network connection: callers pass a `session`"
 
 [tool.codespell]
 skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"

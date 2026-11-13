@@ -10,6 +10,7 @@ import argparse
 import json
 import sys
 import time
+import urllib.request  # noqa: TID251 the corpus is fetched by design
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 
@@ -187,7 +188,10 @@ def on_repo(
 
     # get a resolver for the specific commit
     repo = trimesh.resolvers.GithubResolver(
-        repo=repo, commit=commit, save="~/.trimesh-cache"
+        repo=repo,
+        commit=commit,
+        save="~/.trimesh-cache",
+        session=urllib.request.build_opener(),
     )
     # list file names in the repo we can load
     paths = [i for i in repo.keys() if i.lower().split(".")[-1] in available]
@@ -302,7 +306,10 @@ def compare_draco(
     from scipy.spatial import cKDTree
 
     repo = trimesh.resolvers.GithubResolver(
-        repo=repo, commit=commit, save="~/.trimesh-cache"
+        repo=repo,
+        commit=commit,
+        save="~/.trimesh-cache",
+        session=urllib.request.build_opener(),
     )
     pairs = {
         k: k.replace("/glTF-Draco/", "/glTF/")

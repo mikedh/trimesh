@@ -73,9 +73,9 @@ VoxelizationMethodsType: TypeAlias = Literal["subdivide", "ray", "binvox"]
 
 
 @runtime_checkable
-class HttpSessionLike(Protocol):
+class HttpGetSession(Protocol):
     """
-    Structural type for an HTTP session.
+    Structural type for an HTTP session with a `get` method.
 
     Matches `httpx.Client` and `requests.Session` so a resolver
     can take either without trimesh importing them directly.
@@ -85,6 +85,22 @@ class HttpSessionLike(Protocol):
     """
 
     def get(self, url: str, *args, **kwargs) -> Any: ...
+
+
+@runtime_checkable
+class HttpOpenSession(Protocol):
+    """
+    Structural type for the standard library HTTP session.
+
+    Matches `urllib.request.OpenerDirector` as returned by
+    `urllib.request.build_opener()`, called as `open(url, timeout=timeout)`.
+    """
+
+    def open(self, fullurl: str, data: Any = None, timeout: float = ...) -> Any: ...
+
+
+# every HTTP session a `WebResolver` can fetch through
+HttpSessionLike: TypeAlias = HttpGetSession | HttpOpenSession
 
 
 # add numpy types like their `numpy.typing.NDArray`
@@ -125,6 +141,8 @@ __all__ = [
     "DTypeLike",
     "Floating",
     "Hashable",
+    "HttpGetSession",
+    "HttpOpenSession",
     "HttpSessionLike",
     "Integer",
     "Iterable",
