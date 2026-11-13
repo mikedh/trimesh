@@ -136,7 +136,7 @@ def load_obj(
         return {"geometry": {}, "graph": []}
     while len(face_tuples) > 0:
         # consume the next chunk of text
-        material, current_object, current_group, chunk = face_tuples.pop()
+        material, current_object, current_group, chunk, offsets = face_tuples.pop()
         # do wangling in string form
         # we need to only take the face line before a newline
         # using builtin functions in a list comprehension
@@ -181,6 +181,21 @@ def load_obj(
             #  '32303/2469 32304/2469 32305/2469',
             log.debug("faces have mixed data: using slow fallback!")
             faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
+            if offsets is not None:
+                # The fallback triangulates each polygon into n - 2 faces.
+                offsets = np.repeat(
+                    offsets, [max(len(f.split()) - 2, 0) for f in face_lines], axis=0
+                )
+
+        if offsets is not None:
+            for axis, index in enumerate((faces, faces_tex, faces_norm)):
+                if index is not None:
+                    rows, columns = np.where(index < 0)
+                    index[rows, columns] += offsets[rows, axis]
+                    if (index < 0).any():
+                        raise ValueError(
+                            "OBJ relative index refers to an undefined declaration"
+                        )
 
         # build name from components
         name_parts = []
@@ -678,8 +693,8 @@ def _group_by(face_tuples, use_mtl: bool, use_obj: bool, use_group: bool):
 
     Parameters
     ------------
-    face_tuples : (n,) list of (material, obj, chunk)
-      The data containing faces
+    face_tuples : (n,) list
+      Tuples of (material, object, group, face chunk, declaration offsets)
     use_mtl
       Group tuples by `usemtl` commands
     use_obj
@@ -690,13 +705,13 @@ def _group_by(face_tuples, use_mtl: bool, use_obj: bool, use_group: bool):
     Returns
     ------------
     grouped : (m,) list of tuples containing:
-              `(material name, objectname, group name, raw chunk)`
+              `(material name, object name, group name, raw chunk, offsets)`
     """
 
     # store the chunks grouped by material
-    grouped = defaultdict(lambda: ["", "", "", []])
+    grouped = defaultdict(lambda: ["", "", "", [], []])
     # loop through existring
-    for material, obj, group, chunk in face_tuples:
+    for material, obj, group, chunk, offsets in face_tuples:
         # tuple key for the dict
         key = (
             material if use_mtl else None,
@@ -708,9 +723,12 @@ def _group_by(face_tuples, use_mtl: bool, use_obj: bool, use_group: bool):
         grouped[key][2] = group
         # don't do a million string concatenations in loop
         grouped[key][3].append(chunk)
+        if offsets is not None:
+            grouped[key][4].append(offsets)
     # go back and do a join to make a single string
     for key in grouped.keys():
         grouped[key][3] = "\n".join(grouped[key][3])
+        grouped[key][4] = np.vstack(grouped[key][4]) if grouped[key][4] else None
     # return as list
     return list(grouped.values())
 
@@ -731,9 +749,25 @@ def _preprocess_faces(text, use_obj=False, use_groups=False):
 
     Returns
     ------------
-    triple : (n, 3) tuple
-      Tuples of (material, object, data-chunk)
+    face_tuples : (n,) list
+      Tuples of (material, object, group, face chunk, declaration offsets)
+      Offsets are (faces, 3) counts for v/vt/vn, or None if not needed.
     """
+    # Relative indices refer to declarations before each face. Keep these
+    # offsets alongside the chunks so material grouping cannot reorder them.
+    keys = ("\nv ", "\nvt ", "\nvn ")
+    offsets = None
+    first_face = text.find("\nf")
+    if first_face >= 0 and text.find("\nv", first_face) >= 0:
+        chunks = text.split("\nf")
+        if any("-" in c.partition("\n")[0] for c in chunks[1:]):
+            offsets = np.zeros((len(chunks) - 1, 3), dtype=np.int64)
+            for i, chunk in enumerate(chunks[:-1]):
+                if "\nv" in chunk:
+                    offsets[i] = [chunk.count(k) for k in keys]
+            offsets = offsets.cumsum(axis=0)
+    face_start = 0
+
     # see which chunk is relevant
     starters = ["\nusemtl ", "\no ", "\nf ", "\ng ", "\ns "]
     f_start = len(text)
@@ -806,7 +840,14 @@ def _preprocess_faces(text, use_obj=False, use_groups=False):
         # If we have an f at the beginning of a line
         # then add it to the list of faces chunks
         if chunk.startswith("f ") or "\nf" in chunk:
-            face_tuples.append((current_mtl, current_obj, current_group, chunk))
+            chunk_offsets = None
+            if offsets is not None:
+                face_end = face_start + chunk.count("\nf") + int(chunk.startswith("f"))
+                chunk_offsets = offsets[face_start:face_end]
+                face_start = face_end
+            face_tuples.append(
+                (current_mtl, current_obj, current_group, chunk, chunk_offsets)
+            )
     return face_tuples
 
 

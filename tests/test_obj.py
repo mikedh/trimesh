@@ -93,6 +93,127 @@ def test_obj_negative_indices():
     assert mesh.vertices.shape == (8, 3)
 
 
+@g.pytest.mark.parametrize("attributes", ["v", "vt", "vn", "vt_vn"])
+@g.pytest.mark.parametrize("group_material", [False, True])
+@g.pytest.mark.parametrize("split_objects", [False, True])
+@g.pytest.mark.parametrize("tag", ["o", "g"])
+def test_obj_interleaved_relative_indices(attributes, group_material, split_objects, tag):
+    # Each face refers only to the declarations preceding it, even when chunks
+    # with repeated materials are grouped after all declarations are parsed.
+    first = {
+        "v": "-3 -2 -1",
+        "vt": "-3/-2 -2/-1 -1/-2",
+        "vn": "-3//-1 -2//-1 -1//-1",
+        "vt_vn": "1/1/1 -2/-1/1 -1/1/-1",
+    }
+    second = {
+        "v": "-3 -2 -1",
+        "vt": "-3/-3 -2/-2 -1/-1",
+        "vn": "-3//-2 -2//-1 -1//-2",
+        "vt_vn": "4/3/2 -2/-2/-1 -1/-1/-2",
+    }
+    text = (
+        f"{tag} first\nv 0 0 0\nv 1 0 0\nv 0 1 0\n"
+        + "vt 0 0\nvt 1 0\nvn 0 0 1\nusemtl repeated\n"
+        + f"f {first[attributes]}\n"
+        + f"{tag} second\nv 10 0 0\nv 11 0 0\nv 10 1 0\n"
+        + "vt 0.2 0.3\nvt 0.4 0.5\nvt 0.6 0.7\n"
+        + "vn 0 0 -1\nvn 0 1 0\nusemtl repeated\n"
+        + f"f {second[attributes]}\n"
+    )
+    scene = g.trimesh.load_scene(
+        g.io.StringIO(text),
+        file_type="obj",
+        process=False,
+        group_material=group_material,
+        split_objects=split_objects and tag == "o",
+        split_groups=split_objects and tag == "g",
+    )
+    meshes = list(scene.geometry.values())
+    triangles = g.np.concatenate([mesh.triangles for mesh in meshes])
+    order = g.np.argsort(triangles[:, 0, 0])
+    assert g.np.allclose(
+        triangles[order],
+        [[[0, 0, 0], [1, 0, 0], [0, 1, 0]], [[10, 0, 0], [11, 0, 0], [10, 1, 0]]],
+    )
+    if "vt" in attributes:
+        uv = g.np.concatenate([mesh.visual.uv[mesh.faces] for mesh in meshes])
+        assert g.np.allclose(
+            uv[order],
+            [[[0, 0], [1, 0], [0, 0]], [[0.2, 0.3], [0.4, 0.5], [0.6, 0.7]]],
+        )
+    if "vn" in attributes:
+        normals = g.np.concatenate([mesh.vertex_normals[mesh.faces] for mesh in meshes])
+        assert g.np.allclose(
+            normals[order],
+            [[[0, 0, 1]] * 3, [[0, 0, -1], [0, 1, 0], [0, 0, -1]]],
+        )
+
+
+@g.pytest.mark.parametrize("first_face", ["f -3 -2 -1", "f\t1 2 3"])
+def test_obj_interleaved_relative_indices_mixed_faces(first_face):
+    text = (
+        f"o mesh\nv 0 0 0\nv 1 0 0\nv 0 1 0\n{first_face}\n"
+        + "v 10 0 0\nv 11 0 0\nv 11 1 0\nv 10 1 0\nf -4 -3 -2 -1\n"
+    )
+    mesh = g.trimesh.load_mesh(g.io.StringIO(text), file_type="obj", process=False)
+    assert g.np.allclose(
+        mesh.triangles,
+        [
+            [[0, 0, 0], [1, 0, 0], [0, 1, 0]],
+            [[10, 0, 0], [11, 0, 0], [11, 1, 0]],
+            [[11, 1, 0], [10, 1, 0], [10, 0, 0]],
+        ],
+    )
+
+
+@g.pytest.mark.parametrize("group_material", [False, True])
+def test_obj_interleaved_relative_indices_ngon(group_material):
+    # Triangulation must repeat each source face's independent v/vt/vn offsets.
+    text = (
+        "v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nv -1 0.5 0\n"
+        + "vt 0 0\nvt 1 1\nvn 0 0 1\nusemtl repeated\n"
+        + "f -5/-2/-1 -4/-1/-1 -3/-2/-1 -2/-1/-1 -1/-2/-1\n"
+        + "v 10 0 0\nv 11 0 0\nv 10 1 0\n"
+        + "vt 0.5 0.5\nvn 0 1 0\nusemtl repeated\n"
+        + "f -3/-1/-1 -2/-1/-1 -1/-1/-1\n"
+    )
+    positive = text.replace(
+        "f -5/-2/-1 -4/-1/-1 -3/-2/-1 -2/-1/-1 -1/-2/-1",
+        "f 1/1/1 2/2/1 3/1/1 4/2/1 5/1/1",
+    ).replace("f -3/-1/-1 -2/-1/-1 -1/-1/-1", "f 6/3/2 7/3/2 8/3/2")
+    actual, expected = [
+        g.trimesh.load_scene(
+            g.io.StringIO(data),
+            file_type="obj",
+            process=False,
+            group_material=group_material,
+        )
+        for data in (text, positive)
+    ]
+    assert actual.geometry.keys() == expected.geometry.keys()
+    for key, mesh in actual.geometry.items():
+        reference = expected.geometry[key]
+        assert g.np.allclose(mesh.triangles, reference.triangles)
+        assert g.np.allclose(
+            mesh.visual.uv[mesh.faces], reference.visual.uv[reference.faces]
+        )
+        assert g.np.allclose(
+            mesh.vertex_normals[mesh.faces], reference.vertex_normals[reference.faces]
+        )
+
+
+@g.pytest.mark.parametrize("face", ["-4 -2 -1", "1/-2 2/-1 3/-1", "1//-2 2//-1 3//-1"])
+def test_obj_interleaved_relative_indices_out_of_range(face):
+    text = (
+        "v 0 0 0\nv 1 0 0\nv 0 1 0\nvt 0 0\nvn 0 0 1\n"
+        + f"f {face}\n"
+        + "v 10 0 0\nv 11 0 0\nv 10 1 0\nvt 1 1\nvn 0 0 -1\n"
+    )
+    with g.pytest.raises(ValueError, match="undefined declaration"):
+        g.trimesh.load_scene(g.io.StringIO(text), file_type="obj", process=False)
+
+
 def test_obj_quad():
     mesh = g.get_mesh("quadknot.obj", merge_tex=True)
     # make sure some data got loaded
