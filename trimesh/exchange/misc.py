@@ -1,4 +1,5 @@
 import json
+import os
 from tempfile import NamedTemporaryFile
 
 from .. import util
@@ -111,9 +112,10 @@ def load_meshio(file_obj, file_type: str, **kwargs):
     exceptions = []
 
     # meshio appears to only support loading by file name so use a tempfile
-    with NamedTemporaryFile(suffix=f".{file_type}") as temp:
+    # and close it before reading as Windows can't reopen an open tempfile
+    with NamedTemporaryFile(suffix=f".{file_type}", delete=False) as temp:
         temp.write(file_obj.read())
-        temp.flush()
+    try:
         # try the loaders in order
         for file_format in file_formats:
             try:
@@ -121,6 +123,8 @@ def load_meshio(file_obj, file_type: str, **kwargs):
                 break
             except BaseException as E:
                 exceptions.append(str(E))
+    finally:
+        os.remove(temp.name)
 
     if mesh is None:
         raise ValueError("Failed to load file:" + "\n".join(exceptions))
