@@ -31,6 +31,47 @@ class LoaderTest(g.unittest.TestCase):
         assert len(m.faces) > 0
         assert m.area > 1e-5
 
+    def test_meshio_reopen_tempfile(self):
+        # meshio reads by file name, so the loader's tempfile must be
+        # closed before `meshio.read` opens it again, or Windows raises
+        # `PermissionError`, and it should be removed afterwards
+        import io
+        import types
+        import warnings
+
+        from trimesh.exchange import misc
+
+        payload = b"not really a gmsh file"
+        calls = []
+
+        def read(file_name, file_format):
+            with open(file_name, "rb") as f:
+                calls.append((file_name, f.read(), file_format))
+            return types.SimpleNamespace(
+                points=g.np.eye(3), get_cells_type=lambda _: g.np.array([[0, 1, 2]])
+            )
+
+        fake = types.SimpleNamespace(extension_to_filetypes={".msh": ["gmsh"]}, read=read)
+        missing = object()
+        original = getattr(misc, "meshio", missing)
+        misc.meshio = fake
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                result = misc.load_meshio(io.BytesIO(payload), file_type="msh")
+        finally:
+            if original is missing:
+                del misc.meshio
+            else:
+                misc.meshio = original
+
+        assert len(calls) == 1
+        file_name, data, file_format = calls[0]
+        assert data == payload
+        assert file_format == "gmsh"
+        assert not g.os.path.exists(file_name)
+        assert g.np.array_equal(result["faces"], [[0, 1, 2]])
+
     def test_load_mesh(self):
         # test the influence of the parameter `process` for `load_mesh`
         with open(g.os.path.join(g.dir_models, "featuretype.STL"), "rb") as file_obj:
