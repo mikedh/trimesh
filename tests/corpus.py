@@ -298,10 +298,8 @@ def compare_draco(
     rather than index-for-index, and faces only through summed area, since the
     encoder drops the degenerate triangles the originals are full of.
     """
-    try:
-        import DracoPy  # noqa: F401
-    except ImportError:
-        log.warning("no `DracoPy`: skipping draco corpus check")
+    if not (trimesh.util.has_module("trimkit") or trimesh.util.has_module("DracoPy")):
+        log.warning("no `trimkit` or `DracoPy`: skipping draco corpus check")
         return
     from scipy.spatial import cKDTree
 

@@ -105,14 +105,11 @@ def arc_center(
         # vectors from points on arc to center point
         vector = util.unitize(points - center)
         edge_direction = np.diff(points, axis=0)
-        # find the angle between the first and last vector
-        dot = np.dot(*vector[[0, 2]])
-        if dot < (_TOL_ZERO - 1):
-            angle = np.pi
-        elif dot > 1 - _TOL_ZERO:
-            angle = 0.0
-        else:
-            angle = np.arccos(dot)
+        # the angle between the first and last unit vector, exact at every
+        # angle where an arccos of their dot product loses half its digits
+        angle = 2.0 * np.arctan2(
+            np.linalg.norm(vector[0] - vector[2]), np.linalg.norm(vector[0] + vector[2])
+        )
         # if the angle is nonzero and vectors are opposite direction
         # it means we have a long arc rather than the short path
         if abs(angle) > _TOL_ZERO and np.dot(*edge_direction) < 0.0:

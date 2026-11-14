@@ -671,7 +671,10 @@ def _create_gltf_structure(
     """
     if extension_draco:
         # fail once here rather than warning per mesh and writing an uncompressed file
-        import DracoPy  # noqa: F401
+        try:
+            import trimkit  # noqa: F401
+        except ImportError:
+            import DracoPy  # noqa: F401
 
     # we are defining a single scene, and will be setting the
     # world node to the 0-index

@@ -150,6 +150,52 @@ def test_center_random():
         assert g.np.allclose(radius, info["radius"])
 
 
+def test_span_exact():
+    # the span of a three point arc is exact for every sweep in either
+    # direction, including the half circle where an arccos loses half its
+    # digits (1e-8 radians or worse)
+    from trimesh.path.arc import arc_center
+
+    random = g.np.random.default_rng(5)
+    sweeps = [0.05, 0.5, g.np.pi - 1e-7, g.np.pi, g.np.pi + 1e-7, 4.0, 6.28]
+    for sweep in sweeps + list(random.uniform(0.05, g.np.pi * 2.0 - 0.05, 50)):
+        for direction in [1.0, -1.0]:
+            center = random.uniform(-50.0, 50.0, 2)
+            radius = random.uniform(0.1, 100.0)
+            angles = random.uniform(0.0, g.np.pi * 2.0) + direction * sweep * (
+                g.np.array([0.0, 0.37, 1.0])
+            )
+            three = center + radius * g.np.column_stack(
+                (g.np.cos(angles), g.np.sin(angles))
+            )
+            assert abs(arc_center(three).span - sweep) < g.tol.zero
+
+
+def test_bounds_exact():
+    # the bounds of a 2D arc in either direction are exact: every point of a
+    # dense sampling of the true arc lies inside them, and each side is
+    # touched within that sampling's own chord error
+    from trimesh.path.entities import Arc
+
+    random = g.np.random.default_rng(3)
+    samples = 100000
+    for _ in range(200):
+        center = random.uniform(-50.0, 50.0, 2)
+        radius = random.uniform(0.01, 100.0)
+        start = random.uniform(-g.np.pi * 2.0, g.np.pi * 2.0)
+        sweep = random.choice([-1.0, 1.0]) * random.uniform(0.05, g.np.pi * 1.99)
+        dense = start + sweep * g.np.linspace(0.0, 1.0, samples)
+        truth = center + radius * g.np.column_stack((g.np.cos(dense), g.np.sin(dense)))
+        bounds = Arc(points=[0, 1, 2]).bounds(truth[[0, samples // 3, -1]])
+        chord = radius * (1.0 - g.np.cos(abs(sweep) / samples / 2.0))
+        margin = g.tol.merge * radius
+        assert (truth >= bounds[0] - margin).all()
+        assert (truth <= bounds[1] + margin).all()
+        assert g.np.allclose(
+            bounds, [truth.min(axis=0), truth.max(axis=0)], atol=chord + margin
+        )
+
+
 def test_multiroot():
     """
     Test a Path2D object containing polygons nested in

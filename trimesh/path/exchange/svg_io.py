@@ -219,6 +219,105 @@ def transform_to_matrices(transform: str) -> NDArray[np.float64]:
     return np.array(matrices, dtype=np.float64)
 
 
+def segments_to_entities(segments: NDArray, offset: int = 0, metadata=None) -> list:
+    """
+    Entities for SVG path segments, a line continuing a line extending it.
+
+    Parameters
+    ------------
+    segments : (n,) SvgSegment
+      Rows indexing their vertices.
+    offset : int
+      Added to every vertex index.
+    metadata : None or dict
+      Copied onto every entity.
+
+    Returns
+    ------------
+    entities : list
+      `Line`, `Bezier` and `Arc` entities.
+    """
+    kinds, points = segments["kind"], segments["points"] + offset
+    lines = kinds == SvgKind.LINE
+    starts = np.ones(len(kinds), dtype=bool)
+    starts[1:] = ~(lines[1:] & lines[:-1] & (points[1:, 0] == points[:-1, 3]))
+    starts = np.flatnonzero(starts)
+    return [
+        SVG_TYPES[kind](
+            points=np.append(run[:, SVG_COLUMNS[kind]], run[-1, 3]), metadata=metadata
+        )
+        for kind, run in zip(kinds[starts].tolist(), np.split(points, starts[1:]))
+    ]
+
+
+def entity_to_segments(entity, vertices: NDArray) -> tuple[NDArray, NDArray]:
+    """
+    SVG path segments for an entity, the inverse of `segments_to_entities`.
+    Arcs are pieces of at most 120 degrees so a closed circle is three, and
+    an entity with no SVG command is a polyline of its discrete points.
+
+    Parameters
+    ------------
+    entity : Entity
+      Entity to convert.
+    vertices : (n, 2) float
+      Vertices the entity references.
+
+    Returns
+    ------------
+    vertices : (m, 2) float
+      Vertices the segments index.
+    segments : (p,) SvgSegment
+      One row per drawing command.
+    """
+    chain = entity.points
+    if type(entity).__name__ == "Arc":
+        three = vertices[chain]
+        info = arc_center(three, return_normal=False, return_angle=True)
+        # counterclockwise when the middle point is left of the chord
+        first, second = three[1] - three[0], three[2] - three[0]
+        direction = np.sign(first[0] * second[1] - first[1] * second[0])
+        if entity.closed:
+            span, end = np.pi * 2.0, three[0]
+        else:
+            span, end = info.span, three[2]
+        count = int(np.ceil(span * 3.0 / (np.pi * 2.0)))
+        # every piece's start, halfway point and end, then the center
+        start = three[0] - info.center
+        angles = np.arctan2(start[1], start[0]) + direction * span * (
+            np.arange(2 * count + 1) / (2 * count)
+        )
+        circle = info.center + info.radius * np.column_stack(
+            (np.cos(angles), np.sin(angles))
+        )
+        # the entity's own endpoints exactly
+        circle[0], circle[-1] = three[0], end
+        vertices = np.vstack((circle, info.center))
+        kind, chain = SvgKind.ARC, np.arange(2 * count + 1)
+    elif type(entity).__name__ == "Bezier" and len(chain) in (3, 4):
+        kind = {3: SvgKind.QUADRATIC, 4: SvgKind.CUBIC}[len(chain)]
+    elif type(entity).__name__ != "Line":
+        vertices = entity.discrete(vertices).reshape((-1, 2))
+        kind, chain = SvgKind.LINE, np.arange(len(vertices))
+    else:
+        kind = SvgKind.LINE
+
+    width = len(SVG_COLUMNS[kind])
+    # an entity with no points, like `Text`, writes nothing
+    segments = np.zeros(max(len(chain) - 1, 0) // width, dtype=SvgSegment)
+    segments["kind"] = kind
+    segments["points"] = -1
+    segments["points"][:, SVG_COLUMNS[kind]] = chain[:-1].reshape((-1, width))
+    segments["points"][:, 3] = chain[width::width]
+    if kind == SvgKind.ARC:
+        segments["points"][:, 1] = len(vertices) - 1
+        segments["radius"] = info.radius
+        segments["angles"] = np.column_stack(
+            (angles[:-1:2], np.full(len(segments), direction * span / count))
+        )
+    return vertices, segments
+
+
 def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
     """
     Convert an SVG path string into a Path2D object
@@ -307,6 +406,18 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
         # get the name of the geometry if trimesh specified it
         # note that the get will by default return `None`
         name = _decode(attrib.get(_ns + "name"))
+        if svg_parse is not None:
+            path_vertices, segments = svg_parse(path_string)
+            entities[name].extend(
+                segments_to_entities(
+                    segments, counts[name], _attrib_metadata(attrib=attrib)
+                )
+            )
+            vertices[name].append(transform_points(path_vertices, matrix))
+            counts[name] += len(path_vertices)
+            continue
+
+        # svg.path fallback: delete with its deprecation
         # get parsed entities from svg.path
         raw = np.array(list(parse_path(path_string)))
 
@@ -482,6 +593,10 @@ def _entities_to_str(entities, vertices, name=None, digits=None, only_layers=Non
     only_layers : set
       Only export these layers if passed
     """
+    # trimkit writes every number exactly unless asked to round
+    if digits is not None:
+        vertices = np.round(vertices, int(digits))
+    # svg.path fallback: delete with its deprecation
     if digits is None:
         digits = 13
 
@@ -555,8 +670,10 @@ def _entities_to_str(entities, vertices, name=None, digits=None, only_layers=Non
     for entity in entities:
         if only_layers is not None and entity.layer not in only_layers:
             continue
-        # check the class name of the entity
-        if entity.__class__.__name__ == "Arc":
+        if svg_string is not None:
+            path_string = svg_string(*entity_to_segments(entity, vertices))
+        # svg.path fallback: delete with its deprecation
+        elif entity.__class__.__name__ == "Arc":
             # export the exact version of the entity
             path_string = svg_arc(entity)
         else:
@@ -789,13 +906,36 @@ def _decode(bag):
 _svg_loaders = {"svg": svg_to_path}
 
 try:
+    # trimkit parses and writes path data as numpy rows
+    from trimkit.exchange import SvgKind, SvgSegment, svg_parse, svg_string
+
+    # the entity each kind loads as, and the `points` columns it keeps
+    # before the end in column 3
+    SVG_TYPES = {
+        SvgKind.LINE: Line,
+        SvgKind.QUADRATIC: Bezier,
+        SvgKind.CUBIC: Bezier,
+        SvgKind.ARC: Arc,
+    }
+    SVG_COLUMNS = {
+        SvgKind.LINE: [0],
+        SvgKind.QUADRATIC: [0, 1],
+        SvgKind.CUBIC: [0, 1, 2],
+        SvgKind.ARC: [0, 2],
+    }
+except ImportError:
+    svg_parse = svg_string = None
+
+# svg.path fallback: delete with its deprecation
+try:
     # pip install svg.path
     from svg.path import parse_path
 except BaseException as E:
     # will re-raise the import exception when
     # someone tries to call `parse_path`
     parse_path = exceptions.ExceptionWrapper(E)
-    _svg_loaders["svg"] = parse_path
+    if svg_parse is None:
+        _svg_loaders["svg"] = parse_path
 
 try:
     from lxml import etree

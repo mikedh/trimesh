@@ -20,11 +20,105 @@ def test_svg():
             # on export/import
             assert g.np.isclose(d.length, loaded.length, rtol=0.01)
 
-            assert len(d.entities) == len(loaded.entities)
+            # lines come back one for one and arcs sweep the same total
+            # angle, however many pieces the backend writes them in
+            lines, sweeps = [], []
+            for path in [d, loaded]:
+                names = [type(entity).__name__ for entity in path.entities]
+                lines.append(names.count("Line"))
+                sweeps.append(
+                    sum(
+                        entity.length(path.vertices) / entity.center(path.vertices).radius
+                        for entity in path.entities
+                        if type(entity).__name__ == "Arc"
+                    )
+                )
+            assert lines[0] == lines[1]
+            assert g.np.isclose(*sweeps)
 
             path_str = g.trimesh.path.exchange.svg_io.export_svg(d, return_path=True)
             assert isinstance(path_str, str)
             assert len(path_str) > 0
+
+
+def test_svg_segments():
+    # every entity written as SVG path data with trimkit reads back as the
+    # same kinds with bit-identical coordinates at every point it names
+    svg_io = g.trimesh.path.exchange.svg_io
+    if svg_io.svg_parse is None:
+        return
+    from trimkit.exchange import SvgKind
+
+    # the columns of `points` each kind writes into path data
+    written = {
+        SvgKind.LINE: [0, 3],
+        SvgKind.QUADRATIC: [0, 1, 3],
+        SvgKind.CUBIC: [0, 1, 2, 3],
+        SvgKind.ARC: [0, 3],
+    }
+    for drawing in g.get_2D():
+        for entity in drawing.entities:
+            vertices, segments = svg_io.entity_to_segments(entity, drawing.vertices)
+            parsed_vertices, parsed = svg_io.svg_parse(
+                svg_io.svg_string(vertices, segments)
+            )
+            assert g.np.array_equal(parsed["kind"], segments["kind"])
+            for kind, columns in written.items():
+                mask = segments["kind"] == kind
+                assert g.np.array_equal(
+                    parsed_vertices[parsed["points"][mask][:, columns]],
+                    vertices[segments["points"][mask][:, columns]],
+                )
+
+
+def test_arc_pieces():
+    # arcs of every sweep in both directions export as pieces of at most
+    # 120 degrees that trace the original arc: every reloaded point on its
+    # circle and inside its sweep, with the same length
+    if g.trimesh.path.exchange.svg_io.svg_string is None:
+        return
+    from trimesh.path.entities import Arc
+
+    random = g.np.random.default_rng(7)
+    for sweep in [0.3, 2.0, 2.1, 3.0, g.np.pi, 3.3, 4.5, 6.0, g.np.pi * 2.0]:
+        for direction in [1.0, -1.0]:
+            center = random.uniform(-5.0, 5.0, 2)
+            radius = random.uniform(0.5, 3.0)
+            start = random.uniform(0.0, g.np.pi * 2.0)
+            closed = bool(sweep == g.np.pi * 2.0)
+            # a closed arc is any three distinct points on its circle
+            fractions = g.np.array([0.0, 0.5, 1.0])
+            if closed:
+                fractions = g.np.array([0.0, 1.0, 2.0]) / 3.0
+            angles = start + direction * sweep * fractions
+            path = g.trimesh.path.Path2D(
+                entities=[Arc(points=[0, 1, 2], closed=closed)],
+                vertices=center
+                + radius * g.np.column_stack((g.np.cos(angles), g.np.sin(angles))),
+            )
+            loaded = g.trimesh.load(
+                g.trimesh.util.wrap_as_stream(path.export(file_type="svg")),
+                file_type="svg",
+            )
+            assert len(loaded.entities) == g.np.ceil(
+                sweep * 3.0 / (g.np.pi * 2.0) - g.tol.merge
+            )
+            assert g.np.isclose(loaded.length, path.length, rtol=1e-9)
+            for entity in loaded.entities:
+                assert type(entity).__name__ == "Arc"
+                assert entity.center(loaded.vertices).span <= g.np.pi * 2.0 / 3.0 + (
+                    g.tol.merge
+                )
+                relative = entity.discrete(loaded.vertices) - center
+                assert g.np.allclose(
+                    g.np.linalg.norm(relative, axis=1), radius, atol=g.tol.merge * radius
+                )
+                swept = g.np.mod(
+                    direction * (g.np.arctan2(relative[:, 1], relative[:, 0]) - start)
+                    + g.tol.merge,
+                    g.np.pi * 2.0,
+                )
+                assert (swept <= sweep + g.tol.merge * 2.0).all()
 
 
 def test_layer():

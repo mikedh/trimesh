@@ -2,8 +2,8 @@
 test_draco.py
 -------------
 
-Check `KHR_draco_mesh_compression` in GLTF, which needs `DracoPy`
-from the `test_more` extra.
+Check `KHR_draco_mesh_compression` in GLTF, which needs `trimkit`
+or `DracoPy` from the `test_more` extra.
 """
 
 from importlib.util import find_spec
@@ -15,7 +15,10 @@ except BaseException:
     import generic as g
     from test_gltf import validate_glb
 
-needs_draco = g.pytest.mark.skipif(find_spec("DracoPy") is None, reason="no `DracoPy`")
+needs_draco = g.pytest.mark.skipif(
+    find_spec("trimkit") is None and find_spec("DracoPy") is None,
+    reason="no `trimkit` or `DracoPy`",
+)
 # pin `include_normals` so nothing depends on what happens to be cached
 kwargs = {"file_type": "glb", "include_normals": True}
 

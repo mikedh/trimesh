@@ -332,11 +332,29 @@ def draco_decode(context: PrimitivePreprocessContext) -> None:
     context
       PrimitivePreprocessContext, whose `accessors` we mutate in-place.
     """
-    import DracoPy
-
     data = context["data"]
     accessors = context["accessors"]
     attributes = context["primitive"].get("attributes", {})
+    # indices aren't an attribute so they're not in the extension mapping
+    indices = context["primitive"].get("indices")
+
+    try:
+        from trimkit.exchange import draco_decode
+
+        # the glTF attributes this primitive has, asked for by their draco ids
+        names = [name for name in data["attributes"] if name in attributes]
+        faces, decoded = draco_decode(
+            context["views"][data["bufferView"]],
+            np.array([data["attributes"][name] for name in names], dtype=np.int64),
+        )
+        # overwrite the zero placeholders in-place by accessor index
+        for name, value in zip(names, decoded):
+            accessors[attributes[name]] = value
+        if indices is not None:
+            accessors[indices] = faces
+        return
+    except ImportError:
+        import DracoPy
 
     # one blob holds every compressed attribute for this primitive
     decoded = DracoPy.decode(context["views"][data["bufferView"]])
@@ -350,8 +368,6 @@ def draco_decode(context: PrimitivePreprocessContext) -> None:
         if name in attributes:
             accessors[attributes[name]] = attr["data"]
 
-    # indices aren't an attribute so they're not in the extension mapping
-    indices = context["primitive"].get("indices")
     faces = getattr(decoded, "faces", None)
     if indices is not None and faces is not None:
         accessors[indices] = faces
@@ -377,8 +393,6 @@ def draco_encode(context: PrimitiveExportContext) -> bool | None:
     compressed
       True if the geometry is now inside a draco buffer, None if not.
     """
-    import DracoPy
-
     from . import _buffer_append
 
     primitive = context["primitive"]
@@ -386,6 +400,41 @@ def draco_encode(context: PrimitiveExportContext) -> bool | None:
     # the arrays the accessors were built from keyed by accessor index, so we
     # never unpack bytes back into numpy and can only claim what was recorded
     arrays = context["arrays"]
+
+    try:
+        from trimkit.exchange import DracoKind, draco_decode, draco_encode
+
+        # draco attribute `i` is `names[i]`: positions and then the optional
+        # attributes this primitive has, as its glTF name prefix is the kind
+        names = ["POSITION"]
+        names.extend(
+            name for name, _, _ in _draco_optional if attributes.get(name) in arrays
+        )
+        values = [arrays[attributes[name]] for name in names]
+        faces = arrays[primitive["indices"]].astype(np.int64)
+        # every kind's default bits, positions on the `_DRACO_QUANTIZATION` grid
+        buffer = draco_encode(
+            faces,
+            values,
+            np.array([DracoKind[name.split("_")[0]] for name in names], dtype=np.int64),
+        )
+        # decode what we just encoded to prove the round trip preserved our
+        # counts before we let the exporter skip storing the source.
+        # DO NOT remove this check: it is all that stands between a lossy encoder
+        # and silently corrupt geometry in the exported file.
+        ids = list(range(len(names)))
+        decoded_faces, decoded = draco_decode(buffer, np.array(ids, dtype=np.int64))
+        if len(decoded_faces) != len(faces) or len(decoded[0]) != len(values[0]):
+            log.warning("draco round trip changed the vertex count, not compressing")
+            return None
+        primitive.setdefault("extensions", {})["KHR_draco_mesh_compression"] = {
+            # identical geometry encodes identically so this dedupes for free
+            "bufferView": _buffer_append(context["buffer_items"], buffer),
+            "attributes": dict(zip(names, ids)),
+        }
+        return True
+    except ImportError:
+        import DracoPy
 
     # the optional attributes this primitive actually has: anything the
     # exporter stored itself, like a custom `_ATTRIBUTE`, is not in `arrays`

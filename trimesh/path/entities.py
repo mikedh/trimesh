@@ -721,13 +721,26 @@ class Arc(Entity):
         bounds : (2, dimension) float
           Coordinates of AABB in (min, max) form
         """
-        if util.is_shape(vertices, (-1, 2)) and self.closed:
-            # if we have a closed arc (a circle), we can return the actual bounds
-            # this only works in two dimensions, otherwise this would return the
-            # AABB of an sphere
+        if util.is_shape(vertices, (-1, 2)):
+            # in two dimensions the extremes of an arc are its points and each
+            # axis point its counterclockwise sweep passes, which for a closed
+            # arc (a circle) is all four
+            three = vertices[self.points]
             info = self.center(vertices, return_normal=False, return_angle=False)
+            angles = np.arctan2(*(three - info.center).T[::-1])
+            first, second = three[1] - three[0], three[2] - three[0]
+            if first[0] * second[1] - first[1] * second[0] < 0.0:
+                angles = angles[::-1]
+            sweep = np.mod(angles[2] - angles[0], np.pi * 2.0)
+            if self.closed:
+                sweep = np.pi * 2.0
+            axes = np.array([[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0], [0.0, -1.0]])
+            passed = np.mod(np.arange(4) * np.pi / 2.0 - angles[0], np.pi * 2.0)
+            extremes = np.vstack(
+                (three, info.center + info.radius * axes[passed <= sweep])
+            )
             bounds = np.array(
-                [info.center - info.radius, info.center + info.radius], dtype=np.float64
+                [extremes.min(axis=0), extremes.max(axis=0)], dtype=np.float64
             )
         else:
             # since the AABB of a partial arc is hard, approximate
