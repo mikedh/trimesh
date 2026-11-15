@@ -14,7 +14,7 @@ import numpy as np
 from .. import util
 from ..util import ABC
 from .arc import arc_center, discretize_arc
-from .curve import discretize_bezier, discretize_bspline
+from .curve import bounds_bezier, bounds_bspline, discretize_bezier, discretize_bspline
 
 log = getLogger(__name__)
 
@@ -756,6 +756,10 @@ class Bezier(Curve):
     An open or closed Bezier curve
     """
 
+    def bounds(self, vertices):
+        """Return a tight conservative AABB using subdivided control hulls."""
+        return bounds_bezier(vertices[self.points])
+
     def discrete(self, vertices, scale=1.0, count=None):
         """
         Discretize the Bezier curve.
@@ -794,6 +798,10 @@ class BSpline(Curve):
         self._cache = {}
         self.kwargs = kwargs
         self.color = color
+
+    def bounds(self, vertices):
+        """Return the AABB from polynomial-span extrema and knot boundaries."""
+        return bounds_bspline(vertices[self.points], self.knots)
 
     def discrete(self, vertices, count=None, scale=1.0):
         """
