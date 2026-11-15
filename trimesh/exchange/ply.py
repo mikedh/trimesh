@@ -1013,6 +1013,7 @@ def _ply_binary(elements, file_obj):
 
     # keep the list properties before their length is filled in
     properties = {k: dict(e["properties"]) for k, e in elements.items()}
+    data_start = file_obj.tell()
 
     # some elements are passed where the list dimensions
     # are not included in the header, so this function goes
@@ -1038,6 +1039,24 @@ def _ply_binary(elements, file_obj):
     # with everything populated and a reasonable confidence the file
     # is intact, read the data fields described by the header
     populate_data(file_obj, elements)
+
+    # the size can also match when the lists differ in length, like faces
+    # with 4, 3 and 5 indices taking the same bytes as three quads, so check
+    # that every row has the list length read from the first one
+    for key, element in elements.items():
+        data = element.get("data")
+        if data is None:
+            continue
+        for name, dtype in properties[key].items():
+            if "$LIST" not in dtype or name not in data.dtype.names:
+                continue
+            field = data[name]
+            if not (field["f0"] == field["f1"].shape[1]).all():
+                file_obj.seek(data_start)
+                for k, e in elements.items():
+                    e["properties"] = properties[k]
+                _ply_binary_rows(elements, file_obj, size_file)
+                return
 
 
 def _ply_binary_rows(elements, file_obj, size):
