@@ -14,7 +14,7 @@ import numpy as np
 from .. import util
 from ..util import ABC
 from .arc import arc_center, discretize_arc
-from .curve import discretize_bezier, discretize_bspline
+from .curve import bounds_bezier, bounds_bspline, discretize_bezier, discretize_bspline
 
 log = getLogger(__name__)
 
@@ -750,29 +750,15 @@ class Curve(Entity):
         mid = self.points[len(self.points) // 2]
         return [[self.points[0], mid], [mid, self.points[-1]]]
 
-    def bounds(self, vertices):
-        """
-        Return the AABB of the curve, which is tighter than the
-        control points as the curve does not reach the control hull.
-
-        Parameters
-        -----------
-        vertices : (n, dimension) float
-          Vertices in space
-
-        Returns
-        -----------
-        bounds : (2, dimension) float
-          Coordinates of AABB, in (min, max) form
-        """
-        discrete = self.discrete(vertices)
-        return np.array([discrete.min(axis=0), discrete.max(axis=0)])
-
 
 class Bezier(Curve):
     """
     An open or closed Bezier curve
     """
+
+    def bounds(self, vertices):
+        """Return a tight conservative AABB using subdivided control hulls."""
+        return bounds_bezier(vertices[self.points])
 
     def discrete(self, vertices, scale=1.0, count=None):
         """
@@ -812,6 +798,10 @@ class BSpline(Curve):
         self._cache = {}
         self.kwargs = kwargs
         self.color = color
+
+    def bounds(self, vertices):
+        """Return the AABB from polynomial-span extrema and knot boundaries."""
+        return bounds_bspline(vertices[self.points], self.knots)
 
     def discrete(self, vertices, count=None, scale=1.0):
         """

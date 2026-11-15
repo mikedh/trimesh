@@ -60,6 +60,72 @@ def discretize_bezier(points, count=None, scale=1.0):
     return result
 
 
+def bounds_bezier(points):
+    """Conservatively bound a Bezier curve with subdivided control hulls."""
+    points = np.asanyarray(points, dtype=np.float64)
+    scale = np.abs(points).max(axis=0)
+    tolerance = scale * 1e-12
+    curves = points[None]
+    endpoints = points[[0, -1]]
+    lower, upper = endpoints.min(axis=0), endpoints.max(axis=0)
+    bounds = np.array([lower, upper])
+    transform = None
+    # Each subcurve remains inside its control hull. Only refine hulls which
+    # could extend the global bounds, rather than sampling the whole curve.
+    for depth in range(27):
+        lower = np.minimum(lower, curves[:, [0, -1]].min(axis=(0, 1)))
+        upper = np.maximum(upper, curves[:, [0, -1]].max(axis=(0, 1)))
+        low, high = curves.min(axis=1), curves.max(axis=1)
+        done = ((low >= lower - tolerance) & (high <= upper + tolerance)).all(axis=1)
+        if depth == 26:
+            done[:] = True
+        if done.any():
+            bounds[0] = np.minimum(bounds[0], low[done].min(axis=0))
+            bounds[1] = np.maximum(bounds[1], high[done].max(axis=0))
+        curves = curves[~done]
+        if len(curves) == 0:
+            break
+        if transform is None:
+            # Four quarter-curve transforms, built once with de Casteljau.
+            work = np.eye(len(points))
+            left, right = [work[0]], [work[-1]]
+            for _ in range(len(points) - 1):
+                work = 0.5 * work[:-1] + 0.5 * work[1:]
+                left.append(work[0])
+                right.append(work[-1])
+            halves = np.stack((left, right[::-1]))
+            transform = np.matmul(halves[:, None], halves[None]).reshape(
+                4, len(points), len(points)
+            )
+        curves = np.matmul(transform[:, None], curves[None]).reshape(
+            -1, len(points), points.shape[1]
+        )
+    padding = 128 * np.finfo(np.float64).eps * scale * len(points) ** 2
+    return bounds + np.array([-padding, padding])
+
+
+def bounds_bspline(control, knots):
+    """Bound each polynomial span, including both sides of repeated knots."""
+    from scipy.interpolate import PPoly
+
+    control = np.asanyarray(control, dtype=np.float64)
+    degree = len(knots) - len(control) - 1
+    bounds = []
+    edges = np.unique(knots)
+    for axis in control.T:
+        polynomial = PPoly.from_spline((knots, axis, degree))
+        # Match discretize_bspline's full knot interval, including extrapolation.
+        roots = polynomial.derivative().roots(extrapolate=True)
+        roots = roots[np.isfinite(roots) & (roots >= edges[0]) & (roots <= edges[-1])]
+        parameters = np.concatenate((edges, np.nextafter(edges[1:], -np.inf), roots))
+        values = polynomial(parameters)
+        bounds.append([values.min(), values.max()])
+    bounds = np.array(bounds).T
+    scale = np.maximum(np.abs(control).max(axis=0), np.abs(bounds).max(axis=0))
+    padding = 128 * np.finfo(np.float64).eps * scale * (degree + 1) ** 2
+    return bounds + np.array([-padding, padding])
+
+
 def discretize_bspline(control, knots, count=None, scale=1.0):
     """
     Given a B-Splines control points and knot vector, return
