@@ -279,7 +279,7 @@ def ray_triangle_id(
     # only return points that are forward from the origin
     vector = location - ray_origins[index_ray]
     distance = util.diagonal_dot(vector, ray_directions[index_ray])
-    forward = distance > -1e-6
+    forward = distance > tol.zero
 
     index_tri = index_tri[forward]
     index_ray = index_ray[forward]

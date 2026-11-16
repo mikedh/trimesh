@@ -113,6 +113,72 @@ def test_contains():
         assert test_centroid.all()
 
 
+def test_contains_near_boundary():
+    """
+    Regression test for points extremely close to mesh boundary.
+    
+    Before fix: points within ~6.5e-7 of a face were incorrectly
+    reported as outside because the forward-hit check used a negative
+    tolerance (-1e-6), counting hits slightly behind the ray origin.
+    
+    After fix: forward = distance > tol.zero (1e-13) correctly
+    excludes behind-origin hits.
+    """
+    # Unit cube [0, 1]^3
+    mesh = g.trimesh.Trimesh(
+        vertices=g.np.array([
+            [0,0,0], [1,0,0], [1,1,0], [0,1,0],
+            [0,0,1], [1,0,1], [1,1,1], [0,1,1]
+        ]),
+        faces=[
+            [0,1,2], [0,2,3],  # bottom
+            [4,5,6], [4,6,7],  # top
+            [0,1,5], [0,5,4],  # front
+            [2,3,7], [2,7,6],  # back
+            [0,3,7], [0,7,4],  # left
+            [1,2,6], [1,6,5],  # right
+        ]
+    )
+    
+    # Points clearly inside should be contained
+    assert mesh.contains(g.np.array([[0.5, 0.5, 0.5]]))[0]
+    assert mesh.contains(g.np.array([[0.5, 0.5, 0.25]]))[0]
+    assert mesh.contains(g.np.array([[0.25, 0.25, 0.25]]))[0]
+    
+    # Points extremely close to boundary (but inside) should be contained
+    eps = 1e-10
+    assert mesh.contains(g.np.array([[0.5, 0.5, eps]]))[0], "Point just inside bottom face"
+    assert mesh.contains(g.np.array([[0.5, 0.5, 1e-8]]))[0], "Point 1e-8 inside bottom face"
+    assert mesh.contains(g.np.array([[0.5, 0.5, 1e-6]]))[0], "Point 1e-6 inside bottom face"
+    assert mesh.contains(g.np.array([[eps, 0.5, 0.5]]))[0], "Point just inside left face"
+    assert mesh.contains(g.np.array([[0.5, eps, 0.5]]))[0], "Point just inside front face"
+    
+    # Points on or outside boundary should NOT be contained
+    assert not mesh.contains(g.np.array([[0.5, 0.5, 0.0]]))[0], "Point on bottom face"
+    assert not mesh.contains(g.np.array([[0.5, 0.5, -0.01]]))[0], "Point outside bottom"
+    assert not mesh.contains(g.np.array([[0.5, 0.5, 1.0]]))[0], "Point on top face"
+    assert not mesh.contains(g.np.array([[0.5, 0.5, 1.01]]))[0], "Point outside top"
+
+
+def test_contains_thin_features():
+    """
+    Regression test for thin features (e.g., boxes with one dimension ~1e-5).
+    
+    Thin boxes should correctly contain their center and interior points.
+    """
+    thin = g.trimesh.creation.box(extents=[1, 1, 1e-5])
+    
+    # Center should be contained
+    assert thin.contains(g.np.array([[0.0, 0.0, 0.0]]))[0], "Thin box center"
+    
+    # Interior points should be contained
+    assert thin.contains(g.np.array([[0.0, 0.0, 2.5e-6]]))[0], "Thin box at 25% height"
+    assert thin.contains(g.np.array([[0.0, 0.0, 4e-6]]))[0], "Thin box at 80% height"
+    
+    # Boundary and outside should NOT be contained
+    assert not thin.contains(g.np.array([[0.0, 0.0, 5e-6]]))[0], "Thin box boundary"
+    assert not thin.contains(g.np.array([[0.0, 0.0, 5.1e-6]]))[0], "Thin box outside"
+
 def test_contains_cavity():
     # https://github.com/mikedh/trimesh/issues/2534
     from trimesh import ray as ray_mod
