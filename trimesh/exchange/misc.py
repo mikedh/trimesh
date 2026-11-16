@@ -113,9 +113,10 @@ def load_meshio(file_obj, file_type: str, **kwargs):
 
     # meshio appears to only support loading by file name so use a tempfile
     # and close it before reading as Windows can't reopen an open tempfile
-    with NamedTemporaryFile(suffix=f".{file_type}", delete=False) as temp:
-        temp.write(file_obj.read())
+    temp = NamedTemporaryFile(suffix=f".{file_type}", delete=False)
     try:
+        with temp:
+            temp.write(file_obj.read())
         # try the loaders in order
         for file_format in file_formats:
             try:

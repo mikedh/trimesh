@@ -72,6 +72,45 @@ class LoaderTest(g.unittest.TestCase):
         assert not g.os.path.exists(file_name)
         assert g.np.array_equal(result["faces"], [[0, 1, 2]])
 
+    def test_meshio_tempfile_removed_on_read_error(self):
+        # the tempfile must be removed even when reading the source fails
+        import types
+        import warnings
+
+        from trimesh.exchange import misc
+
+        created = []
+        real = misc.NamedTemporaryFile
+
+        def tracking(*args, **kwargs):
+            temp = real(*args, **kwargs)
+            created.append(temp.name)
+            return temp
+
+        class Broken:
+            def read(self):
+                raise OSError("read failed")
+
+        fake = types.SimpleNamespace(extension_to_filetypes={".msh": ["gmsh"]})
+        missing = object()
+        original = getattr(misc, "meshio", missing)
+        misc.meshio = fake
+        misc.NamedTemporaryFile = tracking
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                with self.assertRaises(OSError):
+                    misc.load_meshio(Broken(), file_type="msh")
+        finally:
+            misc.NamedTemporaryFile = real
+            if original is missing:
+                del misc.meshio
+            else:
+                misc.meshio = original
+
+        assert len(created) == 1
+        assert not g.os.path.exists(created[0])
+
     def test_load_mesh(self):
         # test the influence of the parameter `process` for `load_mesh`
         with open(g.os.path.join(g.dir_models, "featuretype.STL"), "rb") as file_obj:
