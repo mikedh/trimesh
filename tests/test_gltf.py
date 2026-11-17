@@ -754,6 +754,8 @@ class GLTFTest(g.unittest.TestCase):
         sphere = g.trimesh.creation.icosphere()
         count = len(sphere.vertices)
         sphere.vertex_attributes["_i64"] = g.np.arange(count)
+        # IDs past 2**24 aren't representable in float32
+        sphere.vertex_attributes["_id"] = g.np.arange(count) + 2**24 + 1
         sphere.vertex_attributes["_i32"] = g.np.arange(count, dtype=g.np.int32) - 3
         sphere.vertex_attributes["_bool"] = g.np.arange(count) % 2 == 0
 
@@ -764,7 +766,7 @@ class GLTFTest(g.unittest.TestCase):
 
         for key, ori in sphere.vertex_attributes.items():
             # scalar attributes are padded out to 4 byte rows
-            assert g.np.allclose(loaded[key][:, 0], ori), key
+            assert g.np.array_equal(loaded[key][:, 0], ori), key
 
         # paths store vertex attributes the same way
         path = g.trimesh.path.Path3D(
@@ -775,7 +777,7 @@ class GLTFTest(g.unittest.TestCase):
         export = g.trimesh.Scene([path]).export(file_type="glb")
         loaded = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
         values = next(iter(loaded.geometry.values())).vertex_attributes["_i64"]
-        assert g.np.allclose(g.np.unique(values), [0, 1, 2])
+        assert g.np.array_equal(g.np.unique(values), [0, 1, 2])
 
     def test_extras(self):
         # if GLTF extras are defined, make sure they survive a round trip

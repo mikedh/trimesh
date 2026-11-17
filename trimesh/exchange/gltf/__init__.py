@@ -1082,7 +1082,8 @@ def _attribute_cast(array: NDArray) -> NDArray:
     Cast a custom attribute to a little-endian dtype GLTF can store.
 
     GLTF has no 64 bit types, signed 32 bit integers or booleans
-    so anything without a GLTF component type is cast to float32.
+    so non-negative integers that fit are cast to uint32 losslessly
+    and anything else without a GLTF component type is cast to float32.
 
     Parameters
     -----------
@@ -1097,6 +1098,9 @@ def _attribute_cast(array: NDArray) -> NDArray:
     little = array.dtype.newbyteorder("<")
     if little.str[1:] in _dtypes_lookup:
         return array.astype(little, copy=False)
+    if array.dtype.kind in "iu" and array.size:
+        if array.min() >= 0 and array.max() < 2**32:
+            return array.astype("<u4")
     return array.astype(float32)
 
 
