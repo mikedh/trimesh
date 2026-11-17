@@ -5,18 +5,6 @@ except BaseException:
 
 
 class TextureTest(g.unittest.TestCase):
-    def test_simple_pbr_glossiness(self):
-        material = g.trimesh.visual.material
-        # glossiness should survive a round trip through PBR
-        for exponent in [0.0, 1.0, 32.0, 128.0, 1000.0]:
-            restored = material.SimpleMaterial(glossiness=exponent).to_pbr().to_simple()
-            assert g.np.isclose(restored.glossiness, exponent)
-        # a perfect mirror clamps to the MTL maximum rather than infinity
-        assert g.np.isclose(
-            material.PBRMaterial(roughnessFactor=0.0).to_simple().glossiness, 1000.0
-        )
-        assert material.PBRMaterial().to_simple().glossiness == 1.0
-
     def test_uv_to_color(self):
         try:
             import PIL.Image
@@ -283,6 +271,22 @@ class TextureTest(g.unittest.TestCase):
         assert mat_m.baseColorTexture is not None
         assert mat_m.metallicRoughnessTexture is not None
         assert mat_m.emissiveTexture is not None
+
+
+@g.pytest.mark.parametrize("glossiness", [0.0, 1.0, 32.0, 128.0, 1000.0])
+def test_simple_pbr_glossiness(glossiness):
+    # glossiness should survive a round trip through PBR
+    simple = g.trimesh.visual.material.SimpleMaterial(glossiness=glossiness)
+    assert g.np.isclose(simple.to_pbr().to_simple().glossiness, glossiness)
+
+
+@g.pytest.mark.parametrize(
+    ("roughness", "glossiness"), [(0.0, 1000.0), (1.0, 0.0), (None, 1.0)]
+)
+def test_pbr_simple_glossiness(roughness, glossiness):
+    # a perfect mirror is clipped to the MTL maximum rather than infinity
+    pbr = g.trimesh.visual.material.PBRMaterial(roughnessFactor=roughness)
+    assert g.np.isclose(pbr.to_simple().glossiness, glossiness)
 
 
 if __name__ == "__main__":

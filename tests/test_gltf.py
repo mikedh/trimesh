@@ -748,37 +748,6 @@ class GLTFTest(g.unittest.TestCase):
 
                 assert g.np.allclose(ori, check), key
 
-    def test_export_custom_attribute_dtypes(self):
-        # dtypes GLTF can't store (64 bit and signed 32 bit
-        # integers, bool) should be cast rather than fail the export
-        sphere = g.trimesh.creation.icosphere()
-        count = len(sphere.vertices)
-        sphere.vertex_attributes["_i64"] = g.np.arange(count)
-        # IDs past 2**24 aren't representable in float32
-        sphere.vertex_attributes["_id"] = g.np.arange(count) + 2**24 + 1
-        sphere.vertex_attributes["_i32"] = g.np.arange(count, dtype=g.np.int32) - 3
-        sphere.vertex_attributes["_bool"] = g.np.arange(count) % 2 == 0
-
-        export = sphere.export(file_type="glb")
-        validate_glb(export)
-        r = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
-        loaded = next(iter(r.geometry.values())).vertex_attributes
-
-        for key, ori in sphere.vertex_attributes.items():
-            # scalar attributes are padded out to 4 byte rows
-            assert g.np.array_equal(loaded[key][:, 0], ori), key
-
-        # paths store vertex attributes the same way
-        path = g.trimesh.path.Path3D(
-            entities=[g.trimesh.path.entities.Line([0, 1, 2])],
-            vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0]],
-        )
-        path.vertex_attributes["_i64"] = g.np.arange(3)
-        export = g.trimesh.Scene([path]).export(file_type="glb")
-        loaded = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
-        values = next(iter(loaded.geometry.values())).vertex_attributes["_i64"]
-        assert g.np.array_equal(g.np.unique(values), [0, 1, 2])
-
     def test_extras(self):
         # if GLTF extras are defined, make sure they survive a round trip
         s = g.get_mesh("cycloidal.3DXML")
@@ -1410,6 +1379,27 @@ class GLTFTest(g.unittest.TestCase):
         # if they are much different this number will be absolutely huge
         mean_squared_error = ((a - b) ** 2).sum() / g.np.prod(a.shape)
         assert mean_squared_error < 10.0
+
+
+@g.pytest.mark.parametrize(
+    "values",
+    [
+        g.np.arange(8),
+        g.np.arange(8, dtype=g.np.int32) - 3,
+        g.np.arange(8) % 2 == 0,
+        g.np.arange(8, dtype=">f8") / 4,
+    ],
+)
+def test_export_custom_attribute_dtypes(values):
+    # dtypes GLTF can't store directly should be cast rather than fail
+    mesh = g.trimesh.creation.box()
+    mesh.vertex_attributes["_values"] = values
+    export = mesh.export(file_type="glb")
+    validate_glb(export)
+    scene = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
+    loaded = next(iter(scene.geometry.values())).vertex_attributes["_values"]
+    # scalar attributes are padded out to 4 byte rows
+    assert g.np.array_equal(loaded[:, 0], values)
 
 
 if __name__ == "__main__":

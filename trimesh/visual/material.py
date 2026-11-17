@@ -685,10 +685,9 @@ class PBRMaterial(Material):
         """
         glossiness = None
         if self.roughnessFactor is not None:
-            # Invert SimpleMaterial.to_pbr, bounded by the usual MTL Ns range.
-            # Clamp before division so perfectly smooth materials remain finite.
-            roughness = max(self.roughnessFactor, (2.0 / 1002.0) ** 0.25)
-            glossiness = min(1000.0, max(0.0, 2.0 / roughness**4 - 2.0))
+            # invert `SimpleMaterial.to_pbr` clipped so `Ns` is in [0, 1000]
+            roughness = np.clip(self.roughnessFactor, (2.0 / 1002.0) ** 0.25, 1.0)
+            glossiness = 2.0 / roughness**4 - 2.0
 
         # `self.baseColorFactor` is really a linear value
         # so the "right" thing to do here would probably be:

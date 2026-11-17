@@ -502,9 +502,11 @@ def test_slice_cap_near_vertex(offset):
     mesh = g.trimesh.creation.box()
     normal = g.trimesh.unitize([1.0, -1.0, 7.0])
     origin = mesh.vertices[0] + offset * g.tol.merge * normal
-    halves = [mesh.slice_plane(origin, n, cap=True) for n in [normal, -normal]]
-    assert all(h.is_volume and h.euler_number == 2 for h in halves)
-    assert abs(sum(h.volume for h in halves) - mesh.volume) < 1e-6
+    a = mesh.slice_plane(origin, normal, cap=True)
+    b = mesh.slice_plane(origin, -normal, cap=True)
+    assert a.is_volume and b.is_volume
+    assert a.euler_number == b.euler_number == 2
+    assert abs(a.volume + b.volume - mesh.volume) < 1e-6
 
 
 if __name__ == "__main__":
