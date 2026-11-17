@@ -105,6 +105,40 @@ class NormalsTest(g.unittest.TestCase):
         # every intact vertex should be away from box corner
         assert g.np.allclose(g.np.abs(norm[mask]), (1.0 / 3.0) ** 0.5)
 
+    def test_weighted_vertex_normals_thin(self):
+        # a thin triangle with a valid normal whose corner angles
+        # are all zeroed as degenerate: from mikedh/trimesh#2680
+        m = g.trimesh.Trimesh(
+            vertices=[[0, 0, 0], [0.4938927, 11.2826791, 0], [0, 0.000002861, 0]],
+            faces=[[0, 1, 2]],
+            process=False,
+        )
+        assert m.area > 0.0
+        assert g.np.allclose(m.face_normals, [[0, 0, 1]])
+        assert g.np.allclose(m.vertex_normals, m.face_normals)
+
+        # the loop path should agree
+        norm = g.trimesh.geometry.weighted_vertex_normals(
+            vertex_count=len(m.vertices),
+            faces=m.faces,
+            face_normals=m.face_normals,
+            face_angles=m.face_angles,
+            use_loop=True,
+        )
+        assert g.np.allclose(norm, m.face_normals)
+
+        # attached to a regular triangle the shared vertices keep the
+        # angle weighted normal and the thin-only vertex gets its normal
+        m = g.trimesh.Trimesh(
+            vertices=g.np.vstack((m.vertices, [[-1, 5, 1]])),
+            faces=[[0, 1, 2], [0, 3, 1]],
+            process=False,
+        )
+        assert m.face_angles.any(axis=1).tolist() == [False, True]
+        normals = m.vertex_normals
+        assert g.np.allclose(normals[[0, 1, 3]], m.face_normals[1])
+        assert g.np.allclose(normals[2], m.face_normals[0])
+
     def test_face_normals(self):
         """
         Test automatic generation of face normals on mesh objects
