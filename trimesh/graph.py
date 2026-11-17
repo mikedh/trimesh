@@ -12,7 +12,7 @@ import collections
 
 import numpy as np
 
-from . import exceptions, grouping, util
+from . import exceptions, grouping, triangles, util
 from .constants import log, tol
 from .geometry import faces_to_edges
 from .typed import (
@@ -345,6 +345,8 @@ def split(
     repair: bool = True,
     adjacency: ArrayLike | None = None,
     engine: GraphEngineType = None,
+    solids: bool = False,
+    orient: bool = True,
     **kwargs,
 ) -> list:
     """
@@ -369,6 +371,16 @@ def split(
       If passed will be used instead of `mesh.face_adjacency`
     engine
       Which graph engine to use for the connected components.
+    solids
+      If True, group watertight shells by geometric containment
+      so cavity shells stay with their enclosing solid. Containment is
+      evaluated with ray tests and assumes shells are disjoint: results
+      are undefined for shells that touch or intersect one another.
+    orient
+      If True and `solids` is True, orient grouped solid shells
+      so exteriors have positive volume and cavities have negative volume.
+      Orientation flips whole shells based on their signed volume; shells
+      with internally inconsistent winding are left untouched.
 
     Returns
     ----------
@@ -388,9 +400,378 @@ def split(
     components = connected_components(
         edges=adjacency, nodes=np.arange(len(mesh.faces)), min_len=min_len, engine=engine
     )
+
+    if solids and len(components) > 0:
+        components, flips = _split_solids(mesh=mesh, components=components, orient=orient)
+        # `min_faces` is applied per-group inside `submesh` which would drop
+        # groups and break the positional mapping used to apply `flips`.
+        # Apply it here and remap `flips` so the two stay aligned, and don't
+        # pass it through to `submesh` a second time.
+        min_faces = kwargs.pop("min_faces", None)
+        if min_faces is not None:
+            keep = [i for i, group in enumerate(components) if len(group) >= min_faces]
+            flips = {new: flips[old] for new, old in enumerate(keep) if old in flips}
+            components = [components[i] for i in keep]
+        result = mesh.submesh(
+            components, only_watertight=only_watertight, repair=repair, **kwargs
+        )
+        if orient and len(flips) > 0:
+            _flip_result_groups(result=result, groups=components, flips=flips)
+        return result
+
     return mesh.submesh(
         components, only_watertight=only_watertight, repair=repair, **kwargs
     )
+
+
+def _component_volume(mesh, component) -> float:
+    """
+    Signed volume for a connected face component.
+    """
+    return triangles.mass_properties(
+        mesh.triangles[component],
+        crosses=mesh.triangles_cross[component],
+        skip_inertia=True,
+    ).volume
+
+
+# number of ray-casting rounds `_contains_matrix` will attempt before giving
+# up on a disagreeing pair: one fixed direction followed by random-direction
+# retries. `ray.ray_util.contains_points` uses the same fixed-then-random
+# approach but only retries once; batching many shells into a single query
+# makes extra retries cheap here, so we allow a few more to further reduce the
+# odds of leaving a pair unresolved.
+_CONTAINS_ROUNDS = 4
+
+
+def _contains_matrix(mesh, labels, points, candidate, direction=None):
+    """
+    Determine which shells contain which other shells' representative points.
+
+    A single bidirectional ray query is run against the parent mesh's cached
+    BVH and the hits are bucketed per shell using `labels`, replicating the
+    parity test in `ray.contains_points` without building one intersector
+    per shell.
+
+    Parameters
+    ----------
+    mesh : Trimesh
+      Source mesh whose `.ray` intersector and faces are queried.
+    labels : (len(mesh.faces),) int
+      Shell index for each face, or -1 for faces that belong to no shell.
+    points : (n, 3) float
+      One representative point per shell.
+    candidate : (n, n) bool
+      `candidate[i, j]` is True when shell i may contain shell j (AABB test).
+    direction : (3,) float or None
+      Initial ray direction; if None the fixed direction used by
+      `ray.contains_points` is used. Later retries always use a random
+      direction. Exposed mainly so tests can force the retry path.
+
+    Returns
+    ----------
+    contains : (n, n) bool
+      `contains[i, j]` is True when shell i contains shell j's point.
+    """
+    n = len(points)
+    contains = np.zeros((n, n), dtype=bool)
+
+    # only cast from origins that some shell's AABB could contain: for a fully
+    # disjoint multibody mesh this is empty and we never build the ray BVH
+    needed = candidate.any(axis=0)
+    if not needed.any():
+        return contains
+
+    # a pair is settled once we trust its result; non-candidate pairs are
+    # settled as "not contained" from the start so they are never revisited
+    resolved = ~candidate
+
+    # start with the fixed, debuggable direction used by ray.contains_points
+    if direction is None:
+        direction = np.array([0.4395064455, 0.617598629942, 0.652231566745])
+    else:
+        direction = np.array(direction, dtype=np.float64)
+
+    for _ in range(_CONTAINS_ROUNDS):
+        # origins that still have an unresolved candidate pair
+        todo = np.nonzero(needed & ~resolved.all(axis=0))[0]
+        if len(todo) == 0:
+            break
+
+        # cast forwards and backwards from every origin in a single query
+        m = len(todo)
+        origins = points[todo]
+        both_origins = np.vstack((origins, origins))
+        both_dirs = np.vstack((np.tile(direction, (m, 1)), np.tile(-direction, (m, 1))))
+        _loc, index_ray, index_tri = mesh.ray.intersects_location(
+            both_origins, both_dirs, multiple_hits=True
+        )
+
+        # per (origin position, shell) hit counts in each direction
+        fwd = np.zeros((m, n), dtype=np.int64)
+        bwd = np.zeros((m, n), dtype=np.int64)
+        if len(index_ray) > 0:
+            # ray index < m is the forward cast, >= m is the backward cast,
+            # both belonging to origin `todo[position]`
+            position = index_ray % m
+            is_backward = index_ray >= m
+            hit_shell = labels[index_tri]
+            # drop faces belonging to no shell and self-hits on the origin
+            keep = (hit_shell != -1) & (hit_shell != todo[position])
+            pk, sk, bk = position[keep], hit_shell[keep], is_backward[keep]
+            np.add.at(fwd, (pk[~bk], sk[~bk]), 1)
+            np.add.at(bwd, (pk[bk], sk[bk]), 1)
+
+        parity_fwd = (fwd % 2) == 1
+        agree = parity_fwd == ((bwd % 2) == 1)
+        # a ray that misses a shell in either direction proves the origin is
+        # outside it: any ray from inside a closed shell must hit it an odd
+        # (hence nonzero) number of times
+        free = (fwd == 0) | (bwd == 0)
+
+        # (m, n) view of which pairs for these origins are still open
+        open_pair = ~resolved[:, todo].T
+        settle_agree = agree & open_pair
+        settle_free = free & ~agree & open_pair
+
+        sub = contains[:, todo].T
+        sub[settle_agree] = parity_fwd[settle_agree]
+        sub[settle_free] = False
+        contains[:, todo] = sub.T
+
+        done = resolved[:, todo].T
+        done[settle_agree | settle_free] = True
+        resolved[:, todo] = done.T
+
+        # remaining disagreements get a fresh random direction next round
+        direction = util.unitize(np.random.random(3) - 0.5)
+
+    # any still-unresolved candidate pairs default to "not contained" (outside)
+    return contains
+
+
+def _shell_bounds(mesh, closed_components):
+    """
+    Geometric inputs for the containment test over closed shells.
+
+    Taken straight from the parent mesh's cached arrays, with no submesh
+    construction, so `_split_solids` and its tests share one definition.
+
+    Parameters
+    ----------
+    mesh : Trimesh
+      Source mesh providing cached triangle and vertex arrays.
+    closed_components : (n,) sequence of (m,) int
+      Face indices for each closed (watertight) shell.
+
+    Returns
+    ----------
+    mins : (n, 3) float
+      Lower AABB corner of each shell.
+    maxs : (n, 3) float
+      Upper AABB corner of each shell.
+    points : (n, 3) float
+      One representative vertex per shell; for disjoint shells it is
+      strictly inside or outside every other shell.
+    candidate : (n, n) bool
+      `candidate[i, j]` is True when shell i's AABB fully contains shell
+      j's, a necessary condition for shell i to contain shell j.
+    labels : (len(mesh.faces),) int
+      Shell index for each face, or -1 for faces in no listed shell, so a
+      single ray query against the parent BVH can be bucketed per shell.
+    """
+    face_min = mesh.triangles.min(axis=1)
+    face_max = mesh.triangles.max(axis=1)
+    mins = np.array([face_min[c].min(axis=0) for c in closed_components])
+    maxs = np.array([face_max[c].max(axis=0) for c in closed_components])
+    points = np.array([mesh.vertices[mesh.faces[c[0], 0]] for c in closed_components])
+
+    candidate = (mins[:, None, :] <= mins[None, :, :] + tol.merge).all(axis=2) & (
+        maxs[:, None, :] >= maxs[None, :, :] - tol.merge
+    ).all(axis=2)
+    np.fill_diagonal(candidate, False)
+
+    labels = np.full(len(mesh.faces), -1, dtype=np.int64)
+    for shell_index, c in enumerate(closed_components):
+        labels[c] = shell_index
+
+    return mins, maxs, points, candidate, labels
+
+
+def _split_solids(mesh, components, orient: bool):
+    """
+    Group watertight connected components into solids by containment.
+
+    Returns
+    ----------
+    grouped : (n,) sequence of (m,) int
+      Face groups suitable for `mesh.submesh`.
+    flips : dict
+      Mapping from group index to ranges of output faces that should
+      be flipped to normalize exterior/cavity winding.
+    """
+    components = [np.asanyarray(c, dtype=np.int64) for c in components]
+
+    # Work directly on cached edge arrays so we don't need to construct
+    # submeshes just to classify components as closed or open.
+    face_edges = mesh.edges.reshape((-1, 6))
+    closed = []
+    # `wound[k]` mirrors `closed[k]`: whether that shell is consistently wound
+    wound = []
+    open_components = []
+    for index, component in enumerate(components):
+        # a watertight shell needs at least 4 faces (a tetrahedron) so
+        # skip the edge check for anything smaller
+        if len(component) >= 4:
+            is_tight, is_wound = is_watertight(face_edges[component].reshape((-1, 2)))
+        else:
+            is_tight, is_wound = False, False
+        if is_tight:
+            closed.append(index)
+            wound.append(is_wound)
+        else:
+            open_components.append(index)
+
+    # no closed shells means nothing to group or orient
+    if len(closed) == 0:
+        return components, {}
+
+    # Per-shell bounds, representative points, AABB candidate matrix and the
+    # per-face shell labels used to bucket a single ray query against the
+    # parent BVH. Shared with the direct helper test via `_shell_bounds`.
+    mins, maxs, points, candidate, labels = _shell_bounds(
+        mesh, [components[i] for i in closed]
+    )
+
+    contains = _contains_matrix(mesh, labels=labels, points=points, candidate=candidate)
+
+    degree = contains.sum(axis=0)
+    roots = np.nonzero((degree % 2) == 0)[0]
+    root_order = roots[np.lexsort((roots, degree[roots]))]
+
+    parent = {}
+    for child in np.nonzero((degree % 2) == 1)[0]:
+        candidates = np.nonzero(
+            np.logical_and(contains[:, child], degree == (degree[child] - 1))
+        )[0]
+        if len(candidates) == 0:
+            log.debug("contained shell has no immediate parent")
+            continue
+        if len(candidates) > 1:
+            # multiple enclosing shells at the right depth only happens for
+            # malformed (touching or intersecting) input; pick the tightest
+            sizes = np.prod(maxs[candidates] - mins[candidates], axis=1)
+            candidates = candidates[np.argsort(sizes)]
+            log.debug("contained shell has multiple immediate parents")
+        parent[child] = int(candidates[0])
+
+    flip_component = {}
+    volumes = {}
+    if orient:
+        for shell_index, component_index in enumerate(closed):
+            # signed volume is only meaningful for a consistently wound shell;
+            # flipping an inconsistently wound one as a unit is noise so leave
+            # it untouched rather than guess an orientation from a bad volume
+            if not wound[shell_index]:
+                log.debug("skipping orient on winding-inconsistent shell")
+                continue
+            volume = _component_volume(mesh, components[component_index])
+            volumes[component_index] = volume
+            if np.abs(volume) < tol.zero:
+                continue
+            expected = 1.0 if (degree[shell_index] % 2) == 0 else -1.0
+            flip_component[component_index] = bool(np.sign(volume) != expected)
+
+    grouped = []
+    flips = {}
+    used = set()
+
+    def append_group(component_indexes):
+        group_index = len(grouped)
+        ranges = []
+        start = 0
+        group = []
+        for component_index in component_indexes:
+            component = components[component_index]
+            stop = start + len(component)
+            if flip_component.get(component_index, False):
+                ranges.append((start, stop))
+            group.append(component)
+            start = stop
+        grouped.append(np.concatenate(group))
+        if len(ranges) > 0:
+            flips[group_index] = ranges
+
+    # Emit all closed solid groups first so their output indexes remain stable
+    # if only_watertight later drops open components.
+    for root in root_order:
+        child_indexes = [k for k, v in parent.items() if v == int(root)]
+        component_indexes = [closed[int(root)]] + [closed[int(c)] for c in child_indexes]
+        used.update(component_indexes)
+        append_group(component_indexes)
+
+    # Preserve every closed component even for malformed containment graphs.
+    # A parentless shell reaching here is emitted as its own solid, so it must
+    # be oriented to a positive volume rather than as a (negative) cavity.
+    for component_index in closed:
+        if component_index not in used:
+            # `volumes` only holds consistently wound shells, so an
+            # inconsistent shell is left untouched here as well
+            if orient and component_index in volumes:
+                volume = volumes[component_index]
+                flip_component[component_index] = bool(
+                    np.abs(volume) >= tol.zero and np.sign(volume) < 0
+                )
+            append_group([component_index])
+
+    # Open components are never attached to solids; the existing submesh
+    # filtering/repair flags decide whether they are returned.
+    grouped.extend(components[i] for i in open_components)
+
+    return grouped, flips
+
+
+def _flip_mesh_ranges(mesh, ranges) -> None:
+    """
+    Flip selected face rows in a mesh and keep cached face normals aligned.
+    """
+    if len(ranges) == 0:
+        return
+
+    flip = np.zeros(len(mesh.faces), dtype=bool)
+    for start, stop in ranges:
+        flip[start:stop] = True
+    if not flip.any():
+        return
+
+    if "face_normals" in mesh._cache:
+        normals = mesh.face_normals.copy()
+        normals[flip] *= -1.0
+    else:
+        normals = None
+
+    mesh.faces[flip] = np.fliplr(mesh.faces[flip])
+    if normals is not None:
+        mesh.face_normals = normals
+
+
+def _flip_result_groups(result, groups, flips) -> None:
+    """
+    Apply grouped face flips to a normal split result or appended mesh result.
+    """
+    if isinstance(result, list):
+        for group_index, ranges in flips.items():
+            if group_index < len(result):
+                _flip_mesh_ranges(result[group_index], ranges)
+        return
+
+    offset = 0
+    ranges = []
+    for group_index, group in enumerate(groups):
+        for start, stop in flips.get(group_index, []):
+            ranges.append((offset + start, offset + stop))
+        offset += len(group)
+    _flip_mesh_ranges(result, ranges)
 
 
 def connected_components(
