@@ -46,7 +46,7 @@ def compute_stable_poses(
     ----------
     mesh : trimesh.Trimesh
       The target mesh
-    com : (3,) float
+    center_mass : (3,) float
       Rhe object center of mass. If None, this method
       assumes uniform density and watertightness and
       computes a center of mass explicitly
