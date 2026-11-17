@@ -595,9 +595,6 @@ def diagonal_dot(a: ArrayLike, b: ArrayLike) -> np.ndarray[tuple[int], np.dtype[
     In [4]: %timeit (a * b).sum(axis=1)
     1000 loops, best of 3: 181 us per loop
 
-    In [5]: %timeit np.einsum('ij,ij->i', a, b)
-    10000 loops, best of 3: 62.7 us per loop
-
     In [6]: %timeit np.diag(np.dot(a, b.T))
     1 loop, best of 3: 429 ms per loop
 

@@ -72,7 +72,7 @@ class TrianglesTest(g.unittest.TestCase):
         )
 
         def norm(v):
-            return g.np.sqrt(g.np.einsum("...i,...i", v, v))
+            return g.np.linalg.norm(v, axis=-1)
 
         def distToLine(o, v, p):
             return norm((o - p) - g.np.dot(o - p, v) * v)

@@ -179,6 +179,29 @@ def test_weighted_vertex_normals_thin(use_loop):
     assert g.np.array_equal(m.face_angles, angles)
 
 
+def test_weighted_vertex_normals_ab():
+    # A/B the old always-copying implementation against the current one
+    mesh = g.trimesh.creation.icosphere(subdivisions=6)
+    vertex_count = len(mesh.vertices)
+    faces, face_normals, face_angles = mesh.faces, mesh.face_normals, mesh.face_angles
+
+    tic = [g.time.time()]
+    face_ok = (face_normals**2).sum(axis=1) > 0.5
+    a = g.trimesh.util.unitize(
+        g.trimesh.geometry.index_sparse(
+            vertex_count, faces[face_ok], data=face_angles[face_ok].ravel()
+        ).dot(face_normals[face_ok])
+    )
+    tic.append(g.time.time())
+    b = g.trimesh.geometry.weighted_vertex_normals(
+        vertex_count, faces, face_normals, face_angles
+    )
+    tic.append(g.time.time())
+
+    assert g.np.allclose(a, b)
+    g.log.info("weighted_vertex_normals old, new: %s seconds", g.np.diff(tic))
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

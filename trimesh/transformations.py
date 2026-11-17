@@ -1631,7 +1631,7 @@ def random_rotation_matrix(
     >>> np.allclose(np.dot(R.T, R), np.identity(4))
     True
     >>> R = random_rotation_matrix(num=10)
-    >>> np.allclose(np.einsum('...ji,...jk->...ik', R, R), np.identity(4))
+    >>> np.allclose(np.matmul(np.swapaxes(R, -1, -2), R), np.identity(4))
     True
     >>> bool(np.allclose(random_rotation_matrix(seed=0, translate=10),
     ...                  random_rotation_matrix(seed=0, translate=10)))
