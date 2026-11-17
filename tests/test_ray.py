@@ -4,6 +4,274 @@ except BaseException:
     import generic as g
 
 
+def test_engines_against_truth():
+    # rays through a placed box against its analytic slab crossings and
+    # through an icosphere against its inradius and circumradius: every
+    # hit count, and every hit on its face's plane at the true distance
+    random = g.np.random.default_rng(11)
+    extents = g.np.array([2.0, 3.0, 4.0])
+    transform = g.trimesh.transformations.random_rotation_matrix(random.random(3))
+    transform[:3, 3] = [1.0, -2.0, 0.5]
+    box = g.trimesh.creation.box(extents=extents, transform=transform)
+    inverse = g.np.linalg.inv(transform)
+
+    # from outside toward points inside the box, so each crosses twice,
+    # from inside in every direction, crossing once, and away from it
+    targets = g.trimesh.transform_points(
+        (random.random((500, 3)) - 0.5) * extents * 0.9, transform
+    )
+    outside = box.centroid + g.trimesh.util.unitize(random.normal(size=(500, 3))) * 20
+    inside = g.trimesh.transform_points(
+        (random.random((500, 3)) - 0.5) * extents * 0.9, transform
+    )
+    origins = g.np.vstack((outside, inside, outside))
+    directions = g.trimesh.util.unitize(
+        g.np.vstack(
+            (targets - outside, random.normal(size=(500, 3)), outside - box.centroid)
+        )
+    )
+    # the slab crossings in the box's own frame
+    local_origins = g.trimesh.transform_points(origins, inverse)
+    local_directions = directions @ inverse[:3, :3].T
+    with g.np.errstate(divide="ignore"):
+        low = (-extents / 2.0 - local_origins) / local_directions
+        high = (extents / 2.0 - local_origins) / local_directions
+    enter = g.np.minimum(low, high).max(axis=1)
+    leave = g.np.maximum(low, high).min(axis=1)
+    expected = [2] * 500 + [1] * 500 + [0] * 500
+    lengths = random.uniform(0.5, 3.0, (len(origins), 1))
+
+    sphere = g.trimesh.creation.icosphere(subdivisions=3, radius=2.0)
+    inradius = g.np.abs((sphere.triangles[:, 0] * sphere.face_normals).sum(axis=1)).min()
+    sphere_origins = g.trimesh.util.unitize(random.normal(size=(1000, 3))) * 10.0
+    sphere_targets = g.trimesh.util.unitize(random.normal(size=(1000, 3))) * (
+        random.random((1000, 1)) * 4.0
+    )
+    sphere_directions = g.trimesh.util.unitize(sphere_targets - sphere_origins)
+    # how close each ray passes to the center
+    approach = g.np.linalg.norm(g.np.cross(sphere_directions, -sphere_origins), axis=1)
+
+    # an STL whose stored face normals are off by degrees
+    feature = g.get_mesh("featuretype.STL")
+    feature_origins = feature.centroid + random.normal(size=(1000, 3)) * feature.scale
+    # each aimed through a triangle's centroid so it hits at least once
+    feature_directions = (
+        feature.triangles_center[random.integers(0, len(feature.faces), 1000)]
+        - feature_origins
+    )
+    for engine, precision in g.ray_engines():
+        box.ray = engine(box)
+        # directions of any length, hits in world units
+        triangles, rays, locations = box.ray.intersects_id(
+            origins, directions * lengths, multiple_hits=True, return_locations=True
+        )
+        assert g.np.bincount(rays, minlength=len(origins)).tolist() == expected
+        # every hit at one of its ray's slab crossings, and together a
+        # ray's hits are exactly its crossings ahead of the origin
+        distances = ((locations - origins[rays]) * directions[rays]).sum(axis=1)
+        nearest = g.np.minimum(
+            g.np.abs(distances - enter[rays]), g.np.abs(distances - leave[rays])
+        )
+        assert (nearest < precision * 10).all()
+        sums = g.np.bincount(rays, weights=distances, minlength=len(origins))
+        assert g.np.allclose(sums[:500], (enter + leave)[:500], atol=precision * 20)
+        assert g.np.allclose(sums[500:1000], leave[500:1000], atol=precision * 10)
+        # on the plane of the face it reports
+        offsets = locations - box.triangles[triangles, 0]
+        planes = (offsets * box.face_normals[triangles]).sum(axis=1)
+        assert g.np.allclose(planes, 0.0, atol=precision * 10)
+
+        sphere.ray = engine(sphere)
+        _, sphere_rays = sphere.ray.intersects_id(
+            sphere_origins, sphere_directions, multiple_hits=True
+        )
+        counts = g.np.bincount(sphere_rays, minlength=len(sphere_origins))
+        assert (counts[approach < inradius * 0.999] == 2).all()
+        assert (counts[approach > 2.0 * 1.001] == 0).all()
+        assert (
+            sphere.ray.intersects_any(sphere_origins, sphere_directions) == (counts > 0)
+        ).all()
+
+        # every hit on the triangle it reports, which an engine trusting
+        # the stored normals misses
+        feature.ray = engine(feature)
+        triangles, rays, locations = feature.ray.intersects_id(
+            feature_origins, feature_directions, return_locations=True
+        )
+        assert (g.np.bincount(rays, minlength=1000) > 0).all()
+        closest = g.trimesh.triangles.closest_point(
+            feature.triangles[triangles], locations
+        )
+        gaps = g.np.linalg.norm(closest - locations, axis=1)
+        assert (gaps < precision * feature.scale).all()
+
+
+def test_hierarchy_brute_force():
+    # the numpy engine finds exactly the hits of every ray against every
+    # triangle, for soups, a teapot in a stadium, giant and flat triangles,
+    # rays along an axis, with a zero component and from inside, once
+    # each, in batches of any size whose memory is bounded per batch
+    import tracemalloc
+
+    from trimesh.ray.ray_triangle import bounding_volume_hierarchy, ray_triangle_id
+
+    random = g.np.random.default_rng(4)
+    soup = random.random((300, 3, 3))
+    stadium = g.np.vstack(
+        (random.random((500, 3, 3)) * 1e-3, random.random((5, 3, 3)) * 100.0)
+    )
+    giant = g.np.vstack((random.random((200, 3, 3)), random.random((3, 3, 3)) * 50 - 25))
+    flat = random.random((300, 3, 3))
+    flat[:, :, 2] = 0.5
+    for triangles in [soup, stadium, giant, flat, soup[:1]]:
+        lower, upper = triangles.min(axis=(0, 1)), triangles.max(axis=(0, 1))
+        origins = lower - (upper - lower) + random.random((1000, 3)) * (upper - lower) * 3
+        directions = random.normal(size=(1000, 3))
+        directions[:150] = g.np.eye(3)[random.integers(0, 3, 150)]
+        directions[150:300, random.integers(0, 3)] = 0.0
+        origins[300:450] = lower + random.random((150, 3)) * (upper - lower)
+
+        # brute force: each ray against each triangle's plane, kept where
+        # the crossing is ahead of the origin and inside the triangle
+        ray, triangle = (
+            index.ravel()
+            for index in g.np.meshgrid(
+                g.np.arange(len(origins)), g.np.arange(len(triangles)), indexing="ij"
+            )
+        )
+        normals = g.trimesh.unitize(
+            g.np.cross(*(triangles[:, 1:] - triangles[:, :1]).swapaxes(0, 1))
+        )
+        locations, valid = g.trimesh.intersections.planes_lines(
+            triangles[triangle, 0], normals[triangle], origins[ray], directions[ray]
+        )
+        ray, triangle = ray[valid], triangle[valid]
+        barycentric = g.trimesh.triangles.points_to_barycentric(
+            triangles[triangle], locations
+        )
+        ahead = ((locations - origins[ray]) * directions[ray]).sum(axis=1)
+        inside = ((barycentric > -g.tol.zero) & (barycentric < 1 + g.tol.zero)).all(
+            axis=1
+        ) & (ahead > -g.tol.zero)
+        truth = set(zip(triangle[inside].tolist(), ray[inside].tolist()))
+
+        hierarchy = bounding_volume_hierarchy(triangles)
+        for batch_size in [2**14, 997]:
+            found, rays, _ = ray_triangle_id(
+                triangles,
+                origins,
+                directions,
+                hierarchy=hierarchy,
+                batch_size=batch_size,
+            )
+            assert len(found) == len(truth)
+            assert set(zip(found.tolist(), rays.tolist())) == truth
+
+    # the hierarchy and every hit scale with the triangles, padding
+    # included, and an empty one is never entered
+    order, levels = bounding_volume_hierarchy(soup)
+    scaled = bounding_volume_hierarchy(soup * 1e-8)
+    assert g.np.array_equal(order, scaled[0])
+    assert all(
+        g.np.allclose(level * 1e-8, small, rtol=1e-9, atol=0.0, equal_nan=True)
+        for level, small in zip(levels, scaled[1])
+    )
+    hits = ray_triangle_id(soup, origins, directions)
+    small = ray_triangle_id(soup * 1e-8, origins * 1e-8, directions)
+    assert len(hits[0]) > 0
+    assert all(g.np.array_equal(*pair) for pair in zip(hits[:2], small[:2]))
+    assert all(
+        len(column) == 0 for column in ray_triangle_id(soup[:0], origins, directions)
+    )
+
+    # sixteen batches peak at the memory of about one
+    sphere = g.trimesh.creation.icosphere(subdivisions=4)
+    hierarchy = bounding_volume_hierarchy(sphere.triangles)
+    origins = g.trimesh.unitize(random.normal(size=(2**14, 3))) * 3.0
+    directions = random.normal(size=origins.shape) * 0.3 - origins
+    peaks = []
+    for count in [2**10, 2**14]:
+        tracemalloc.start()
+        ray_triangle_id(
+            sphere.triangles,
+            origins[:count],
+            directions[:count],
+            hierarchy=hierarchy,
+            batch_size=2**10,
+        )
+        peaks.append(tracemalloc.get_traced_memory()[1])
+        tracemalloc.stop()
+    assert peaks[1] < peaks[0] * 1.5
+
+
+def test_scene_intersect():
+    # boxes placed at known rotations against their analytic slab
+    # crossings, by node name, from one cached trimkit scene that
+    # moving a node never rebuilds
+    if not g.trimesh.util.has_module("trimkit"):
+        return
+    random = g.np.random.default_rng(9)
+    extents = g.np.array([1.0, 2.0, 3.0])
+    box = g.trimesh.creation.box(extents=extents)
+    scene = g.trimesh.Scene()
+    scene.add_geometry(box, geom_name="box", node_name="node_0")
+    transforms = {}
+    for index in range(4):
+        transform = g.trimesh.transformations.random_rotation_matrix(random.random(3))
+        transform[:3, 3] = [index * 20.0, 0.0, 0.0]
+        transforms[f"node_{index}"] = transform
+        scene.graph.update(frame_to=f"node_{index}", matrix=transform, geometry="box")
+
+    # from above each box toward points inside it, crossing it twice
+    aimed = g.np.repeat(list(transforms), 100)
+    targets = g.np.vstack(
+        [
+            g.trimesh.transform_points(
+                (random.random((100, 3)) - 0.5) * extents * 0.9, transforms[node]
+            )
+            for node in transforms
+        ]
+    )
+    origins = targets + [0.0, 0.0, 8.0] + random.normal(size=targets.shape) * 0.5
+    directions = (targets - origins) * random.uniform(0.5, 3.0, (len(origins), 1))
+
+    nodes, rays, _faces, distances = scene.intersect(origins, directions)
+    assert g.np.bincount(rays, minlength=len(origins)).tolist() == [2] * len(origins)
+    assert (nodes == aimed[rays]).all()
+    # the two hits of each ray are its slab crossings of its box
+    unit = g.trimesh.util.unitize(directions)
+    inverses = g.np.array([g.np.linalg.inv(transforms[node]) for node in aimed])
+    local_origins = (inverses[:, :3, :3] @ origins[:, :, None])[:, :, 0] + inverses[
+        :, :3, 3
+    ]
+    local_directions = (inverses[:, :3, :3] @ unit[:, :, None])[:, :, 0]
+    low = (-extents / 2.0 - local_origins) / local_directions
+    high = (extents / 2.0 - local_origins) / local_directions
+    enter = g.np.minimum(low, high).max(axis=1)
+    leave = g.np.maximum(low, high).min(axis=1)
+    sums = g.np.bincount(rays, weights=distances, minlength=len(origins))
+    assert g.np.allclose(sums, enter + leave)
+    # each ray's first hit is where it enters its box
+    _, first_rays, _, first_distances = scene.intersect(
+        origins, directions, maximum_hits=1
+    )
+    assert first_rays.tolist() == list(range(len(origins)))
+    assert g.np.allclose(first_distances, enter)
+    assert scene.intersect_any(origins, directions).all()
+    assert not scene.intersect_any(origins, -directions).any()
+
+    # moving a node moves its hits but never rebuilds the scene
+    ray = scene.ray
+    moved = transforms["node_0"].copy()
+    moved[:3, 3] += [0.0, 50.0, 0.0]
+    scene.graph.update(frame_to="node_0", matrix=moved)
+    assert not scene.intersect_any(origins[:100], directions[:100]).any()
+    assert scene.ray is ray
+    # and changing geometry does
+    box.apply_scale(2.0)
+    assert scene.ray is not ray
+
+
 def test_rays():
     meshes = [g.get_mesh(**k) for k in g.data["ray_data"]["load_kwargs"]]
     rays = g.data["ray_data"]["rays"]
@@ -25,55 +293,53 @@ def test_rays():
 
 
 def test_rps():
-    from trimesh import ray as ray_mod
-
-    for use_embree in [True, False] if ray_mod.has_embree else [False]:
-        dimension = (10000, 3)
-        sphere = g.get_mesh("unit_sphere.STL")
-
-        # blow up the number of triangles so we actually get a test
-        sphere = sphere.subdivide().subdivide().subdivide()
-
-        # assign a different ray intersector
-        if use_embree:
-            sphere.ray = ray_mod.ray_pyembree.RayMeshIntersector(sphere)
-        else:
-            # create a ray-mesh query object for the current mesh
-            # initializing is very inexpensive and object is convenient to have.
-            # On first query expensive bookkeeping is done (creation of r-tree),
-            # and is cached for subsequent queries
-            sphere.ray = ray_mod.ray_triangle.RayMeshIntersector(sphere)
-
-        ray_origins = g.random(dimension)
-        ray_directions = g.np.tile([0, 0, 1], (dimension[0], 1))
-        ray_origins[:, 2] = -5
-
-        # force ray object to allocate tree before timing it
-        # tree = sphere.ray.tree
-        tic = [g.time.time()]
-        a = sphere.ray.intersects_id(ray_origins, ray_directions)
-        tic.append(g.time.time())
-        b = sphere.ray.intersects_location(ray_origins, ray_directions)
-        tic.append(g.time.time())
-
-        # make sure ray functions always return numpy arrays
-        assert all(len(i.shape) >= 0 for i in a)
-        assert all(len(i.shape) >= 0 for i in b)
-
-        rps = dimension[0] / g.np.diff(tic)
-
-        g.log.info(
-            f"Measured {rps} rays/second on {len(sphere.faces)} triangles with embree={use_embree}"
+    # rays per second for every engine on its first query, which builds
+    # its acceleration structure, and its second, which must return the
+    # same hits, by orders of magnitude of triangles and an assembly
+    models = {
+        f"icosphere {subdivisions}": g.trimesh.creation.icosphere(
+            subdivisions=subdivisions
         )
+        for subdivisions in [3, 5, 7]
+    }
+    cycloidal = g.get_mesh("cycloidal.3DXML")
+    for factor in [0.0, 0.1, 1.0]:
+        exploded = cycloidal.copy()
+        exploded.explode(factor)
+        models[f"cycloidal {factor:.0%}"] = exploded.to_mesh()
+
+    random = g.np.random.default_rng(7)
+    report = [f"{'model':>16}{'triangles':>10}{'engine':>30}{'cold':>12}{'warm':>12}"]
+    for name, mesh in models.items():
+        # from outside the bounds toward points inside them
+        targets = mesh.bounds[0] + random.random((10000, 3)) * mesh.extents
+        origins = mesh.centroid + mesh.scale * g.trimesh.unitize(
+            random.normal(size=targets.shape)
+        )
+        for engine, _ in g.ray_engines():
+            mesh.ray = engine(mesh)
+            tic = [g.time.perf_counter()]
+            cold = mesh.ray.intersects_id(origins, targets - origins)
+            tic.append(g.time.perf_counter())
+            warm = mesh.ray.intersects_id(origins, targets - origins)
+            tic.append(g.time.perf_counter())
+            assert len(cold[0]) > 0
+            assert all(g.np.array_equal(*pair) for pair in zip(cold, warm))
+            rps = "".join(f"{r:>12.0f}" for r in len(origins) / g.np.diff(tic))
+            report.append(
+                f"{name:>16}{len(mesh.faces):>10}{type(mesh.ray).__module__:>30}{rps}"
+            )
+    g.log.info("rays per second:\n" + "\n".join(report))
 
 
 def test_empty():
     """
     Test queries with no hits
     """
-    for use_embree in [True, False]:
+    sphere = g.get_mesh("unit_sphere.STL")
+    for engine, _ in g.ray_engines():
+        sphere.ray = engine(sphere)
         dimension = (100, 3)
-        sphere = g.get_mesh("unit_sphere.STL", use_embree=use_embree)
         # should never hit the sphere
         ray_origins = g.random(dimension)
         ray_directions = g.np.tile([0, 1, 0], (dimension[0], 1))
@@ -94,9 +360,9 @@ def test_empty():
 
 def test_contains():
     scale = 1.5
-    for use_embree in [True, False]:
-        mesh = g.get_mesh("unit_cube.STL", use_embree=use_embree)
-        g.log.info("Contains test ray engine: " + str(mesh.ray.__class__))
+    mesh = g.get_mesh("unit_cube.STL")
+    for engine, _ in g.ray_engines():
+        mesh.ray = engine(mesh)
 
         test_on = mesh.ray.contains_points(mesh.vertices)  # NOQA
         test_in = mesh.ray.contains_points(mesh.vertices * (1.0 / scale))
@@ -115,26 +381,22 @@ def test_contains():
 
 def test_contains_cavity():
     # https://github.com/mikedh/trimesh/issues/2534
-    from trimesh import ray as ray_mod
-
     mesh = g.trimesh.boolean.difference(
         [
             g.trimesh.creation.box(extents=[1, 1, 1]),
             g.trimesh.creation.box(extents=[0.1, 0.1, 0.1]),
         ]
     )
-    engines = [ray_mod.ray_triangle.RayMeshIntersector]
-    if ray_mod.has_embree:
-        engines.append(ray_mod.ray_pyembree.RayMeshIntersector)
-    for engine in engines:
+    for engine, _precision in g.ray_engines():
         mesh.ray = engine(mesh)
         # origin sits inside the subtracted cavity
         assert not mesh.contains([[0, 0, 0]])[0]
 
 
 def test_on_vertex():
-    for use_embree in [False]:
-        m = g.trimesh.creation.box(use_embree=use_embree)
+    m = g.trimesh.creation.box()
+    for engine, _ in g.ray_engines():
+        m.ray = engine(m)
 
         origins = g.np.zeros_like(m.vertices)
         vectors = m.vertices.copy()
@@ -151,8 +413,9 @@ def test_on_vertex():
 
 
 def test_on_edge():
-    for use_embree in [True, False]:
-        m = g.get_mesh("7_8ths_cube.stl", use_embree=use_embree)
+    m = g.get_mesh("7_8ths_cube.stl")
+    for engine, _ in g.ray_engines():
+        m.ray = engine(m)
 
         points = [[4.5, 0, -23], [4.5, 0, -2], [0, -1e-4, 0.0], [0, 0, -1]]
         truth = [False, True, True, True]
@@ -181,9 +444,10 @@ def test_multiple_hits():
     # Duplicate to ensure we have an camera_origin per ray direction
     ray_origins = g.np.tile(cam_t, (ray_directions.shape[0], 1))
 
-    for use_embree in [True, False]:
-        # Generate a 1 x 1 x 1 cube using the trimesh box primitive
-        cube_mesh = g.trimesh.creation.box(extents=[2, 2, 2], use_embree=use_embree)
+    # Generate a 2 x 2 x 2 cube using the trimesh box primitive
+    cube_mesh = g.trimesh.creation.box(extents=[2, 2, 2])
+    for engine, _ in g.ray_engines():
+        cube_mesh.ray = engine(cube_mesh)
 
         # Perform 256 * 256 raycasts, one for each pixel on the image
         # plane. We only want the 'first' hit.
@@ -222,8 +486,9 @@ def test_box():
     ray origin XY.
     """
 
-    for kwargs in [{"use_embree": True}, {"use_embree": False}]:
-        mesh = g.get_mesh("unit_cube.STL", **kwargs)
+    mesh = g.get_mesh("unit_cube.STL")
+    for engine, _ in g.ray_engines():
+        mesh.ray = engine(mesh)
         # grid is across meshes XY profile
         origins = g.trimesh.util.grid_linspace(
             mesh.bounds[:, :2] + g.np.reshape([-0.02, 0.02], (-1, 1)), 100
@@ -292,6 +557,4 @@ def test_embree_duplicate_hits():
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
-    # test_on_edge()
-    # test_rps()
-    test_embree_duplicate_hits()
+    test_rps()

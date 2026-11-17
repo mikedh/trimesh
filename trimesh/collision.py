@@ -1,4 +1,5 @@
 import collections
+import warnings
 
 import numpy as np
 
@@ -11,6 +12,12 @@ except BaseException:
 
 # contact cap per pair
 COLLISION_PER_PAIR_CAP = 100000
+
+# every public entry point of this deprecated module warns with this
+DEPRECATION = (
+    "`trimesh.collision` DEPRECATED FOR REMOVAL MAY 2028: replace with "
+    + "`Scene.collides` and `Scene.distances` with `trimkit` installed"
+)
 
 
 def _fcl_collide_callback(o1, o2, cdata):
@@ -188,6 +195,7 @@ class CollisionManager:
         """
         Initialize a mesh-mesh collision manager.
         """
+        warnings.warn(DEPRECATION, category=DeprecationWarning, stacklevel=2)
         if fcl is None:
             raise ValueError("No FCL Available! Please install the python-fcl library")
         # {name: {geom:, obj}}
@@ -740,6 +748,7 @@ def mesh_to_BVH(mesh):
     bvh : fcl.BVHModel
       BVH of input geometry
     """
+    warnings.warn(DEPRECATION, category=DeprecationWarning, stacklevel=2)
     bvh = fcl.BVHModel()
     bvh.beginModel(num_tris_=len(mesh.faces), num_vertices_=len(mesh.vertices))
     bvh.addSubModel(verts=mesh.vertices, triangles=mesh.faces)
@@ -761,6 +770,7 @@ def mesh_to_convex(mesh):
     convex : fcl.Convex
       Convex of input geometry
     """
+    warnings.warn(DEPRECATION, category=DeprecationWarning, stacklevel=2)
     fs = np.concatenate(
         (3 * np.ones((len(mesh.faces), 1), dtype=np.int64), mesh.faces), axis=1
     )

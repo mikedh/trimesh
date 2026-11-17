@@ -3,6 +3,8 @@ Ray queries using the embreex package with the
 API wrapped to match our native raytracer.
 """
 
+import warnings
+
 import numpy as np
 
 # `pip install embreex` installs from wheels
@@ -12,6 +14,7 @@ from embreex.mesh_construction import TriangleMesh
 from .. import caching, intersections, util
 from ..constants import log_time
 from ..typed import ArrayLike, Integer
+from .parent import RayParent
 from .ray_util import contains_points
 
 # embree operates on float32 values
@@ -22,8 +25,8 @@ _ray_offset_factor = 1e-6
 _ray_offset_floor = 1e-8
 
 
-class RayMeshIntersector:
-    def __init__(self, geometry, scale_to_box: bool = True):
+class RayMeshIntersector(RayParent):
+    def __init__(self, geometry, scale_to_box: bool = True, warn_deprecated: bool = True):
         """
         Do ray- mesh queries.
 
@@ -35,7 +38,17 @@ class RayMeshIntersector:
           If true, will scale mesh to approximate
           unit cube to avoid problems with extreme
           large or small meshes.
+        warn_deprecated : bool
+          Warn that embreex is deprecated, which `Trimesh`
+          skips when it picks this intersector itself.
         """
+        if warn_deprecated:
+            warnings.warn(
+                "`trimesh.ray.ray_pyembree` DEPRECATED FOR REMOVAL MAY 2028: "
+                + "`Trimesh.ray` uses `trimesh.ray.tinybvh` with `trimkit` installed",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
         self.mesh = geometry
         self._scale_to_box = scale_to_box
         self._cache = caching.Cache(id_function=self.mesh.__hash__)
@@ -153,7 +166,8 @@ class RayMeshIntersector:
 
             # grab the planes from triangles
             plane_origins = self.mesh.triangles[:, 0, :]
-            plane_normals = self.mesh.face_normals
+            # from the vertices, as stored normals can be off by degrees
+            plane_normals = util.unitize(self.mesh.triangles_cross)
 
         # what each ray hit last iteration; -1 means nothing, used to
         # detect a ray stuck on the same face due to precision issues
@@ -311,7 +325,9 @@ class RayMeshIntersector:
         return self.__copy__()
 
     def __copy__(self, *args):
-        return RayMeshIntersector(geometry=self.mesh, scale_to_box=self._scale_to_box)
+        return RayMeshIntersector(
+            geometry=self.mesh, scale_to_box=self._scale_to_box, warn_deprecated=False
+        )
 
 
 class _EmbreeWrap:

@@ -245,6 +245,95 @@ class CollisionTest(g.unittest.TestCase):
         assert objects is not None
 
 
+def test_scene_collides():
+    # unit cubes placed at known offsets against the offsets themselves:
+    # which touch, how deep, how far apart, and where, from one cached
+    # trimkit scene that moving a node never rebuilds
+    if not g.trimesh.util.has_module("trimkit"):
+        return
+    offsets = {
+        "first": [0.0, 0.0, 0.0],
+        "second": [0.75, 0.0, 0.0],
+        "third": [3.0, 0.0, 0.0],
+        "fourth": [0.0, 6.0, 0.0],
+    }
+    cube = g.trimesh.creation.box()
+    scene = g.trimesh.Scene()
+    scene.add_geometry(cube, geom_name="cube", node_name="first")
+    for node, offset in offsets.items():
+        scene.graph.update(
+            frame_to=node,
+            matrix=g.trimesh.transformations.translation_matrix(offset),
+            geometry="cube",
+        )
+
+    def truth(first, second):
+        # the signed distance between two axis aligned unit cubes
+        separation = g.np.abs(g.np.subtract(offsets[first], offsets[second]))
+        gaps = g.np.maximum(separation - 1.0, 0.0)
+        if (gaps > 0).any():
+            return g.np.linalg.norm(gaps)
+        return -(1.0 - separation).min()
+
+    nodes, result = scene.collides()
+    assert nodes.tolist() == [["first", "second"]]
+    assert result.faces is None and result.distances is None
+
+    # the contact: as deep as the overlap, along an axis, inside both cubes
+    nodes, result = scene.collides(return_distance=True)
+    assert nodes.tolist() == [["first", "second"]]
+    assert g.np.allclose(result.distances, -0.25)
+    assert g.np.allclose(g.np.abs(result.normals).max(axis=1), 1.0)
+    assert (result.faces == -1).all()
+    for pair, points in zip(nodes, result.points):
+        for node, point in zip(pair, points):
+            assert (g.np.abs(point - offsets[node]) <= 0.5 + g.tol.merge).all()
+
+    # every pair's signed distance, and the closest points that far apart
+    nodes, result = scene.distances()
+    assert len(nodes) == 6
+    assert g.np.allclose(result.distances, [truth(*pair) for pair in nodes])
+    apart = result.distances > 0
+    assert g.np.allclose(
+        g.np.linalg.norm(result.points[apart, 1] - result.points[apart, 0], axis=1),
+        result.distances[apart],
+    )
+
+    # named pairs only, in the order given
+    nodes, result = scene.distances(pairs=[["third", "first"]])
+    assert nodes.tolist() == [["third", "first"]]
+    assert g.np.allclose(result.distances, truth("third", "first"))
+    assert len(scene.collides(pairs=[["first", "third"]])[1]) == 0
+
+    # moving a node changes the answer but never rebuilds the scene
+    collision = scene.collision
+    offsets["third"] = [1.5, 0.0, 0.0]
+    scene.graph.update(
+        frame_to="third",
+        matrix=g.trimesh.transformations.translation_matrix(offsets["third"]),
+    )
+    nodes, _ = scene.collides()
+    assert nodes.tolist() == [["first", "second"], ["second", "third"]]
+    assert scene.collision is collision
+    # and changing geometry does
+    cube.apply_scale(2.0)
+    assert scene.collision is not collision
+
+    # meshes that aren't convex touch on real faces
+    machine = g.get_mesh("cycloidal.3DXML")
+    nodes, result = machine.collides(return_distance=True)
+    assert len(nodes) > 0
+    _, _, index = machine.instances
+    meshes = [
+        value
+        for value in machine.geometry.values()
+        if g.trimesh.util.is_instance_named(value, "Trimesh")
+    ]
+    for pair, faces in zip(result.pairs, result.faces):
+        for instance, face in zip(pair, faces):
+            assert -1 <= face < len(meshes[index[instance]].faces)
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

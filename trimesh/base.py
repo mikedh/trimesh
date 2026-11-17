@@ -147,9 +147,9 @@ class Trimesh(Geometry3D):
           If True, meshes with vertex normals will have
           vertices merged ignoring different normals
         use_embree : bool
-          If True try to use pyembree raytracer.
-          If pyembree is not available it will automatically fall
-          back to a much slower rtree/numpy implementation
+          If True use the fastest raytracer installed: `trimkit`,
+          then the deprecated `embreex`, falling back to a much
+          slower rtree/numpy implementation
         initial_cache : dict
           A way to pass things to the cache in case expensive
           things were calculated before creating the mesh object.
@@ -211,11 +211,13 @@ class Trimesh(Geometry3D):
         if vertex_normals is not None:
             self.vertex_normals = vertex_normals
 
-        # embree is a much, much faster raytracer written by Intel
-        # if you have pyembree installed you should use it
-        # although both raytracers were designed to have a common API
-        if ray.has_embree and use_embree:
-            self.ray = ray.ray_pyembree.RayMeshIntersector(self)
+        # trimkit's tinybvh is a much, much faster raytracer
+        # and every intersector shares the API in `ray.parent`
+        if use_embree and util.has_module("trimkit"):
+            self.ray = ray.tinybvh.RayMeshIntersector(self)
+        # embreex fallback: delete with its deprecation
+        elif ray.has_embree and use_embree:
+            self.ray = ray.ray_pyembree.RayMeshIntersector(self, warn_deprecated=False)
         else:
             # create a ray-mesh query object for the current mesh
             # initializing is very inexpensive and object is convenient to have.

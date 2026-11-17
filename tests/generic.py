@@ -9,6 +9,7 @@ import sys
 import io
 import json
 import copy
+import functools
 import time
 import pickle
 import shutil
@@ -131,6 +132,27 @@ except BaseException as E:
 has_binvox = trimesh.exchange.binvox.binvox_encoder is not None
 if all_dependencies and not has_binvox:
     raise ValueError("missing binvox")
+
+
+def ray_engines():
+    """
+    Every importable ray intersector and how close its hits
+    land: float64 engines to 1e-9, embree's float32 to 1e-4.
+    """
+    engines = [(trimesh.ray.ray_triangle.RayMeshIntersector, 1e-9)]
+    if trimesh.util.has_module("trimkit"):
+        engines.append((trimesh.ray.tinybvh.RayMeshIntersector, 1e-9))
+    if trimesh.ray.has_embree:
+        engines.append(
+            (
+                functools.partial(
+                    trimesh.ray.ray_pyembree.RayMeshIntersector, warn_deprecated=False
+                ),
+                1e-4,
+            )
+        )
+    return engines
+
 
 # Python version as a tuple, i.e. [3, 6]
 PY_VER = (sys.version_info.major, sys.version_info.minor)
