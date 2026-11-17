@@ -6,6 +6,17 @@ except BaseException:
     import generic as g
 
 
+def test_volume_skips_geometry_without_volume():
+    path = g.trimesh.load_path([[0, 0], [1, 0], [0, 1], [0, 0]])
+    scene = g.trimesh.Scene(path)
+    assert scene.volume == 0.0
+
+    mesh = g.trimesh.creation.box(extents=[1, 2, 3])
+    scene.add_geometry(mesh, geom_name="box", node_name="first")
+    scene.graph.update(frame_to="second", geometry="box", matrix=np.eye(4))
+    assert np.isclose(scene.volume, 12.0)
+
+
 def test_scene():
     for file_name in ["cycloidal.ply", "sphere.ply"]:
         mesh = g.get_mesh(file_name)
@@ -486,6 +497,41 @@ def test_append_scenes():
     assert scene_sum.graph.base_frame == "not_world"
 
 
+def test_append_scenes_node_data():
+    scenes = []
+    for name in ("foo", "bar"):
+        scene = g.trimesh.Scene()
+        scene.graph.update(frame_to=name)
+        scene.graph.transforms.node_data[name]["custom"] = {"label": name}
+        scenes.append(scene)
+
+    result = g.trimesh.scene.scene.append_scenes(scenes)
+    for name, scene in zip(("foo", "bar"), scenes):
+        assert result.graph.transforms.node_data[name] == {"custom": {"label": name}}
+        result.graph.transforms.node_data[name]["custom"]["label"] = "changed"
+        assert scene.graph.transforms.node_data[name]["custom"]["label"] == name
+
+
+def test_append_scenes_node_data_remapping():
+    scene = g.trimesh.Scene()
+    scene.add_geometry(g.trimesh.creation.box(), node_name="part", geom_name="box")
+    scene.graph.transforms.node_data["part"]["label"] = "part"
+    scene.graph.transforms.node_data["world"]["label"] = "world"
+
+    result = g.trimesh.scene.scene.append_scenes([scene, scene])
+    assert len(result.geometry) == 2
+    assert len(result.graph.nodes_geometry) == 2
+    assert result.graph.transforms.node_data["world"] == {"label": "world"}
+    assert {
+        result.graph.transforms.node_data[node]["geometry"]
+        for node in result.graph.nodes_geometry
+    } == set(result.geometry)
+    assert all(
+        result.graph.transforms.node_data[node]["label"] == "part"
+        for node in result.graph.nodes_geometry
+    )
+
+
 def test_scene_concat():
     # check that primitives get upgraded to meshes
     a = g.trimesh.Scene(
@@ -528,6 +574,65 @@ def test_scene_concat():
 
     concat = scene_mixed.to_geometry()
     assert isinstance(concat, g.trimesh.path.Path3D)
+
+
+def _massless_path(z=2.0):
+    # a Path3D has neither a `mass` nor a `center_mass` property
+    return g.trimesh.path.Path3D(
+        entities=[g.trimesh.path.entities.Line([0, 1, 2])],
+        vertices=np.array([[0.0, 0, z], [1, 0, z], [1, 1, z]]),
+    )
+
+
+def test_center_mass_with_massless_geometry():
+    # a scene mixing a mesh with a massless geometry (Path3D) used to
+    # raise a KeyError from Scene.center_mass: the massless instance
+    # should simply not contribute to the weighted average
+    box = g.trimesh.creation.box(extents=[1, 1, 1])
+    scene = g.trimesh.Scene()
+    scene.add_geometry(
+        box,
+        node_name="box",
+        geom_name="box",
+        transform=g.trimesh.transformations.translation_matrix([5, 0, 0]),
+    )
+    scene.add_geometry(_massless_path(), node_name="path", geom_name="path")
+
+    assert not hasattr(scene.geometry["path"], "mass")
+    np.testing.assert_allclose(scene.center_mass, [5, 0, 0])
+
+
+def test_center_mass_weights_stay_aligned():
+    # with instances interleaved as [box, path, box] the weights must
+    # stay aligned with the transformed centers they belong to
+    small = g.trimesh.creation.box(extents=[1, 1, 1])
+    big = g.trimesh.creation.box(extents=[2, 2, 2])
+    scene = g.trimesh.Scene()
+    scene.add_geometry(
+        small,
+        node_name="small",
+        transform=g.trimesh.transformations.translation_matrix([-10, 0, 0]),
+    )
+    scene.add_geometry(_massless_path(), node_name="path")
+    scene.add_geometry(
+        big,
+        node_name="big",
+        transform=g.trimesh.transformations.translation_matrix([10, 0, 0]),
+    )
+
+    expected = (
+        small.mass * np.array([-10.0, 0, 0]) + big.mass * np.array([10.0, 0, 0])
+    ) / (small.mass + big.mass)
+    np.testing.assert_allclose(scene.center_mass, expected)
+
+
+def test_center_mass_no_massive_geometry():
+    # a scene with no geometry that has mass properties has no
+    # defined center of mass
+    scene = g.trimesh.Scene()
+    scene.add_geometry(_massless_path(), node_name="path")
+    with g.pytest.raises(ValueError, match="no geometry with mass"):
+        _ = scene.center_mass
 
 
 if __name__ == "__main__":

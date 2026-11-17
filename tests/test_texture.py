@@ -5,6 +5,27 @@ except BaseException:
 
 
 class TextureTest(g.unittest.TestCase):
+    def test_simple_pbr_glossiness(self):
+        material = g.trimesh.visual.material
+        for exponent in [0.0, 1.0, 32.0, 128.0, 1000.0]:
+            original = material.SimpleMaterial(glossiness=exponent)
+            restored = original.to_pbr().to_simple()
+            assert g.np.isclose(restored.glossiness, exponent)
+
+        for roughness in [0.0, 0.1, 0.5, 1.0]:
+            original = material.PBRMaterial(roughnessFactor=roughness, name="example")
+            restored = original.to_simple()
+            assert 0.0 <= restored.glossiness <= 1000.0
+            expected = max(roughness, (2.0 / 1002.0) ** 0.25)
+            assert g.np.isclose(restored.to_pbr().roughnessFactor, expected)
+            assert restored.name == original.name
+            # The exported exponent must stay finite, including a perfect mirror.
+            files, _ = restored.to_obj()
+            assert b"inf" not in files["example.mtl"]
+            hash(restored)
+
+        assert material.PBRMaterial().to_simple().glossiness == 1.0
+
     def test_uv_to_color(self):
         try:
             import PIL.Image

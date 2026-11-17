@@ -101,7 +101,7 @@ def export_gltf(
       want to include non-unit normals for shading reasons.
     resolver : trimesh.resolvers.Resolver
       If passed will use to write each file.
-    tree_postprocesser : None or callable
+    tree_postprocessor : None or callable
       Run this on the header tree before exiting.
     embed_buffers : bool
       Embed the buffer into JSON file as a base64 string in the URI
@@ -1000,13 +1000,8 @@ def _append_mesh(
         if not key.startswith("_"):
             key = "_" + key
 
-        # GLTF has no floating point type larger than 32 bits so clip
-        # any float64 or larger to float32
-        if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
-            data = attrib.astype(float32)
-        else:
-            # force little-endian to match GLTF binary format
-            data = attrib.astype(attrib.dtype.newbyteorder("<"), copy=False)
+        # cast to a dtype GLTF can store in little-endian
+        data = _attribute_cast(attrib)
 
         if len(data.shape) == 1:
             data = data[:, np.newaxis]
@@ -1080,6 +1075,29 @@ def _build_views(buffer_items):
         assert (len(current_item) % 4) == 0
         current_pos += len(current_item)
     return views
+
+
+def _attribute_cast(array: NDArray) -> NDArray:
+    """
+    Cast a custom attribute to a little-endian dtype GLTF can store.
+
+    GLTF has no 64 bit types, signed 32 bit integers or booleans
+    so anything without a GLTF component type is cast to float32.
+
+    Parameters
+    -----------
+    array : (n,) or (n, d) array
+      Custom attribute data.
+
+    Returns
+    ----------
+    cast : (n,) or (n, d) array
+      Same data with a dtype GLTF supports.
+    """
+    little = array.dtype.newbyteorder("<")
+    if little.str[1:] in _dtypes_lookup:
+        return array.astype(little, copy=False)
+    return array.astype(float32)
 
 
 def _build_accessor(array):
@@ -1248,13 +1266,8 @@ def _append_path(path, name, tree, buffer_items):
         if not key.startswith("_"):
             key = "_" + key
 
-        # GLTF has no floating point type larger than 32 bits so clip
-        # any float64 or larger to float32
-        if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
-            data = attrib.astype(float32)
-        else:
-            # force little-endian to match GLTF binary format
-            data = attrib.astype(attrib.dtype.newbyteorder("<"), copy=False)
+        # cast to a dtype GLTF can store in little-endian
+        data = _attribute_cast(attrib)
 
         if not all(util.is_instance_named(e, "Line") for e in path.entities):
             log.warning(
@@ -1801,38 +1814,47 @@ def _read_buffers(
                 mesh_prim_replace[mesh_index] = names
                 continue
 
+            # only triangle primitives can be merged, any lines
+            # or points primitives are kept as separate geometry
+            tris = [n for n in names if "faces" in meshes[n]]
+            if len(tris) <= 1:
+                mesh_prim_replace[mesh_index] = names
+                continue
+
             # just take the shortest name option available
-            name = min(names)
+            name = min(tris)
             # remove the other meshes after we're done looping
             # since we're reusing the shortest one don't pop
             # that as we'll be overwriting it with the combined
-            mesh_pop.update(set(names).difference([name]))
+            mesh_pop.update(set(tris).difference([name]))
 
             # get all meshes for this group
-            current = [meshes[n] for n in names]
+            current = [meshes[n] for n in tris]
             v_seq = [p["vertices"] for p in current]
             f_seq = [p["faces"] for p in current]
             v, f = util.append_faces(v_seq, f_seq)
-            materials = [p["visual"].material for p in current]
-            face_materials = []
-            for i, p in enumerate(current):
-                face_materials += [i] * len(p["faces"])
-            visuals = visual.texture.TextureVisuals(
-                material=visual.material.MultiMaterial(materials=materials),
-                face_materials=face_materials,
-            )
-            if "metadata" in meshes[names[0]]:
-                metadata = meshes[names[0]]["metadata"]
+            if "metadata" in meshes[tris[0]]:
+                metadata = meshes[tris[0]]["metadata"]
             else:
                 metadata = {}
-            meshes[name] = {
+            merged = {
                 "vertices": v,
                 "faces": f,
-                "visual": visuals,
                 "metadata": metadata,
                 "process": False,
             }
-            mesh_prim_replace[mesh_index] = [name]
+            # primitives have no visual with `skip_materials`
+            if all("visual" in p for p in current):
+                materials = [p["visual"].material for p in current]
+                face_materials = []
+                for i, p in enumerate(current):
+                    face_materials += [i] * len(p["faces"])
+                merged["visual"] = visual.texture.TextureVisuals(
+                    material=visual.material.MultiMaterial(materials=materials),
+                    face_materials=face_materials,
+                )
+            meshes[name] = merged
+            mesh_prim_replace[mesh_index] = [name] + [n for n in names if n not in tris]
         # avoid altering inside loop
         mesh_prim = mesh_prim_replace
         # remove outdated meshes

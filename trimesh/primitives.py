@@ -132,6 +132,9 @@ class Primitive(Trimesh):
         copied : object
           Copy of current primitive
         """
+        # preserve attributes omitted by the serialization schema
+        for key in self.primitive._defaults:
+            kwargs.setdefault(key, self._data[key])
         # get the constructor arguments
         kwargs.update(self.to_dict())
         # remove the type indicator, i.e. `Cylinder`
@@ -146,9 +149,11 @@ class Primitive(Trimesh):
         # copy metadata
         primitive_copy.metadata = self.metadata.copy()
 
-        for k, v in self._data.data.items():
-            if k not in primitive_copy._data:
-                primitive_copy._data[k] = v
+        # carry over values stored outside the constructor
+        # arguments, like an overridden density or center mass
+        primitive_copy._data.update(
+            {k: v for k, v in self._data.data.items() if k not in primitive_copy._data}
+        )
 
         return primitive_copy
 
@@ -199,7 +204,9 @@ class Primitive(Trimesh):
         # copy the current transform
         current = prim.transform.copy()
         # see if matrix has scaling from the matrix
-        scale = np.linalg.det(matrix[:3, :3]) ** (1.0 / 3.0)
+        # use the magnitude so a mirrored scale like `apply_scale(-2)`
+        # keeps the reflection in the rigid transform instead of NaN
+        scale = np.abs(np.linalg.det(matrix[:3, :3])) ** (1.0 / 3.0)
 
         # the objects we handle re-scaling for
         # note that `Extrusion` is NOT supported

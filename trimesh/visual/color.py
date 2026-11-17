@@ -399,7 +399,7 @@ class ColorVisuals(Visuals):
         """
         self._update_key(mask, "face_colors")
 
-    def face_subset(self, face_index: ArrayLike):
+    def face_subset(self, face_index: ArrayLike, copy_material: bool = True):
         """
         Given a mask of face indices, return a sliced version.
 
@@ -407,6 +407,9 @@ class ColorVisuals(Visuals):
         ----------
         face_index: (n,) int, mask for faces
                     (n,) bool, mask for faces
+        copy_material
+          Unused, accepted so `TextureVisuals` and `ColorVisuals`
+          take the same arguments from `util.submesh`.
 
         Returns
         ----------
@@ -618,6 +621,17 @@ def to_rgba(colors: Any, dtype: DTypeLike = np.uint8) -> NDArray:
         # before the `astype` on the return
         if dtype.kind in "iu":
             colors = colors.round()
+    elif colors.dtype.kind == "u" and dtype != colors.dtype:
+        # unsigned integer colors, but they need to be rescaled
+        # signed integers (i.e. a default `np.array([255, 0, 0])`)
+        # have no normalized range so they are passed through
+        scale = opaque / float(np.iinfo(colors.dtype).max)
+
+        # do the scaling as floats with rounding
+        # would this be faster with a big integer intermediate
+        # probably but then we'd have to be careful to not
+        # overflow a large intermediate vector
+        colors = (colors.astype(np.float64) * scale).round().astype(dtype)
 
     if util.is_shape(colors, (-1, 3)):
         # add an opaque alpha for RGB colors

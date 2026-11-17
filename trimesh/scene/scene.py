@@ -476,13 +476,20 @@ class Scene(Geometry3D):
         graph = self.graph
         instance = [graph[n] for n in graph.nodes_geometry]
 
+        # only instances whose geometry has mass properties can
+        # contribute to the center of mass: other geometry types
+        # (e.g. Path3D) have neither a center of mass nor a mass, and
+        # including them here either raised a KeyError or misaligned
+        # the transformed centers with their weights
+        instance = [(mat, g) for mat, g in instance if g in center_mass and g in mass]
+        if len(instance) == 0:
+            raise ValueError(
+                "Scene has no geometry with mass properties: center of mass is undefined"
+            )
+
         # get the transformed center of mass for each instance
         transformed = np.array(
-            [
-                np.dot(mat, np.append(center_mass[g], 1))[:3]
-                for mat, g in instance
-                if g in center_mass
-            ],
+            [np.dot(mat, np.append(center_mass[g], 1))[:3] for mat, g in instance],
             dtype=np.float64,
         )
         # weight the center of mass locations by volume
@@ -551,10 +558,13 @@ class Scene(Geometry3D):
           Summed area of every instanced geometry
         """
         # get the area of every geometry that has a volume attribute
-        volume = {n: g.volume for n, g in self.geometry.items() if hasattr(g, "area")}
-        # sum the area including instancing
-        return sum(
-            (volume.get(self.graph[n][1], 0.0) for n in self.graph.nodes_geometry), 0.0
+        volume = {n: g.volume for n, g in self.geometry.items() if hasattr(g, "volume")}
+        # sum the volume including instancing
+        return float64(
+            sum(
+                (volume.get(self.graph[n][1], 0.0) for n in self.graph.nodes_geometry),
+                0.0,
+            )
         )
 
     @caching.cache_decorator
@@ -1477,6 +1487,7 @@ def append_scenes(iterable, common=None, base_frame="world"):
     if common is None:
         common = [base_frame]
 
+    result = Scene(base_frame=base_frame)
     # save geometry in dict
     geometry = {}
     # save transforms as edge tuples
@@ -1555,11 +1566,15 @@ def append_scenes(iterable, common=None, base_frame="world"):
                 attr["geometry"] = map_geom[attr["geometry"]]
             # save the new edge
             edges.append((a, b, attr))
+        # Geometry references are remapped by the edges above.
+        for node, attr in s.graph.transforms.node_data.items():
+            data = {k: v for k, v in attr.items() if k != "geometry"}
+            if data:
+                result.graph.transforms.node_data[node_remap(node)].update(deepcopy(data))
         # mark nodes from current scene as consumed
         consumed.update(current)
 
-    # add all data to a new scene
-    result = Scene(base_frame=base_frame)
+    # add geometry and transforms to the scene
     result.graph.from_edgelist(edges)
     result.geometry.update(geometry)
 

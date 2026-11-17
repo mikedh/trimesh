@@ -4,6 +4,43 @@ except BaseException:
     import generic as g
 
 
+@g.pytest.mark.parametrize("encoding", ["ascii", "binary"])
+@g.pytest.mark.parametrize("existing_uv_attributes", [False, True])
+@g.pytest.mark.parametrize("include_attributes", [False, True])
+def test_uv_export_preserves_attributes(
+    encoding, existing_uv_attributes, include_attributes
+):
+    mesh = g.trimesh.Trimesh(
+        vertices=[[0, 0, 0], [1, 0, 0], [0, 1, 0]],
+        faces=[[0, 1, 2]],
+        visual=g.trimesh.visual.TextureVisuals(uv=[[0, 0], [1, 0], [0, 1]]),
+        process=False,
+    )
+    mesh.vertex_attributes["custom"] = g.np.arange(3)
+    if existing_uv_attributes:
+        mesh.vertex_attributes.update(s=g.np.full(3, 2.0), t=g.np.full(3, 3.0))
+    original = mesh.vertex_attributes.copy()
+    snapshots = {key: value.copy() for key, value in original.items()}
+
+    data = mesh.export(
+        file_type="ply", encoding=encoding, include_attributes=include_attributes
+    )
+    assert mesh.vertex_attributes.keys() == original.keys()
+    for key, value in original.items():
+        assert mesh.vertex_attributes[key] is value
+        g.np.testing.assert_array_equal(value, snapshots[key])
+
+    loaded = g.trimesh.load_mesh(g.io.BytesIO(data), file_type="ply", process=False)
+    g.np.testing.assert_array_equal(loaded.vertices, mesh.vertices)
+    g.np.testing.assert_array_equal(loaded.faces, mesh.faces)
+    if include_attributes:
+        g.np.testing.assert_array_equal(loaded.visual.uv, mesh.visual.uv)
+        raw = loaded.metadata["_ply_raw"]["vertex"]["data"]
+        g.np.testing.assert_array_equal(raw["custom"].reshape(-1), original["custom"])
+    else:
+        assert loaded.visual.kind is None
+
+
 class PlyTest(g.unittest.TestCase):
     def test_ply_dtype(self):
         # make sure all ply dtype strings are valid dtypes

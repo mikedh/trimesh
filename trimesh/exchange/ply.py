@@ -266,15 +266,16 @@ def export_ply(
     # if we want to include mesh attributes in the export
     if include_attributes:
         if hasattr(mesh, "vertex_attributes"):
+            vertex_attributes = mesh.vertex_attributes.copy()
             # make sure to export texture coordinates as well
             if (
                 hasattr(mesh, "visual")
                 and hasattr(mesh.visual, "uv")
                 and np.shape(mesh.visual.uv) == (len(mesh.vertices), 2)
             ):
-                mesh.vertex_attributes["s"] = mesh.visual.uv[:, 0]
-                mesh.vertex_attributes["t"] = mesh.visual.uv[:, 1]
-            _assert_attributes_valid(mesh.vertex_attributes)
+                vertex_attributes["s"] = mesh.visual.uv[:, 0]
+                vertex_attributes["t"] = mesh.visual.uv[:, 1]
+            _assert_attributes_valid(vertex_attributes)
         if hasattr(mesh, "face_attributes"):
             _assert_attributes_valid(mesh.face_attributes)
 
@@ -372,7 +373,7 @@ def export_ply(
                 vertex_count = len(mesh.vertices)
                 vertex_attributes = {
                     k: v
-                    for k, v in mesh.vertex_attributes.items()
+                    for k, v in vertex_attributes.items()
                     if hasattr(v, "__len__") and len(v) == vertex_count
                 }
                 _add_attributes_to_header(header, vertex_attributes)

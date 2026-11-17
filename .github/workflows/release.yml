@@ -46,9 +46,21 @@ jobs:
     - name: Run Pytest
       run: pytest tests/
 
+  arch:
+    name: Architecture Tests (s390x + i386)
+    # the i386 container fails to resolve DNS on ubuntu-26.04 runners
+    runs-on: ubuntu-24.04
+    # emulated so it's slow: usually finishes in ~25 minutes
+    timeout-minutes: 60
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+    - uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
+    - name: Run Tests On s390x and i386
+      run: make test-arch
+
   pypi:
     name: Release To PyPi
-    needs: [tests, containers, corpus]
+    needs: [tests, containers, corpus, arch]
     runs-on: ubuntu-latest
     permissions:
       contents: read  # for checkout

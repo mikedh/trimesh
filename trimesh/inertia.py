@@ -101,7 +101,7 @@ def points_inertia(
         # if a user didn't specify anything it doesn't blow
         # up the scale depending on the number of points
         weights = np.full(len(points), 1.0 / float(len(points)), dtype=np.float64)
-    elif isinstance(weights, (float, np.integer, int)):
+    elif isinstance(weights, (float, np.floating, np.integer, int)):
         # "is it a number" check
         weights = np.full(len(points), float(weights), dtype=np.float64)
     else:
