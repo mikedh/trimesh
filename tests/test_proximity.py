@@ -265,6 +265,17 @@ class NearestTest(g.unittest.TestCase):
         assert all(len(i) == 1 for i in q)
 
 
+def test_closest_point_memory_error():
+    # the exact query that got us SIGKILLed: points deep inside a closed
+    # mesh have most faces as candidates so it must raise instead
+    mesh = g.trimesh.creation.icosphere(subdivisions=7)
+    with g.RandomSeed() as random:
+        points = random.random((100000, 3)) - 0.5
+    # our own check rather than a failed numpy allocation under a `ulimit`
+    with g.pytest.raises(MemoryError, match="_MEMORY_LIMIT"):
+        mesh.nearest.on_surface(points)
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()
