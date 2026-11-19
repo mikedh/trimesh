@@ -198,7 +198,7 @@ def polygon_obb(polygon: Polygon | NDArray):
 
     Parameters
     -------------
-    polygons : shapely.geometry.Polygon
+    polygon : shapely.geometry.Polygon
       Input geometry
 
     Returns
