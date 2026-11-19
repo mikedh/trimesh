@@ -486,6 +486,38 @@ class SceneGraph:
         """
         return [n for n, attr in self.transforms.node_data.items() if "geometry" in attr]
 
+    def instance_matrices(
+        self, geometry: Sequence[Hashable]
+    ) -> tuple[NDArray[np.float64], NDArray[np.int64]]:
+        """
+        The world transform of every node in `nodes_geometry`, in its
+        order, and which of `geometry` it places: the instances
+        `trimkit.CollisionScene` and `trimkit.RayScene` take.
+
+        Parameters
+        ------------
+        geometry
+          Every geometry name the nodes place, i.e. `list(scene.geometry)`.
+
+        Returns
+        ------------
+        matrices : (k, 4, 4) float
+          Each node's transform from the base frame.
+        index : (k,) int
+          The position in `geometry` of each node's geometry.
+        """
+        # cleared with everything else in the cache when the graph changes
+        key = ("instance_matrices", tuple(geometry))
+        cached = self._cache[key]
+        if cached is not None:
+            return cached
+        position = {name: index for index, name in enumerate(geometry)}
+        placed = [self.get(node) for node in self.nodes_geometry]
+        matrices = np.array([row[0] for row in placed], dtype=np.float64)
+        index = np.array([position[row[1]] for row in placed], dtype=np.int64)
+        self._cache[key] = (matrices.reshape((-1, 4, 4)), index)
+        return self._cache[key]
+
     @caching.cache_decorator
     def geometry_nodes(self):
         """

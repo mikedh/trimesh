@@ -24,8 +24,11 @@ class CollisionTest(g.unittest.TestCase):
         tf2 = g.np.eye(4)
         tf2[:3, 3] = g.np.array([-5, 0, 0])
 
-        # Test one-to-many collision checking
-        m = g.trimesh.collision.CollisionManager()
+        # Test one-to-many collision checking, warned once and quietly
+        # ahead of its deprecation as python-fcl is unmaintained
+        with g.pytest.warns(PendingDeprecationWarning, match="Scene.collision") as caught:
+            m = g.trimesh.collision.CollisionManager()
+        assert len(caught) == 1
         m.add_object("cube0", cube)
         m.add_object("cube1", cube, tf1)
 
@@ -275,24 +278,30 @@ def test_scene_collides():
             return g.np.linalg.norm(gaps)
         return -(1.0 - separation).min()
 
-    nodes, result = scene.collides()
-    assert nodes.tolist() == [["first", "second"]]
+    # the scene's trimkit scene, which every trimkit query works on
+    collision = scene.collision
+    assert isinstance(collision, g.trimesh.collision.CollisionScene)
+    nodes = collision.nodes
+    lookup = {node: instance for instance, node in enumerate(nodes)}
+
+    result = collision.collides()
+    assert nodes[result.pairs].tolist() == [["first", "second"]]
     assert result.faces is None and result.distances is None
 
     # the contact: as deep as the overlap, along an axis, inside both cubes
-    nodes, result = scene.collides(return_distance=True)
-    assert nodes.tolist() == [["first", "second"]]
+    result = collision.collides(return_distance=True)
+    assert nodes[result.pairs].tolist() == [["first", "second"]]
     assert g.np.allclose(result.distances, -0.25)
     assert g.np.allclose(g.np.abs(result.normals).max(axis=1), 1.0)
     assert (result.faces == -1).all()
-    for pair, points in zip(nodes, result.points):
+    for pair, points in zip(nodes[result.pairs], result.points):
         for node, point in zip(pair, points):
             assert (g.np.abs(point - offsets[node]) <= 0.5 + g.tol.merge).all()
 
     # every pair's signed distance, and the closest points that far apart
-    nodes, result = scene.distances()
-    assert len(nodes) == 6
-    assert g.np.allclose(result.distances, [truth(*pair) for pair in nodes])
+    result = collision.distances()
+    assert len(result) == 6
+    assert g.np.allclose(result.distances, [truth(*pair) for pair in nodes[result.pairs]])
     apart = result.distances > 0
     assert g.np.allclose(
         g.np.linalg.norm(result.points[apart, 1] - result.points[apart, 0], axis=1),
@@ -300,35 +309,72 @@ def test_scene_collides():
     )
 
     # named pairs only, in the order given
-    nodes, result = scene.distances(pairs=[["third", "first"]])
-    assert nodes.tolist() == [["third", "first"]]
+    pairs = g.np.array([[lookup["third"], lookup["first"]]], dtype=g.np.int64)
+    result = collision.distances(pairs=pairs)
+    assert nodes[result.pairs].tolist() == [["third", "first"]]
     assert g.np.allclose(result.distances, truth("third", "first"))
-    assert len(scene.collides(pairs=[["first", "third"]])[1]) == 0
+    assert len(collision.collides(pairs=pairs)) == 0
 
-    # moving a node changes the answer but never rebuilds the scene
+    # the scene's query takes no instances: other instances, like many
+    # poses, are trimkit's own call on the meshes already built
+    alone = g.np.eye(4).reshape((1, 4, 4))
+    single = g.np.zeros(1, dtype=g.np.int64)
+    with g.pytest.raises(TypeError):
+        collision.collides(alone, single)
+    assert len(g.trimesh.collision.CollisionScene.collides(collision, alone, single)) == 0
+
+    # it pickles as itself with its scene, and the scene pickles with it built
+    restored = g.pickle.loads(g.pickle.dumps(collision))
+    assert type(restored) is type(collision)
+    assert restored.nodes[restored.collides().pairs].tolist() == [["first", "second"]]
+    reloaded = g.pickle.loads(g.pickle.dumps(scene)).collision
+    assert reloaded.nodes[reloaded.collides().pairs].tolist() == [["first", "second"]]
+
+    # anything that isn't a mesh is an instance nothing touches
+    stale = collision
+    scene.add_geometry(
+        g.trimesh.load_path([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]),
+        geom_name="line",
+        node_name="line",
+    )
+    # one built before the geometry changed refuses to guess its instances
+    with g.pytest.raises(KeyError):
+        stale.collides()
     collision = scene.collision
+    assert collision is not stale
+    nodes = collision.nodes
+    assert nodes[collision.collides().pairs].tolist() == [["first", "second"]]
+    result = collision.distances()
+    line = (nodes[result.pairs] == "line").any(axis=1)
+    assert line.sum() == 4 and g.np.isinf(result.distances[line]).all()
+    assert g.np.allclose(
+        result.distances[~line], [truth(*pair) for pair in nodes[result.pairs][~line]]
+    )
+
+    # moving a node in a replaced graph changes the answer but never
+    # rebuilds the trimkit scene, which reads the scene's current graph
+    scene.graph = scene.graph.copy()
     offsets["third"] = [1.5, 0.0, 0.0]
     scene.graph.update(
         frame_to="third",
         matrix=g.trimesh.transformations.translation_matrix(offsets["third"]),
     )
-    nodes, _ = scene.collides()
-    assert nodes.tolist() == [["first", "second"], ["second", "third"]]
     assert scene.collision is collision
+    assert nodes[collision.collides().pairs].tolist() == [
+        ["first", "second"],
+        ["second", "third"],
+    ]
     # and changing geometry does
     cube.apply_scale(2.0)
     assert scene.collision is not collision
 
     # meshes that aren't convex touch on real faces
     machine = g.get_mesh("cycloidal.3DXML")
-    nodes, result = machine.collides(return_distance=True)
-    assert len(nodes) > 0
-    _, _, index = machine.instances
-    meshes = [
-        value
-        for value in machine.geometry.values()
-        if g.trimesh.util.is_instance_named(value, "Trimesh")
-    ]
+    collision = machine.collision
+    result = collision.collides(return_distance=True)
+    assert len(result) > 0
+    _, index = machine.graph.instance_matrices(list(machine.geometry))
+    meshes = list(machine.geometry.values())
     for pair, faces in zip(result.pairs, result.faces):
         for instance, face in zip(pair, faces):
             assert -1 <= face < len(meshes[index[instance]].faces)

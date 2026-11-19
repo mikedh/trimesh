@@ -37,8 +37,16 @@ def convex_decomposition(mesh, **kwargs) -> list[dict]:
     try:
         from trimkit import decompose
 
+        # the VHACD names documented above as trimkit names them
+        names = {
+            "maxConvexHulls": "maximum_hulls",
+            "maxNumVerticesPerCH": "maximum_vertices",
+            "minimumVolumePercentErrorAllowed": "maximum_error",
+        }
         hulls = decompose(
-            mesh.vertices.view(np.ndarray), mesh.faces.view(np.ndarray), **kwargs
+            mesh.vertices.view(np.ndarray),
+            mesh.faces.view(np.ndarray),
+            **{names.get(key, key): value for key, value in kwargs.items()},
         )
         return [
             {"vertices": hull_vertices, "faces": hull_faces}

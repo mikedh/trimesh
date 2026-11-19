@@ -13,8 +13,8 @@ import os
 from pathlib import Path
 from typing import TypeAlias
 
-# URL string parsing only: the network is reached through a passed `session`
-from urllib.parse import quote, urlparse  # noqa: TID251
+# URL parsing for remote resources via WebResolver
+from urllib.parse import quote, urlparse
 
 from . import caching, util
 from .typed import HttpSessionLike, Mapping
@@ -367,9 +367,8 @@ class WebResolver(Resolver):
         url : str
           Location where a mesh was stored or
           directory where mesh was stored.
-        session : HttpSessionLike
-          HTTP session used for every fetch, required as trimesh
-          never opens a network connection on its own. Accepts
+        session : HttpSessionLike or None
+          Optional HTTP session used for fetches. Accepts
           `urllib.request.build_opener()`, `httpx.Client`
           or `requests.Session`.
         timeout : float
@@ -385,11 +384,18 @@ class WebResolver(Resolver):
             raise ValueError(f"scheme {parsed.scheme!r} not in ('http', 'https')")
 
         if session is None:
-            raise ValueError(
-                "`WebResolver` requires a `session`: pass "
-                + "`urllib.request.build_opener()`, an `httpx.Client` "
-                + "or a `requests.Session`."
+            # implicit session fallback: delete with its deprecation
+            import warnings
+            from urllib.request import build_opener  # noqa: TID251
+
+            warnings.warn(
+                "`WebResolver` without a `session` DEPRECATED FOR REMOVAL "
+                + "JANUARY 2028: pass `urllib.request.build_opener()`, "
+                + "an `httpx.Client` or a `requests.Session`.",
+                category=DeprecationWarning,
+                stacklevel=2,
             )
+            session = build_opener()
 
         self.session = session
         self.timeout = timeout
@@ -561,8 +567,8 @@ class GithubResolver(Resolver):
           The full commit hash: pass either this OR branch.
         save
           A path if you want to save results locally.
-        session : HttpSessionLike
-          HTTP session used for every fetch, required. Accepts
+        session : HttpSessionLike or None
+          Optional HTTP session used for fetches. Accepts
           `urllib.request.build_opener()`, `httpx.Client`
           or `requests.Session`.
         timeout : float

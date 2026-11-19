@@ -176,15 +176,34 @@ def test_webresolver_rejects_disallowed_scheme():
         resolvers.WebResolver("file:///etc/passwd")
 
 
-def test_webresolver_requires_session():
-    # trimesh never opens a network connection on its own: a URL load
-    # without a caller-provided session fails before anything is fetched
-    with pytest.raises(ValueError, match="requires a `session`"):
-        resolvers.WebResolver("http://example.com/foo.glb")
-    with pytest.raises(ValueError, match="requires a `session`"):
-        trimesh.load_remote("http://example.com/foo.glb")
-    with pytest.raises(ValueError, match="requires a `session`"):
-        resolvers.GithubResolver(repo="mikedh/trimesh", branch="main")
+def test_webresolver_warns_when_no_session():
+    # callers should pass their own session — the implicit httpx.get path
+    # is deprecated. uses an http URL since file:// would be rejected before
+    # the deprecation warning has a chance to fire.
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        resolver = resolvers.WebResolver("http://example.com/foo.glb")
+    deprecations = [
+        w
+        for w in caught
+        if issubclass(w.category, DeprecationWarning) and "session" in str(w.message)
+    ]
+    assert len(deprecations) == 1
+
+    # passing a session silences the warning
+    class DummySession:
+        def get(self, *a, **kw):
+            raise RuntimeError("not called")
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        resolvers.WebResolver("http://example.com/foo.glb", session=DummySession())
+    assert not any(
+        issubclass(w.category, DeprecationWarning) and "session" in str(w.message)
+        for w in caught
+    )
+    # construction succeeded both ways
+    assert resolver.url == "http://example.com/foo.glb"
 
 
 def test_eval_cached_emits_deprecation():

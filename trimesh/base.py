@@ -148,8 +148,8 @@ class Trimesh(Geometry3D):
           vertices merged ignoring different normals
         use_embree : bool
           If True use the fastest raytracer installed: `trimkit`,
-          then the deprecated `embreex`, falling back to a much
-          slower rtree/numpy implementation
+          then `embreex`, falling back to a much
+          slower numpy implementation
         initial_cache : dict
           A way to pass things to the cache in case expensive
           things were calculated before creating the mesh object.
@@ -215,9 +215,8 @@ class Trimesh(Geometry3D):
         # and every intersector shares the API in `ray.parent`
         if use_embree and util.has_module("trimkit"):
             self.ray = ray.tinybvh.RayMeshIntersector(self)
-        # embreex fallback: delete with its deprecation
         elif ray.has_embree and use_embree:
-            self.ray = ray.ray_pyembree.RayMeshIntersector(self, warn_deprecated=False)
+            self.ray = ray.ray_pyembree.RayMeshIntersector(self)
         else:
             # create a ray-mesh query object for the current mesh
             # initializing is very inexpensive and object is convenient to have.

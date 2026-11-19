@@ -76,6 +76,24 @@ def test_engines_against_truth():
         sums = g.np.bincount(rays, weights=distances, minlength=len(origins))
         assert g.np.allclose(sums[:500], (enter + leave)[:500], atol=precision * 20)
         assert g.np.allclose(sums[500:1000], leave[500:1000], atol=precision * 10)
+        # asking for instances only appends them, and a mesh is instance 0
+        *same, instance = box.ray.intersects_id(
+            origins,
+            directions * lengths,
+            multiple_hits=True,
+            return_locations=True,
+            return_instance=True,
+        )
+        assert len(same) == 3
+        assert all(
+            g.np.array_equal(a, b) for a, b in zip(same, (triangles, rays, locations))
+        )
+        assert instance.tolist() == [0] * len(rays)
+        first, first_instance = box.ray.intersects_first(
+            origins, directions, return_instance=True
+        )
+        assert g.np.array_equal(first, box.ray.intersects_first(origins, directions))
+        assert g.np.array_equal(first_instance, g.np.where(first >= 0, 0, -1))
         # on the plane of the face it reports
         offsets = locations - box.triangles[triangles, 0]
         planes = (offsets * box.face_normals[triangles]).sum(axis=1)
@@ -206,14 +224,15 @@ def test_hierarchy_brute_force():
 
 def test_scene_intersect():
     # boxes placed at known rotations against their analytic slab
-    # crossings, by node name, from one cached trimkit scene that
-    # moving a node never rebuilds
-    if not g.trimesh.util.has_module("trimkit"):
-        return
+    # crossings, with the node of every hit, on every installed engine
     random = g.np.random.default_rng(9)
     extents = g.np.array([1.0, 2.0, 3.0])
     box = g.trimesh.creation.box(extents=extents)
     scene = g.trimesh.Scene()
+    # a node with no faces to hit comes first so positions can't line up
+    scene.add_geometry(
+        g.trimesh.load_path([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]), node_name="line"
+    )
     scene.add_geometry(box, geom_name="box", node_name="node_0")
     transforms = {}
     for index in range(4):
@@ -234,12 +253,8 @@ def test_scene_intersect():
     )
     origins = targets + [0.0, 0.0, 8.0] + random.normal(size=targets.shape) * 0.5
     directions = (targets - origins) * random.uniform(0.5, 3.0, (len(origins), 1))
-
-    nodes, rays, _faces, distances = scene.intersect(origins, directions)
-    assert g.np.bincount(rays, minlength=len(origins)).tolist() == [2] * len(origins)
-    assert (nodes == aimed[rays]).all()
-    # the two hits of each ray are its slab crossings of its box
     unit = g.trimesh.util.unitize(directions)
+    # each ray's slab crossings in the frame of the box it's aimed at
     inverses = g.np.array([g.np.linalg.inv(transforms[node]) for node in aimed])
     local_origins = (inverses[:, :3, :3] @ origins[:, :, None])[:, :, 0] + inverses[
         :, :3, 3
@@ -249,24 +264,74 @@ def test_scene_intersect():
     high = (extents / 2.0 - local_origins) / local_directions
     enter = g.np.minimum(low, high).max(axis=1)
     leave = g.np.maximum(low, high).min(axis=1)
-    sums = g.np.bincount(rays, weights=distances, minlength=len(origins))
-    assert g.np.allclose(sums, enter + leave)
-    # each ray's first hit is where it enters its box
-    _, first_rays, _, first_distances = scene.intersect(
-        origins, directions, maximum_hits=1
-    )
-    assert first_rays.tolist() == list(range(len(origins)))
-    assert g.np.allclose(first_distances, enter)
-    assert scene.intersect_any(origins, directions).all()
-    assert not scene.intersect_any(origins, -directions).any()
 
-    # moving a node moves its hits but never rebuilds the scene
     ray = scene.ray
+    assert isinstance(ray, g.trimesh.ray.parent.RayParent)
+    faces, rays, locations, instances = ray.intersects_id(
+        origins, directions, return_locations=True, return_instance=True
+    )
+    assert g.np.bincount(rays, minlength=len(origins)).tolist() == [2] * len(origins)
+    # each hit is on the node it was aimed at, on a face of that node's
+    # own mesh, and the two hits of a ray are its slab crossings
+    assert (ray.nodes[instances] == aimed[rays]).all()
+    local = (inverses[rays, :3, :3] @ locations[:, :, None])[:, :, 0] + inverses[
+        rays, :3, 3
+    ]
+    closest = g.trimesh.triangles.closest_point(box.triangles[faces], local)
+    assert g.np.allclose(closest, local, atol=1e-6)
+    distances = ((locations - origins[rays]) * unit[rays]).sum(axis=1)
+    sums = g.np.bincount(rays, weights=distances, minlength=len(origins))
+    assert g.np.allclose(sums, enter + leave, atol=1e-6)
+    *_, location_instances = ray.intersects_location(
+        origins, directions, return_instance=True
+    )
+    assert (ray.nodes[location_instances] == aimed[rays]).all()
+    # without asking, the tuples are what every intersector returns
+    assert len(ray.intersects_id(origins, directions)) == 2
+    assert len(ray.intersects_id(origins, directions, return_locations=True)) == 3
+    assert len(ray.intersects_location(origins, directions)) == 3
+
+    # each ray's first hit is where it enters its own box
+    first, first_instance = ray.intersects_first(
+        origins, directions, return_instance=True
+    )
+    assert (ray.nodes[first_instance] == aimed).all()
+    assert ((first >= 0) & (first < len(box.faces))).all()
+    locations, index_ray, _ = ray.intersects_location(
+        origins, directions, multiple_hits=False
+    )
+    assert sorted(index_ray.tolist()) == list(range(len(origins)))
+    first_distances = ((locations - origins[index_ray]) * unit[index_ray]).sum(axis=1)
+    assert g.np.allclose(first_distances, enter[index_ray], atol=1e-6)
+    assert ray.intersects_any(origins, directions).all()
+    assert not ray.intersects_any(origins, -directions).any()
+    assert ray.contains_points(targets).all()
+    assert not ray.contains_points(targets + [0.0, 0.0, 100.0]).any()
+
+    # it pickles as itself with its scene, and the scene pickles with it built
+    restored = g.pickle.loads(g.pickle.dumps(ray))
+    assert type(restored) is type(ray)
+    assert restored.intersects_any(origins, directions).all()
+    assert (
+        g.pickle.loads(g.pickle.dumps(scene))
+        .ray.intersects_any(origins, directions)
+        .all()
+    )
+
+    # moving a node in a replaced graph moves its hits, and with trimkit
+    # never rebuilds the meshes it casts at
+    has_trimkit = g.trimesh.util.has_module("trimkit")
+    if has_trimkit:
+        instanced = ray.instanced[0]
+    scene.graph = scene.graph.copy()
     moved = transforms["node_0"].copy()
     moved[:3, 3] += [0.0, 50.0, 0.0]
     scene.graph.update(frame_to="node_0", matrix=moved)
-    assert not scene.intersect_any(origins[:100], directions[:100]).any()
+    assert not ray.intersects_any(origins[:100], directions[:100]).any()
+    assert ray.intersects_any(origins[100:], directions[100:]).all()
     assert scene.ray is ray
+    if has_trimkit:
+        assert ray.instanced[0] is instanced
     # and changing geometry does
     box.apply_scale(2.0)
     assert scene.ray is not ray

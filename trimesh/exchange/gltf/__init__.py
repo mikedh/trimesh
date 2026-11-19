@@ -109,7 +109,7 @@ def export_gltf(
       Export textures as webP (using glTF's EXT_texture_webp extension).
     extension_draco : bool
       Compress mesh data using Draco (KHR_draco_mesh_compression).
-      Requires the `DracoPy` package to be installed.
+      Requires the `trimkit` or `DracoPy` package to be installed.
 
     Returns
     ----------
@@ -202,7 +202,7 @@ def export_glb(
       Export textures as webP using EXT_texture_webp extension.
     extension_draco : bool
       Compress mesh data using Draco (KHR_draco_mesh_compression).
-      Requires the `DracoPy` package to be installed.
+      Requires the `trimkit` or `DracoPy` package to be installed.
 
     Returns
     ----------

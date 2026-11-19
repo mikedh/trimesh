@@ -10,9 +10,9 @@ import argparse
 import json
 import sys
 import time
-import urllib.request  # noqa: TID251 the corpus is fetched by design
 from collections import defaultdict
 from dataclasses import asdict, dataclass
+from urllib.request import build_opener  # noqa: TID251 the corpus is fetched by design
 
 import numpy as np
 from pyinstrument import Profiler
@@ -191,7 +191,7 @@ def on_repo(
         repo=repo,
         commit=commit,
         save="~/.trimesh-cache",
-        session=urllib.request.build_opener(),
+        session=build_opener(),
     )
     # list file names in the repo we can load
     paths = [i for i in repo.keys() if i.lower().split(".")[-1] in available]
@@ -307,7 +307,7 @@ def compare_draco(
         repo=repo,
         commit=commit,
         save="~/.trimesh-cache",
-        session=urllib.request.build_opener(),
+        session=build_opener(),
     )
     pairs = {
         k: k.replace("/glTF-Draco/", "/glTF/")

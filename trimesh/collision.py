@@ -3,21 +3,26 @@ import warnings
 
 import numpy as np
 
+from . import util
+from .typed import NDArray
+
 try:
     # pip install python-fcl
     import fcl
 except BaseException:
     fcl = None
 
+try:
+    # pip install trimkit
+    from trimkit import CollisionScene
+except BaseException:
+    # lets `SceneCollision` be defined without trimkit: it is only
+    # ever built by `Scene.collision` which imports trimkit first
+    CollisionScene = object
+
 
 # contact cap per pair
 COLLISION_PER_PAIR_CAP = 100000
-
-# every public entry point of this deprecated module warns with this
-DEPRECATION = (
-    "`trimesh.collision` DEPRECATED FOR REMOVAL MAY 2028: replace with "
-    + "`Scene.collides` and `Scene.distances` with `trimkit` installed"
-)
 
 
 def _fcl_collide_callback(o1, o2, cdata):
@@ -189,13 +194,21 @@ class DistanceData:
 class CollisionManager:
     """
     A mesh-mesh collision manager.
+
+    .. deprecated::
+      `python-fcl` is unmaintained: use `Scene.collision`.
     """
 
     def __init__(self):
         """
         Initialize a mesh-mesh collision manager.
         """
-        warnings.warn(DEPRECATION, category=DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "`CollisionManager` will be deprecated as `python-fcl` is "
+            + "unmaintained: use `Scene.collision`",
+            category=PendingDeprecationWarning,
+            stacklevel=2,
+        )
         if fcl is None:
             raise ValueError("No FCL Available! Please install the python-fcl library")
         # {name: {geom:, obj}}
@@ -748,7 +761,6 @@ def mesh_to_BVH(mesh):
     bvh : fcl.BVHModel
       BVH of input geometry
     """
-    warnings.warn(DEPRECATION, category=DeprecationWarning, stacklevel=2)
     bvh = fcl.BVHModel()
     bvh.beginModel(num_tris_=len(mesh.faces), num_vertices_=len(mesh.vertices))
     bvh.addSubModel(verts=mesh.vertices, triangles=mesh.faces)
@@ -770,7 +782,6 @@ def mesh_to_convex(mesh):
     convex : fcl.Convex
       Convex of input geometry
     """
-    warnings.warn(DEPRECATION, category=DeprecationWarning, stacklevel=2)
     fs = np.concatenate(
         (3 * np.ones((len(mesh.faces), 1), dtype=np.int64), mesh.faces), axis=1
     )
@@ -780,6 +791,9 @@ def mesh_to_convex(mesh):
 def scene_to_collision(scene):
     """
     Create collision objects from a trimesh.Scene object.
+
+    .. deprecated::
+      `python-fcl` is unmaintained: use `Scene.collision`.
 
     Parameters
     ------------
@@ -801,3 +815,91 @@ def scene_to_collision(scene):
             name=node, mesh=scene.geometry[geometry], transform=T
         )
     return manager, objects
+
+
+class SceneCollision(CollisionScene):
+    """
+    A `trimkit.CollisionScene` of a `Scene`'s geometry that queries every
+    node of the scene where it currently is. To query other instances,
+    such as many poses of a robot, call trimkit itself, which reuses the
+    meshes built here: `trimkit.CollisionScene.collides(collision, matrices, index)`
+    """
+
+    def __init__(self, scene):
+        """
+        Build every geometry once: moving nodes never rebuilds it.
+
+        Parameters
+        ----------
+        scene : trimesh.Scene
+          Scene to query, a convex mesh measured as a solid.
+        """
+        from .scene.scene import trimkit_meshes
+
+        super().__init__(
+            trimkit_meshes(scene.geometry),
+            convex=np.array(
+                [
+                    util.is_instance_named(value, "Trimesh") and value.is_convex
+                    for value in scene.geometry.values()
+                ],
+                dtype=bool,
+            ),
+        )
+        self.scene = scene
+        # the order of the meshes built, which instance indexes refer to
+        self.geometry = list(scene.geometry)
+
+    @property
+    def nodes(self) -> NDArray:
+        """
+        The node of every instance, as `nodes[result.pairs]` names them.
+
+        Returns
+        ---------
+        nodes : (k,) object
+          The scene graph's `nodes_geometry`.
+        """
+        nodes = np.zeros(len(self.scene.graph.nodes_geometry), dtype=object)
+        nodes[:] = self.scene.graph.nodes_geometry
+        return nodes
+
+    def collides(self, **kwargs):
+        """
+        `trimkit.CollisionScene.collides` of every node.
+
+        Parameters
+        ----------
+        **kwargs
+          Passed to `trimkit.CollisionScene.collides`, i.e. `pairs`.
+
+        Returns
+        ---------
+        result : trimkit.CollisionResult
+          Rows of instance pairs, which `self.nodes` names.
+        """
+        return super().collides(
+            *self.scene.graph.instance_matrices(self.geometry), **kwargs
+        )
+
+    def distances(self, **kwargs):
+        """
+        `trimkit.CollisionScene.distances` of every node.
+
+        Parameters
+        ----------
+        **kwargs
+          Passed to `trimkit.CollisionScene.distances`, i.e. `pairs`.
+
+        Returns
+        ---------
+        result : trimkit.CollisionResult
+          Rows of instance pairs, which `self.nodes` names.
+        """
+        return super().distances(
+            *self.scene.graph.instance_matrices(self.geometry), **kwargs
+        )
+
+    def __reduce__(self):
+        # rebuilt from the scene rather than from trimkit's own state
+        return (type(self), (self.scene,))

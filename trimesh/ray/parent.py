@@ -17,8 +17,9 @@ from .ray_util import contains_points
 
 class RayParent(ABC):
     """
-    Ray queries against one mesh: an intersector implements
-    `intersects_id` and `intersects_any`, and inherits the rest.
+    Ray queries against a mesh or every instance in a scene: an
+    intersector implements `intersects_id` and `intersects_any`,
+    and inherits the rest.
     """
 
     @abc.abstractmethod
@@ -28,6 +29,7 @@ class RayParent(ABC):
         ray_directions: ArrayLike,
         multiple_hits: bool = True,
         return_locations: bool = False,
+        return_instance: bool = False,
         **kwargs,
     ):
         """
@@ -43,15 +45,20 @@ class RayParent(ABC):
           Every hit along each ray, or only its first
         return_locations : bool
           Also return where each hit is
+        return_instance : bool
+          Also return which instance each hit is on
 
         Returns
         ---------
         index_tri : (m,) int
-          Indexes of mesh.faces
+          Indexes of the faces of the instance's mesh
         index_ray : (m,) int
           Indexes of ray
         locations : (m, 3) float
           Intersection points, only returned if `return_locations`
+        index_instance : (m,) int
+          Instance of each hit, always 0 for a mesh and a position
+          in `nodes_geometry` for a scene, only returned if `return_instance`
         """
 
     @abc.abstractmethod
@@ -73,7 +80,11 @@ class RayParent(ABC):
         """
 
     def intersects_location(
-        self, ray_origins: ArrayLike, ray_directions: ArrayLike, **kwargs
+        self,
+        ray_origins: ArrayLike,
+        ray_directions: ArrayLike,
+        return_instance: bool = False,
+        **kwargs,
     ):
         """
         Return the location of where a ray hits a surface.
@@ -84,6 +95,8 @@ class RayParent(ABC):
           Origins of rays
         ray_directions : (n, 3) float
           Direction (vector) of rays
+        return_instance : bool
+          Also return which instance each hit is on
 
         Returns
         ---------
@@ -92,19 +105,26 @@ class RayParent(ABC):
         index_ray : (m,) int
           Indexes of ray
         index_tri : (m,) int
-          Indexes of mesh.faces
+          Indexes of the faces of the instance's mesh
+        index_instance : (m,) int
+          Instance of each hit, only returned if `return_instance`
         """
-        index_tri, index_ray, locations = self.intersects_id(
+        index_tri, index_ray, locations, *instance = self.intersects_id(
             ray_origins=ray_origins,
             ray_directions=ray_directions,
             return_locations=True,
+            return_instance=return_instance,
             **kwargs,
         )
-        return locations, index_ray, index_tri
+        return (locations, index_ray, index_tri, *instance)
 
     def intersects_first(
-        self, ray_origins: ArrayLike, ray_directions: ArrayLike, **kwargs
-    ) -> NDArray[np.int64]:
+        self,
+        ray_origins: ArrayLike,
+        ray_directions: ArrayLike,
+        return_instance: bool = False,
+        **kwargs,
+    ):
         """
         Find the index of the first triangle each ray hits.
 
@@ -114,22 +134,42 @@ class RayParent(ABC):
           Origins of rays
         ray_directions : (n, 3) float
           Direction (vector) of rays
+        return_instance : bool
+          Also return which instance each first hit is on
 
         Returns
         ----------
         triangle_index : (n,) int
           Index of triangle ray hit, or -1 if not hit
+        instance_index : (n,) int
+          Instance of each first hit, or -1 if not hit,
+          only returned if `return_instance`
         """
-        index_tri, index_ray = self.intersects_id(
+        index_tri, index_ray, *instance = self.intersects_id(
             ray_origins=ray_origins,
             ray_directions=ray_directions,
             return_locations=False,
             multiple_hits=False,
+            return_instance=return_instance,
             **kwargs,
         )
-        first = np.full(len(ray_origins), -1, dtype=np.int64)
-        first[index_ray] = index_tri
-        return first
+        first = np.full((1 + len(instance), len(ray_origins)), -1, dtype=np.int64)
+        first[:, index_ray] = [index_tri, *instance]
+        if return_instance:
+            return first[0], first[1]
+        return first[0]
+
+    @property
+    def bounds(self) -> NDArray[np.float64]:
+        """
+        The axis aligned bounds of everything rays can hit.
+
+        Returns
+        ----------
+        bounds : (2, 3) float
+          Minimum and maximum corner.
+        """
+        return self.mesh.bounds
 
     def contains_points(self, points: ArrayLike) -> NDArray[np.bool_]:
         """

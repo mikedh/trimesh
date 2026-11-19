@@ -61,7 +61,7 @@ Trimesh has a lot of soft-required upstream packages, and we try to make sure th
 | `networkx` | Pure Python graph library that's reasonably fast and has a nice API. `scipy.sparse.csgraph` is way faster in most cases but is hard to understand and doesn't implement as many algorithms. | `graph-tool`, `scipy.sparse.csgraph` | `easy` |
 | `shapely` | Bindings to `GEOS` for 2D spatial stuff: "set-theoretic analysis and manipulation of planar features" which lets you offset, union, and query polygons. | `clipper` | `easy` | 
 | `rtree` | Query ND rectangles with a spatial tree for a "broad phase" intersection. Used in polygon generation ("given N closed curves which curve contains the other curve?") and as the broad-phase for the built-in-numpy slow ray query engine. |  | `easy` |
-|`httpx`| Do network queries in `trimesh.exchange.load_remote`, we will *only* make network requests when asked | `requests`, `aiohttp` | `easy`|
+|`httpx`| Do network queries in `trimesh.exchange.load_remote` through a passed `session`, we will *only* make network requests when asked | `requests`, `urllib.request` | `test_more`|
 |`sympy`| Evaluate symbolic algebra | | `recommend`|
 |`xxhash`| Quickly hash arrays, used for our cache checking | | `easy`|
 |`charset-normalizer`| When we fail to decode text as UTF-8 we then check with charset-normalizer which guesses an encoding,  letting us load files even with weird encodings. | | `easy`|
@@ -85,6 +85,7 @@ Trimesh has a lot of soft-required upstream packages, and we try to make sure th
 |`embreex`| Bindings to Intel's Embree engine for fast ray/mesh intersection queries. | | `easy`|
 |`manifold3d`| A binding for the Manifold mesh boolean engine | | `recommend`|
 |`cascadio`| A binding for OpenCASCADE enabling `.STEP` loading | | `recommend`|
+|`trimkit`| One compiled package for ray queries, collision, spatial trees, triangulation, simplification, convex decomposition and marching cubes, on Python 3.15 and newer. | `embreex`, `python-fcl`, `rtree`, `mapbox-earcut`, `fast-simplification`, `vhacdx`, `scikit-image` | `easy`|
 
 ## Adding A Dependency
 

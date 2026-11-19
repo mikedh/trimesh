@@ -380,7 +380,7 @@ def bounds_tree(triangles):
 
     Returns
     ---------
-    tree : rtree.Rtree
+    tree : trimkit.Boxes or rtree.index.Index
       One node per triangle
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)

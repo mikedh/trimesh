@@ -64,6 +64,18 @@ def draco_scene():
 
 @needs_draco
 def test_export():
+    # the handlers doing the work are trimkit's wherever it is installed
+    from trimesh.exchange.gltf import extensions
+
+    if g.trimesh.util.has_module("trimkit"):
+        expected = (extensions.trimkit_draco_decode, extensions.trimkit_draco_encode)
+    else:
+        expected = (extensions.draco_decode, extensions.draco_encode)
+    assert (
+        extensions._handlers["primitive_preprocess"]["KHR_draco_mesh_compression"],
+        extensions._handlers["primitive_export"]["KHR_draco_mesh_compression"],
+    ) == expected
+
     scene = draco_scene()
     plain, before = export(scene)
     blob, tree = export(scene, extension_draco=True)

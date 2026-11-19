@@ -158,6 +158,11 @@ def test_scene_transform():
     # get a random rotation matrix
     T = next(g.random_transforms(1, translate=0.0))
 
+    # every node's world transform before the scene moves, against the
+    # geometry in reverse so positions can't line up by accident
+    names = list(scene.geometry)[::-1]
+    before = scene.graph.instance_matrices(names)[0]
+
     # apply it to both the mesh and the scene
     m.apply_transform(T)
     scene.apply_transform(T)
@@ -166,6 +171,16 @@ def test_scene_transform():
     assert g.np.allclose(m.convex_hull.bounds, scene.convex_hull.bounds)
     # should have moved from original position
     assert not g.np.allclose(m.convex_hull.bounds, b)
+
+    # every geometry node's world transform in one array, and
+    # recomputed rather than stale after the scene moved
+    matrices, index = scene.graph.instance_matrices(names)
+    nodes = scene.graph.nodes_geometry
+    assert matrices.shape == (len(nodes), 4, 4)
+    for node, position, matrix in zip(nodes, index, matrices):
+        assert scene.graph[node][1] == names[position]
+        assert g.np.allclose(scene.graph[node][0], matrix)
+    assert g.np.allclose(T @ before, matrices)
 
 
 def test_simplify():

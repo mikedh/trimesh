@@ -9,7 +9,6 @@ import sys
 import io
 import json
 import copy
-import functools
 import time
 import pickle
 import shutil
@@ -143,14 +142,7 @@ def ray_engines():
     if trimesh.util.has_module("trimkit"):
         engines.append((trimesh.ray.tinybvh.RayMeshIntersector, 1e-9))
     if trimesh.ray.has_embree:
-        engines.append(
-            (
-                functools.partial(
-                    trimesh.ray.ray_pyembree.RayMeshIntersector, warn_deprecated=False
-                ),
-                1e-4,
-            )
-        )
+        engines.append((trimesh.ray.ray_pyembree.RayMeshIntersector, 1e-4))
     return engines
 
 

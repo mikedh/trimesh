@@ -249,8 +249,8 @@ class VoxelGrid(Geometry):
         A marching cubes Trimesh representation of the voxels.
 
         No effort was made to clean or smooth the result in any way;
-        it is merely the result of applying the scikit-image
-        measure.marching_cubes function to self.encoding.dense.
+        it is merely the result of `trimkit.contour` or the
+        scikit-image `measure.marching_cubes` on `self.matrix`.
 
         Returns
         ---------

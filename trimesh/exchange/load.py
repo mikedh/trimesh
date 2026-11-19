@@ -1,6 +1,6 @@
 import json
 import os
-import urllib.parse  # noqa: TID251 string parsing only
+import urllib.parse
 from copy import deepcopy
 
 import numpy as np
@@ -183,9 +183,8 @@ def load_scene(
     allow_remote
       If True allow this load call to work on a remote URL.
     session : HttpSessionLike or None
-      HTTP session passed through to a `WebResolver`, required when
-      loading from a URL. Accepts `urllib.request.build_opener()`,
-      `httpx.Client` or `requests.Session`.
+      Optional HTTP session passed through to a `WebResolver` when loading
+      from a URL. Accepts `httpx.Client` or `requests.Session`.
     kwargs : dict
       Passed to geometry __init__
 
@@ -390,8 +389,7 @@ def load_remote(url: str, **kwargs) -> Scene:
     url
       URL containing mesh file
     **kwargs
-      Passed to `load_scene`, which requires a `session`
-      i.e. `session=urllib.request.build_opener()`
+      Passed to `load_scene`
 
     Returns
     ------------

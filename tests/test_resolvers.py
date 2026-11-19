@@ -74,30 +74,33 @@ def test_filepath_allow_anywhere(tmp_path):
     assert "allow_anywhere" not in str(excinfo.value)
 
 
-@pytest.mark.parametrize("library", ["urllib", "httpx", "requests"])
-def test_web_sessions(local_url, library):
-    # every supported session flavor must fetch through the same path
-    if library == "urllib":
-        session = g.urllib.request.build_opener()
-    elif library == "httpx":
-        session = pytest.importorskip(library).Client()
-    else:
-        session = pytest.importorskip(library).Session()
+def test_web_sessions(local_url):
+    # every supported session flavor must fetch through the same path, and
+    # no session at all warns and falls back to the standard library
+    sessions = {"urllib": g.urllib.request.build_opener(), "none": None}
+    for library, name in (("httpx", "Client"), ("requests", "Session")):
+        if g.trimesh.util.has_module(library):
+            sessions[library] = getattr(__import__(library), name)()
 
-    resolver = g.trimesh.resolvers.WebResolver(local_url, session=session)
-    # fetch twice — catches clients that break on connection reuse
-    assert resolver.get("thing.mtl") == CANNED
-    assert resolver.get("thing.mtl") == CANNED
-    assert resolver.get_base() == CANNED
-    # every library must follow redirects
-    assert resolver.get("redirect.mtl") == CANNED
-    # a leading `./` is retried without it
-    assert resolver.get("./thing.mtl") == CANNED
-    # asset names with spaces like `fuze uv.jpg` must be percent-encoded
-    assert resolver.get("thing uv.jpg") == CANNED
-    # a missing asset raises the session's own http error
-    with pytest.raises(Exception, match="404"):
-        resolver.get("missing.mtl")
+    for library, session in sessions.items():
+        if session is None:
+            with pytest.warns(DeprecationWarning, match="JANUARY 2028"):
+                resolver = g.trimesh.resolvers.WebResolver(local_url)
+        else:
+            resolver = g.trimesh.resolvers.WebResolver(local_url, session=session)
+        # fetch twice -- catches clients that break on connection reuse
+        assert resolver.get("thing.mtl") == CANNED, library
+        assert resolver.get("thing.mtl") == CANNED, library
+        assert resolver.get_base() == CANNED, library
+        # every library must follow redirects
+        assert resolver.get("redirect.mtl") == CANNED, library
+        # a leading `./` is retried without it
+        assert resolver.get("./thing.mtl") == CANNED, library
+        # asset names with spaces like `fuze uv.jpg` must be percent-encoded
+        assert resolver.get("thing uv.jpg") == CANNED, library
+        # a missing asset raises the session's own http error
+        with pytest.raises(Exception, match="404"):
+            resolver.get("missing.mtl")
 
 
 def test_web_session_duck(local_url):

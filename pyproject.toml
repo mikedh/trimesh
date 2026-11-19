@@ -95,10 +95,10 @@ easy = [
 recommend = [
     "sympy",
     "pyglet<2",
-    "scikit-image",
     "cascadio", # load `STEP` files
 
     #### Supplanted by `trimkit`
+    "scikit-image; python_version<'3.15'", # marching cubes
     "fast-simplification; python_version<'3.15'",
     "python-fcl; python_version<'3.15'", # do collision checks
 
@@ -203,7 +203,7 @@ flake8-implicit-str-concat = {"allow-multiline" = false}
 "matplotlib".msg = "you forgot to remove a debug plot"
 "numpy.empty".msg = "uninitialized arrays are haunted: try numpy.zeros"
 "numpy.empty_like".msg = "uninitialized arrays are haunted: try numpy.zeros"
-"urllib".msg = "trimesh never opens a network connection: callers pass a `session`"
+"urllib.request".msg = "trimesh never opens a network connection: callers pass a `session`"
 "httpx".msg = "trimesh never opens a network connection: callers pass a `session`"
 "aiohttp".msg = "trimesh never opens a network connection: callers pass a `session`"
 "requests".msg = "trimesh never opens a network connection: callers pass a `session`"

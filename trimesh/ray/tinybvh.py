@@ -9,7 +9,7 @@ and implements fast, multicore float64 ray checks.
 import numpy as np
 
 from .. import caching, util
-from ..typed import ArrayLike, Integer
+from ..typed import ArrayLike, Integer, NDArray
 from .parent import RayParent
 
 
@@ -50,6 +50,7 @@ class RayMeshIntersector(RayParent):
         multiple_hits: bool = True,
         return_locations: bool = False,
         max_hits: Integer | None = None,
+        return_instance: bool = False,
         **kwargs,
     ):
         """
@@ -67,6 +68,8 @@ class RayMeshIntersector(RayParent):
           Also return where each hit is
         max_hits : None or int
           The most hits per ray, or every hit
+        return_instance : bool
+          Also return the instance of each hit, always 0
 
         Returns
         ---------
@@ -76,19 +79,20 @@ class RayMeshIntersector(RayParent):
           Indexes of ray
         locations : (m, 3) float
           Intersection points, only returned if `return_locations`
+        index_instance : (m,) int
+          Zeros, only returned if `return_instance`
         """
         origins = np.asarray(ray_origins, dtype=np.float64)
         directions = np.asarray(ray_directions, dtype=np.float64)
         if not multiple_hits:
             max_hits = 1
-        rays, _instances, faces, distances = self.scene.intersect(
-            origins, directions, maximum_hits=max_hits
+        return hits_result(
+            origins,
+            directions,
+            self.scene.intersect(origins, directions, maximum_hits=max_hits),
+            return_locations=return_locations,
+            return_instance=return_instance,
         )
-        if return_locations:
-            # trimkit's distances are along the ray in world units
-            along = util.unitize(directions)[rays] * distances.reshape((-1, 1))
-            return faces, rays, origins[rays] + along
-        return faces, rays
 
     def intersects_any(self, ray_origins: ArrayLike, ray_directions: ArrayLike):
         """
@@ -110,3 +114,42 @@ class RayMeshIntersector(RayParent):
             np.asarray(ray_origins, dtype=np.float64),
             np.asarray(ray_directions, dtype=np.float64),
         )
+
+
+def hits_result(
+    origins: NDArray[np.float64],
+    directions: NDArray[np.float64],
+    hits: tuple,
+    return_locations: bool,
+    return_instance: bool,
+) -> tuple:
+    """
+    A `trimkit.RayScene.intersect` answer as `RayParent.intersects_id` returns it.
+
+    Parameters
+    ----------
+    origins : (n, 3) float
+      Origins of the rays cast.
+    directions : (n, 3) float
+      Directions of the rays cast.
+    hits
+      `(rays, instances, faces, distances)` from trimkit.
+    return_locations
+      Include where each hit is.
+    return_instance
+      Include the instance of each hit.
+
+    Returns
+    ---------
+    result : tuple
+      `(index_tri, index_ray[, locations][, index_instance])`
+    """
+    rays, instances, faces, distances = hits
+    result = [faces, rays]
+    if return_locations:
+        # trimkit's distances are along the ray in world units
+        along = util.unitize(directions)[rays] * distances.reshape((-1, 1))
+        result.append(origins[rays] + along)
+    if return_instance:
+        result.append(instances)
+    return tuple(result)

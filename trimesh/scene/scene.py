@@ -627,6 +627,17 @@ class Scene(Geometry3D):
         """
         return {mesh.identifier_hash: name for name, mesh in self.geometry.items()}
 
+    def __getstate__(self) -> dict:
+        # the trimkit scenes in `_geometry_cache` hold this scene, and
+        # rebuild from its geometry rather than pickle as a cycle
+        state = self.__dict__.copy()
+        state.pop("_geometry_cache", None)
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+        self._geometry_cache = caching.Cache(id_function=self.geometry_hash)
+
     def geometry_hash(self) -> int:
         """
         A hash of the scene's geometry alone, which moving nodes
@@ -646,226 +657,46 @@ class Scene(Geometry3D):
     @property
     def collision(self):
         """
-        The scene's `Trimesh` geometry built once into a
-        `trimkit.CollisionScene`, in `self.geometry` order, a
-        convex mesh measured as a solid. Moving nodes never
-        rebuilds it; changing geometry does.
+        Every geometry built once into a `trimkit.CollisionScene`
+        which queries every node where it currently is, a convex
+        mesh measured as a solid. Moving nodes never rebuilds it;
+        changing geometry does.
 
         Returns
         ---------
-        collision : trimkit.CollisionScene
-          The meshes `Scene.instances` places.
+        collision : trimesh.collision.SceneCollision
+          i.e. `collision.nodes[collision.collides().pairs]`
         """
         collision = self._geometry_cache["collision"]
         if collision is None:
-            from trimkit import CollisionScene
+            # raises here rather than in a fallback base class
+            from trimkit import CollisionScene  # noqa: F401
 
-            meshes = [
-                value
-                for value in self.geometry.values()
-                if util.is_instance_named(value, "Trimesh")
-            ]
-            collision = CollisionScene(
-                [
-                    (mesh.vertices.view(np.ndarray), mesh.faces.view(np.ndarray))
-                    for mesh in meshes
-                ],
-                convex=np.array([mesh.is_convex for mesh in meshes], dtype=bool),
-            )
+            from ..collision import SceneCollision
+
+            collision = SceneCollision(self)
             self._geometry_cache["collision"] = collision
         return collision
 
     @property
     def ray(self):
         """
-        The scene's `Trimesh` geometry built once into a
-        `trimkit.RayScene`, in `self.geometry` order. Moving
-        nodes never rebuilds it; changing geometry does.
+        Ray queries against every node where it currently is, with
+        the same interface as `Trimesh.ray` on any installed engine,
+        i.e. `ray.intersects_id(origins, directions, return_instance=True)`.
 
         Returns
         ---------
-        ray : trimkit.RayScene
-          The meshes `Scene.instances` places.
+        ray : trimesh.ray.ray_scene.SceneRay
+          Which with `trimkit` never rebuilds when nodes move.
         """
         ray = self._geometry_cache["ray"]
         if ray is None:
-            from trimkit import RayScene
+            from ..ray.ray_scene import SceneRay
 
-            ray = RayScene(
-                [
-                    (value.vertices.view(np.ndarray), value.faces.view(np.ndarray))
-                    for value in self.geometry.values()
-                    if util.is_instance_named(value, "Trimesh")
-                ]
-            )
+            ray = SceneRay(self)
             self._geometry_cache["ray"] = ray
         return ray
-
-    def intersect(
-        self,
-        ray_origins: ArrayLike,
-        ray_directions: ArrayLike,
-        maximum_hits: Integer | None = None,
-    ):
-        """
-        Where rays cross the scene's meshes, nearest first,
-        in one `trimkit` query.
-
-        Parameters
-        ------------
-        ray_origins : (r, 3) float
-          Where each ray starts.
-        ray_directions : (r, 3) float
-          Each ray's direction, of any length.
-        maximum_hits
-          The most hits per ray, or every hit.
-
-        Returns
-        ---------
-        nodes : (h,) object
-          The node of each hit.
-        rays : (h,) int
-          The ray of each hit, sorted by ray then distance.
-        faces : (h,) int
-          The face of each hit in its node's mesh.
-        distances : (h,) float
-          Distance from the ray's origin to each hit.
-        """
-        nodes, matrices, index = self.instances
-        rays, instances, faces, distances = self.ray.intersect(
-            np.asarray(ray_origins, dtype=np.float64),
-            np.asarray(ray_directions, dtype=np.float64),
-            matrices,
-            index,
-            maximum_hits=maximum_hits,
-        )
-        return nodes[instances], rays, faces, distances
-
-    def intersect_any(self, ray_origins: ArrayLike, ray_directions: ArrayLike):
-        """
-        Whether each ray hits any of the scene's meshes.
-
-        Parameters
-        ------------
-        ray_origins : (r, 3) float
-          Where each ray starts.
-        ray_directions : (r, 3) float
-          Each ray's direction, of any length.
-
-        Returns
-        ---------
-        hits : (r,) bool
-          True for every ray that hits a triangle.
-        """
-        _, matrices, index = self.instances
-        return self.ray.intersect_any(
-            np.asarray(ray_origins, dtype=np.float64),
-            np.asarray(ray_directions, dtype=np.float64),
-            matrices,
-            index,
-        )
-
-    @caching.cache_decorator
-    def instances(self) -> tuple[NDArray, NDArray[np.float64], NDArray[np.int64]]:
-        """
-        Every node placing a `Trimesh`, as `trimkit` queries
-        name their instances.
-
-        Returns
-        ---------
-        nodes : (k,) object
-          The node name of each instance.
-        instance_matrices : (k, 4, 4) float
-          Where each node places its mesh.
-        instance_index : (k,) int
-          Which of `Scene.collision`'s and `Scene.ray`'s meshes
-          each places.
-        """
-        position = {
-            name: index
-            for index, name in enumerate(
-                name
-                for name, value in self.geometry.items()
-                if util.is_instance_named(value, "Trimesh")
-            )
-        }
-        placed = [(node, *self.graph[node]) for node in self.graph.nodes_geometry]
-        placed = [row for row in placed if row[2] in position]
-        nodes = np.zeros(len(placed), dtype=object)
-        nodes[:] = [row[0] for row in placed]
-        matrices = np.array([row[1] for row in placed], dtype=np.float64)
-        index = np.array([position[row[2]] for row in placed], dtype=np.int64)
-        return nodes, matrices.reshape((-1, 4, 4)), index
-
-    def collides(
-        self,
-        pairs: ArrayLike | None = None,
-        margin: Floating = 0.0,
-        return_distance: bool = False,
-        maximum_contacts: Integer = 1,
-    ):
-        """
-        Which nodes touch, in one `trimkit` query.
-
-        Parameters
-        ------------
-        pairs : None or (p, 2)
-          Node name pairs to test, or every pair found by
-          their bounding boxes.
-        margin
-          Also count pairs closer than this.
-        return_distance
-          Also find each contact's faces, signed distance,
-          points and normal.
-        maximum_contacts
-          The most contacts per pair with `return_distance`.
-
-        Returns
-        ---------
-        nodes : (c, 2) object
-          The node names of each row of `result`.
-        result : trimkit.CollisionResult
-          Each touching pair, or each contact with `return_distance`.
-        """
-        nodes, matrices, index = self.instances
-        result = self.collision.collides(
-            matrices,
-            index,
-            pairs=instance_pairs(nodes, pairs),
-            margin=margin,
-            return_distance=return_distance,
-            maximum_contacts=maximum_contacts,
-        )
-        return nodes[result.pairs], result
-
-    def distances(self, pairs: ArrayLike | None = None, upper_bound: Floating = np.inf):
-        """
-        The distance between nodes, and where it is, in one
-        `trimkit` query.
-
-        Parameters
-        ------------
-        pairs : None or (p, 2)
-          Node name pairs to measure, or every pair, which is
-          O(k**2) for k nodes.
-        upper_bound
-          Pairs farther apart than this are infinitely far.
-
-        Returns
-        ---------
-        nodes : (p, 2) object
-          The node names of each row of `result`.
-        result : trimkit.CollisionResult
-          Each pair's faces, signed distance, points and normal.
-        """
-        nodes, matrices, index = self.instances
-        result = self.collision.distances(
-            matrices,
-            index,
-            pairs=instance_pairs(nodes, pairs),
-            upper_bound=upper_bound,
-        )
-        return nodes[result.pairs], result
 
     @caching.cache_decorator
     def identifier_hash(self) -> str:
@@ -1823,28 +1654,31 @@ def append_scenes(iterable, common=None, base_frame="world"):
     return result
 
 
-def instance_pairs(nodes: NDArray, pairs: ArrayLike | None) -> NDArray[np.int64] | None:
+def trimkit_meshes(geometry: dict) -> list:
     """
-    Node name pairs as the instance pairs `trimkit` queries take.
+    Every geometry as the `(vertices, faces)` trimkit builds, in order,
+    with anything that isn't a `Trimesh` as an empty mesh that nothing
+    ever touches or hits.
 
     Parameters
     ------------
-    nodes : (k,) object
-      The node name of each instance, from `Scene.instances`.
-    pairs : None or (p, 2)
-      Node name pairs, or None for every pair.
+    geometry
+      Keyed `{name: geometry}`, i.e. `Scene.geometry`.
 
     Returns
     ---------
-    instances : None or (p, 2) int
-      The instance of each node in each pair.
+    meshes : list of ((n, 3) float, (m, 3) int)
+      One mesh per geometry.
     """
-    if pairs is None:
-        return None
-    lookup = {node: instance for instance, node in enumerate(nodes)}
-    return np.array(
-        [[lookup[first], lookup[second]] for first, second in pairs], dtype=np.int64
-    ).reshape((-1, 2))
+    empty = (np.zeros((0, 3), dtype=np.float64), np.zeros((0, 3), dtype=np.int64))
+    meshes = [empty] * len(geometry)
+    for index, value in enumerate(geometry.values()):
+        if util.is_instance_named(value, "Trimesh"):
+            meshes[index] = (
+                value.vertices.view(np.ndarray),
+                value.faces.view(np.ndarray),
+            )
+    return meshes
 
 
 def reconstruct_instances(scene: Scene, cost_threshold: Floating = 1e-6) -> Scene:

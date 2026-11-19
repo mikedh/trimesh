@@ -68,13 +68,42 @@ class VoxelGridTest(g.unittest.TestCase):
         """
         Test marching cubes on a matrix
         """
-        try:
-            from skimage import measure  # NOQA
-        except ImportError:
-            g.log.warning("no skimage, skipping marching cubes test")
+        has_trimkit = g.trimesh.util.has_module("trimkit")
+        if not (has_trimkit or g.trimesh.util.has_module("skimage")):
+            g.log.warning("no trimkit or skimage, skipping marching cubes test")
             return
 
         march = g.trimesh.voxel.ops.matrix_to_marching_cubes
+
+        # the six neighbors of a cell
+        steps = g.np.vstack((g.np.eye(3), -g.np.eye(3))).astype(g.np.int64)
+        random = g.np.random.default_rng(0).random((6, 5, 4)) > 0.5
+        for dense in (g.np.ones((3, 3, 3), dtype=bool), random):
+            filled = g.np.argwhere(dense)
+            for pitch in (1.0, g.np.array([0.5, 1.0, 2.0])):
+                mesh = march(matrix=dense, pitch=pitch)
+                assert mesh.is_winding_consistent
+                # the surface is halfway between the outermost cells and empty space
+                assert g.np.allclose(
+                    mesh.bounds,
+                    [
+                        (filled.min(axis=0) - 0.5) * pitch,
+                        (filled.max(axis=0) + 0.5) * pitch,
+                    ],
+                )
+                if not has_trimkit:
+                    continue
+                # closed, with exactly one vertex halfway between each
+                # filled cell and each empty cell beside it
+                assert mesh.is_watertight
+                beside = (filled[:, None, :] + steps + 1).reshape((-1, 3))
+                empty = ~g.np.pad(dense, 1)[tuple(beside.T)].reshape((-1, 6))
+                truth = (filled[:, None, :] + steps / 2.0)[empty] * pitch
+                assert mesh.vertices.shape == truth.shape
+                assert g.np.allclose(
+                    mesh.vertices[g.np.lexsort(mesh.vertices.T)],
+                    truth[g.np.lexsort(truth.T)],
+                )
 
         # make sure offset is correct
         matrix = g.np.ones((3, 3, 3), dtype=bool)

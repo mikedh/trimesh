@@ -18,8 +18,18 @@ class RayMeshIntersector(RayParent):
     An object to query a mesh for ray intersections.
     """
 
-    def __init__(self, mesh):
+    def __init__(self, mesh, meshes=None):
+        """
+        Parameters
+        ------------
+        mesh : Trimesh
+          Mesh to do ray tests on.
+        meshes : None or sequence of (vertices, faces)
+          `mesh` as the separate meshes it concatenates, so hits
+          report which, or `mesh` alone.
+        """
         self.mesh = mesh
+        self.meshes = meshes
         self._cache = caching.Cache(self.mesh.__hash__)
 
     @caching.cache_decorator
@@ -34,12 +44,28 @@ class RayMeshIntersector(RayParent):
         """
         return bounding_volume_hierarchy(self.mesh.triangles)
 
+    @caching.cache_decorator
+    def face_geometry(self):
+        """
+        Which of `meshes` each face of `mesh` came from.
+
+        Returns
+        ---------
+        face_geometry : (len(mesh.faces),) int
+          Index into `meshes`, all 0 without them.
+        """
+        if self.meshes is None:
+            return np.zeros(len(self.mesh.faces), dtype=np.int64)
+        counts = [len(faces) for _, faces in self.meshes]
+        return np.repeat(np.arange(len(counts), dtype=np.int64), counts)
+
     def intersects_id(
         self,
         ray_origins,
         ray_directions,
         return_locations=False,
         multiple_hits=True,
+        return_instance=False,
         **kwargs,
     ):
         """
@@ -56,6 +82,8 @@ class RayMeshIntersector(RayParent):
           Consider multiple hits of each ray or not
         return_locations : bool
           Return hit locations or not
+        return_instance : bool
+          Also return which of `meshes` each hit is on
 
         Returns
         -----------
@@ -65,6 +93,8 @@ class RayMeshIntersector(RayParent):
           Index of ray that hit triangle
         locations : (h, 3) float
           [optional] Position of intersection in space
+        index_instance : (h,) int
+          [optional] Index into `meshes`, or 0 without them
         """
         (index_tri, index_ray, locations) = ray_triangle_id(
             triangles=self.mesh.triangles,
@@ -75,9 +105,12 @@ class RayMeshIntersector(RayParent):
         )
         # a hit on a shared edge or vertex is reported once, in ray order
         unique = np.sort(grouping.unique_rows(np.column_stack((locations, index_ray)))[0])
+        result = [index_tri[unique], index_ray[unique]]
         if return_locations:
-            return index_tri[unique], index_ray[unique], locations[unique]
-        return index_tri[unique], index_ray[unique]
+            result.append(locations[unique])
+        if return_instance:
+            result.append(self.face_geometry[index_tri[unique]])
+        return tuple(result)
 
     def intersects_any(self, ray_origins, ray_directions, **kwargs):
         """
