@@ -137,6 +137,39 @@ class BoundsTest(g.unittest.TestCase):
                 extents_tf = g.np.diff(transformed_bounds, axis=0).reshape(3)
                 assert g.np.allclose(extents_tf, extents)
 
+    def test_obb_degenerate_points(self):
+        """
+        Test OBB functions with collinear or coincident points as input
+        """
+        with g.RandomSeed() as r:
+            for dimension in [2, 3]:
+                for count in [1, 2, 3, 10]:
+                    # a scale of zero puts every point in the same place
+                    for scale in [0.0, 3.0]:
+                        direction = g.trimesh.util.unitize(r.random(dimension) - 0.5)
+                        offsets = (r.random(count) * scale).reshape((-1, 1))
+                        points = r.random(dimension) + offsets * direction
+
+                        to_origin, extents = g.trimesh.bounds.oriented_bounds(points)
+
+                        # the transform should be a rotation and a translation
+                        rotation = to_origin[:dimension, :dimension]
+                        assert g.np.allclose(
+                            g.np.dot(rotation, rotation.T), g.np.eye(dimension)
+                        )
+                        assert g.np.isclose(g.np.linalg.det(rotation), 1.0)
+
+                        # the transformed points should exactly fill a box
+                        # of `extents` centered on the origin
+                        transformed = g.trimesh.transform_points(points, to_origin)
+                        assert g.np.allclose(transformed.min(axis=0), -extents / 2.0)
+                        assert g.np.allclose(transformed.max(axis=0), extents / 2.0)
+
+                        # and the box should be the segment the points lie on
+                        length = g.np.ptp(g.np.dot(points, direction))
+                        expected = g.np.append(g.np.zeros(dimension - 1), length)
+                        assert g.np.allclose(g.np.sort(extents), expected)
+
     def test_2D(self):
         # draw inside the block: `g.random` gave all 2000 angles the
         # same points so this only ever rotated one rectangle
