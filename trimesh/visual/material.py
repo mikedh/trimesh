@@ -675,13 +675,20 @@ class PBRMaterial(Material):
     def to_simple(self):
         """
         Get a copy of the current PBR material as
-        a simple material.
+        a simple material. Roughness is converted to a specular exponent
+        clamped to the usual MTL range of 0 to 1000.
 
         Returns
         ------------
         simple : SimpleMaterial
           Contains material information in a simple manner
         """
+        glossiness = None
+        if self.roughnessFactor is not None:
+            # invert `SimpleMaterial.to_pbr` clipped so `Ns` is in [0, 1000]
+            roughness = np.clip(self.roughnessFactor, (2.0 / 1002.0) ** 0.25, 1.0)
+            glossiness = 2.0 / roughness**4 - 2.0
+
         # `self.baseColorFactor` is really a linear value
         # so the "right" thing to do here would probably be:
         #  `diffuse = color.to_rgba(color.linear_to_srgb(self.baseColorFactor))`
@@ -693,6 +700,7 @@ class PBRMaterial(Material):
             image=self.baseColorTexture,
             diffuse=self.baseColorFactor,
             name=self.name,
+            glossiness=glossiness,
         )
 
     @property

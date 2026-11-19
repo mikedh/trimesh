@@ -595,9 +595,6 @@ def diagonal_dot(a: ArrayLike, b: ArrayLike) -> np.ndarray[tuple[int], np.dtype[
     In [4]: %timeit (a * b).sum(axis=1)
     1000 loops, best of 3: 181 us per loop
 
-    In [5]: %timeit np.einsum('ij,ij->i', a, b)
-    10000 loops, best of 3: 62.7 us per loop
-
     In [6]: %timeit np.diag(np.dot(a, b.T))
     1 loop, best of 3: 429 ms per loop
 
@@ -1327,7 +1324,7 @@ def decode_keys(store: dict[Any, Any], encoding: str = "utf-8") -> dict[str, Any
     In [2]: trimesh.util.decode_keys(d)
     Out[2]: {1020: 'nah', 'hi': 'stuff'}
     """
-    keys = store.keys()
+    keys = list(store)
     for key in keys:
         if hasattr(key, "decode"):
             decoded = key.decode(encoding)

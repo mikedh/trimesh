@@ -136,7 +136,7 @@ def test_plane():
             _C, N = g.trimesh.points.plane_fit(p)
 
             # sign of normal is arbitrary on fit so check both
-            cosines = g.np.einsum("ij,ij->i", N, truths)
+            cosines = g.trimesh.util.diagonal_dot(N, truths)
             assert g.np.allclose(g.np.abs(cosines), g.np.ones_like(cosines))
 
 

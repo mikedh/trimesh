@@ -397,7 +397,7 @@ class SceneGraph:
 
         Parameters
         -------------
-        edgelist : (n,) tuples
+        edges : (n,) tuples
           Keyed (node_a, node_b, {key: value})
         strict : bool
           If True raise a ValueError when a

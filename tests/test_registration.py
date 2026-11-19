@@ -520,6 +520,35 @@ def test_procrustes_weighted_correspondence_repetition(
     g.np.testing.assert_allclose(matrix_only, expected, rtol=1e-12, atol=1e-12)
 
 
+def test_interpolated_normals_ab():
+    # A/B the existing barycentric helper against the sparse weights `nearest` uses
+    mesh = g.trimesh.creation.icosphere(subdivisions=5)
+    # points just off the surface like registration queries: far points
+    # make every face a `closest_point` candidate and use a lot of memory
+    with g.RandomSeed() as random:
+        scale = 1.0 + 0.01 * random.random((len(mesh.faces), 1))
+    points = mesh.triangles_center * scale
+    query = g.trimesh.registration._from_mesh(
+        mesh, points, return_interpolated_normals=True
+    )
+    nearest_faces = mesh.faces[query["tids"]]
+    barycentric = query["barycentric_coordinates"]
+
+    tic = [g.time.time()]
+    a = g.trimesh.triangles.barycentric_to_points(
+        mesh.vertex_normals[nearest_faces], barycentric
+    )
+    tic.append(g.time.time())
+    b = g.trimesh.geometry.index_sparse(
+        len(mesh.vertices), nearest_faces, data=barycentric.ravel()
+    ).T.dot(mesh.vertex_normals)
+    tic.append(g.time.time())
+
+    assert g.np.allclose(a, b)
+    assert g.np.allclose(a, query["interpolated_normals"])
+    g.log.info("interpolated normals helper, sparse: %s seconds", g.np.diff(tic))
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

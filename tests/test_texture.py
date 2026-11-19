@@ -273,6 +273,22 @@ class TextureTest(g.unittest.TestCase):
         assert mat_m.emissiveTexture is not None
 
 
+@g.pytest.mark.parametrize("glossiness", [0.0, 1.0, 32.0, 128.0, 1000.0])
+def test_simple_pbr_glossiness(glossiness):
+    # glossiness should survive a round trip through PBR
+    simple = g.trimesh.visual.material.SimpleMaterial(glossiness=glossiness)
+    assert g.np.isclose(simple.to_pbr().to_simple().glossiness, glossiness)
+
+
+@g.pytest.mark.parametrize(
+    ("roughness", "glossiness"), [(0.0, 1000.0), (1.0, 0.0), (None, 1.0)]
+)
+def test_pbr_simple_glossiness(roughness, glossiness):
+    # a perfect mirror is clipped to the MTL maximum rather than infinity
+    pbr = g.trimesh.visual.material.PBRMaterial(roughnessFactor=roughness)
+    assert g.np.isclose(pbr.to_simple().glossiness, glossiness)
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -237,7 +237,7 @@ class Scene(Geometry3D):
 
         Parameters
         --------------
-        name : hashable
+        names : hashable
           Name that references self.geometry
         """
         # make sure we have a set we can check
@@ -693,8 +693,6 @@ class Scene(Geometry3D):
 
         Parameters
         ----------
-        scene
-        The scene to handle.
         cost_threshold
         The maximum value for `procrustes` cost which is "squared mean
         vertex distance between pair". If the fit is above this value
@@ -725,8 +723,6 @@ class Scene(Geometry3D):
           Distance from centroid
         center : (3,) float
           Point camera should be center on
-        camera : Camera object
-          Object that stores camera parameters
         """
 
         if fov is None:

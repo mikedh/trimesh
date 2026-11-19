@@ -31,7 +31,7 @@ def _parse_binvox_header(file_obj):
 
     Parameters
     ------------
-    fp: file-object
+    file_obj: file-object
       File like object with binvox file
 
     Returns
@@ -195,7 +195,7 @@ def voxel_from_binvox(rle_data, shape, translate=None, scale=1.0, axis_order="xz
       Translation of voxels
     scale : float
       Length of entire voxel grid.
-    encoded_axes : iterable
+    axis_order : iterable
       With values in ('x', 'y', 'z', 0, 1, 2),
       where x => 0, y => 1, z => 2
       denoting the order of axes in the encoded data. binvox by
@@ -422,7 +422,7 @@ class Binvoxer:
         wireframe: also render the model in wireframe (helps with thin parts).
         fit: only write voxels in the voxel bounding box.
         block_id: when converting to schematic, use this as the block ID.
-        use_matrial_block_id: when converting from obj to schematic, parse
+        use_material_block_id: when converting from obj to schematic, parse
             block ID from material spec "usemtl blockid_<id>" (ids 1-255 only).
         use_offscreen_pbuffer: use offscreen pbuffer instead of onscreen
             window.
