@@ -17,7 +17,7 @@ from typing import TypeAlias
 from urllib.parse import urlparse
 
 from . import caching, util
-from .typed import HttpSessionLike, Mapping
+from .typed import Floating, HttpSessionLike, Mapping
 
 
 class Resolver(util.ABC):
@@ -262,7 +262,7 @@ class ZipResolver(Resolver):
 
         Parameters
         -----------
-        key : hashable
+        key : str
           Key to store data under.
         value : str, bytes, file-like
           Value to store.
@@ -357,7 +357,7 @@ class WebResolver(Resolver):
         self,
         url: str,
         session: HttpSessionLike | None = None,
-        timeout: float = 30.0,
+        timeout: Floating = 30.0,
     ):
         """
         Resolve assets from a base URL.
@@ -370,7 +370,7 @@ class WebResolver(Resolver):
         session : HttpSessionLike or None
           Optional HTTP session used for fetches. Accepts
           `httpx.Client` or `requests.Session`.
-        timeout : float
+        timeout : Floating
           Per-request timeout in seconds.
         """
         if hasattr(url, "decode"):
@@ -536,7 +536,7 @@ class GithubResolver(Resolver):
         commit: str | None = None,
         save: str | None = None,
         session: HttpSessionLike | None = None,
-        timeout: float = 30.0,
+        timeout: Floating = 30.0,
     ):
         """
         Get files from a remote Github repository by
@@ -556,7 +556,7 @@ class GithubResolver(Resolver):
         session : HttpSessionLike or None
           Optional HTTP session used for fetches. Accepts
           `httpx.Client` or `requests.Session`.
-        timeout : float
+        timeout : Floating
           Per-request timeout in seconds.
         """
 

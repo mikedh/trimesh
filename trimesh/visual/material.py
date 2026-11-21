@@ -12,7 +12,7 @@ import numpy as np
 
 from .. import exceptions, util
 from ..constants import tol
-from ..typed import NDArray
+from ..typed import Integer, NDArray
 from . import color
 
 try:
@@ -774,7 +774,7 @@ def pack(
     materials,
     uvs,
     deduplicate=True,
-    padding: int = 2,
+    padding: Integer = 2,
     max_tex_size_individual=8192,
     max_tex_size_fused=8192,
 ):
@@ -793,7 +793,7 @@ def pack(
       List of multiple materials
     uvs : (n, m, 2) float
       Original UV coordinates
-    padding : int
+    padding : Integer
       Number of pixels to pad each image with.
     max_tex_size_individual : int
       Maximum size of each individual texture.

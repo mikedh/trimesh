@@ -2,6 +2,8 @@ import collections
 
 import numpy as np
 
+from .typed import Hashable
+
 try:
     # pip install python-fcl
     import fcl
@@ -708,10 +710,10 @@ class CollisionManager:
             obj = mesh_to_BVH(mesh)
         return obj
 
-    def _extract_name(self, geom):
+    def _extract_name(self, geom) -> Hashable:
         """
         Retrieve the name of an object from the manager by its
-        CollisionObject, or return None if not found.
+        CollisionObject, raising a KeyError if not found.
 
         Parameters
         -----------
@@ -720,7 +722,7 @@ class CollisionManager:
 
         Returns
         ------------
-        names : hashable
+        name : Hashable
           Name of input geometry
         """
         return self._names[id(geom)]

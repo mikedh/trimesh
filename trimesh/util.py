@@ -16,7 +16,6 @@ import zipfile
 from collections.abc import (
     Callable,
     Collection,
-    Hashable,
     Iterator,
     Mapping,
     MutableMapping,
@@ -38,6 +37,7 @@ from .typed import (
     ArrayLike,
     BoolIsFile,
     Floating,
+    Hashable,
     Integer,
     Iterable,
     NDArray,
@@ -287,7 +287,7 @@ def is_sequence(obj: Any) -> bool:
 
 def is_shape(
     obj: NDArray | Any,
-    shape: Sequence[int | tuple[int, ...]],
+    shape: Sequence[Integer | tuple[Integer, ...]],
     allow_zeros: bool = False,
 ) -> bool:
     """
@@ -1300,21 +1300,22 @@ def array_to_encoded(
     return encoded
 
 
-# the store key type must be `Any` because the key type changes from `bytes` to `str`
-def decode_keys(store: dict[Any, Any], encoding: str = "utf-8") -> dict[str, Any]:
+def decode_keys(store: MutableMapping, encoding: str = "utf-8") -> MutableMapping:
     """
     If a dictionary has keys that are bytes decode them to a str.
 
     Parameters
     ------------
-    store : dict
+    store : MutableMapping
       Dictionary with data
+    encoding : str
+      Encoding used to decode bytes keys
 
     Returns
     ---------
-    result : dict
-      Values are untouched but keys that were bytes
-      are converted to ASCII strings.
+    result : MutableMapping
+      The same `store` mutated in place: bytes keys are
+      decoded to `str` and all other keys are untouched.
 
     Example
     -----------
@@ -1324,13 +1325,10 @@ def decode_keys(store: dict[Any, Any], encoding: str = "utf-8") -> dict[str, Any
     In [2]: trimesh.util.decode_keys(d)
     Out[2]: {1020: 'nah', 'hi': 'stuff'}
     """
-    keys = list(store)
-    for key in keys:
+    # snapshot the keys as the loop mutates `store`
+    for key in list(store):
         if hasattr(key, "decode"):
-            decoded = key.decode(encoding)
-            if key != decoded:
-                store[key.decode(encoding)] = store[key]
-                store.pop(key)
+            store[key.decode(encoding)] = store.pop(key)
     return store
 
 
@@ -2323,7 +2321,7 @@ def unique_id(length: Integer = 12) -> str:
     return uuid.UUID(int=random.getrandbits(128), version=4).hex[:length]
 
 
-def generate_basis(z: ArrayLike, epsilon: float = 1e-12) -> NDArray2D[np.float64]:
+def generate_basis(z: ArrayLike, epsilon: Floating = 1e-12) -> NDArray2D[np.float64]:
     """
     Generate an arbitrary basis (also known as a coordinate frame)
     from a given z-axis vector.
@@ -2332,7 +2330,7 @@ def generate_basis(z: ArrayLike, epsilon: float = 1e-12) -> NDArray2D[np.float64
     ------------
     z : (3,) float
       A vector along the positive z-axis.
-    epsilon : float
+    epsilon : Floating
       Numbers smaller than this considered zero.
 
     Returns

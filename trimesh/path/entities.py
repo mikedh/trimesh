@@ -12,6 +12,7 @@ from logging import getLogger
 import numpy as np
 
 from .. import util
+from ..typed import Hashable
 from ..util import ABC
 from .arc import arc_center, discretize_arc
 from .curve import discretize_bezier, discretize_bspline
@@ -57,27 +58,27 @@ class Entity(ABC):
         return self._metadata
 
     @property
-    def layer(self):
+    def layer(self) -> Hashable:
         """
-        Set the layer the entity resides on as a shortcut
+        Get the layer the entity resides on as a shortcut
         to putting it in the entity metadata.
 
         Returns
         ----------
-        layer : any
-          Hashable layer identifier.
+        layer : Hashable
+          Layer identifier, None if unset.
         """
         return self.metadata.get("layer")
 
     @layer.setter
-    def layer(self, value):
+    def layer(self, value: Hashable):
         """
         Set the current layer of the entity.
 
-        Returns
+        Parameters
         ----------
-        layer : any
-          Hashable layer indicator
+        value : Hashable
+          Layer identifier
         """
         self.metadata["layer"] = value
 
