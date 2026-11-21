@@ -130,6 +130,35 @@ class NormalsTest(g.unittest.TestCase):
         mesh.face_normals = g.np.zeros_like(mesh.faces)
         assert g.np.allclose(g.np.linalg.norm(mesh.face_normals, axis=1), 1.0)
 
+    def test_thin_triangle_vertex_normals(self):
+        # a very thin but positive-area triangle from #2680 has a
+        # valid face normal but all of its corner angles are zeroed
+        # as degenerate, so angle weighting gave it no contribution
+        # and every vertex normal came out zero
+        m = g.trimesh.Trimesh(
+            vertices=[[0, 0, 0], [0.4938927, 11.2826791, 0], [0, 0.000002861, 0]],
+            faces=[[0, 1, 2]],
+            process=False,
+        )
+        assert m.area > 0
+        assert g.np.allclose(g.np.linalg.norm(m.face_normals, axis=1), 1)
+        assert g.np.allclose(g.np.linalg.norm(m.vertex_normals, axis=1), 1)
+        assert g.np.allclose(m.vertex_normals, m.face_normals[0])
+
+        # the loop fallback should agree with the sparse path and
+        # the passed-in angles should not be modified in place
+        angles = m.face_angles.copy()
+        for use_loop in (False, True):
+            normals = g.trimesh.geometry.weighted_vertex_normals(
+                vertex_count=len(m.vertices),
+                faces=m.faces,
+                face_normals=m.face_normals,
+                face_angles=m.face_angles,
+                use_loop=use_loop,
+            )
+            assert g.np.allclose(normals, m.face_normals[0])
+        assert g.np.array_equal(m.face_angles, angles)
+
     def test_merge(self):
         """
         Check merging with vertex normals
