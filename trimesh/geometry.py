@@ -389,6 +389,14 @@ def weighted_vertex_normals(
     face_normals = face_normals[face_ok]
     face_angles = face_angles[face_ok]
 
+    # thin faces can have a valid normal but all-zero angles: weight
+    # them equally at vertices which would otherwise get no weight
+    if not face_angles.all():
+        weight = np.bincount(
+            faces.ravel(), weights=face_angles.ravel(), minlength=vertex_count
+        )
+        face_angles = np.where(weight[faces] > 0.0, face_angles, 1.0)
+
     if not use_loop:
         try:
             return util.unitize(summed_sparse())
