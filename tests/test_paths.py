@@ -456,6 +456,55 @@ def test_path_dict_export():
     assert g.np.isclose(rt.area, path.area)
 
 
+@g.pytest.mark.parametrize("dimension", [2, 3])
+@g.pytest.mark.parametrize("scale", [1.0, 1000.0])
+@g.pytest.mark.parametrize("kind", ["bezier", "bspline", "multi-span"])
+def test_curve_bounds(dimension, scale, kind):
+    # This cubic peaks at t=0.5, y=0.75, between discretization samples.
+    vertices = g.np.array([[0, 0], [0, 1], [1, 1], [1, 0]], dtype=g.np.float64)
+    expected = g.np.array([[0, 0], [1, 0.75]], dtype=g.np.float64)
+    knots = [0, 0, 0, 0, 1, 1, 1, 1]
+    if kind == "multi-span":
+        # Two quadratic spans meet at a sharp maximum at the interior knot.
+        vertices = g.np.array([[0, 0], [0, 0], [1, 1], [2, 0], [2, 0]])
+        knots = [0, 0, 0, 0.25, 0.25, 1, 1, 1]
+        expected = g.np.array([[0, 0], [2, 1]], dtype=g.np.float64)
+    if dimension == 3:
+        vertices = g.np.column_stack((vertices, -vertices[:, 0]))
+        expected = g.np.column_stack((expected, -expected[::-1, 0]))
+    vertices = vertices * scale
+    expected *= scale
+    points = g.np.arange(len(vertices))
+    if kind == "bezier":
+        entity = g.trimesh.path.entities.Bezier(points)
+    else:
+        entity = g.trimesh.path.entities.BSpline(points, knots)
+    path_type = g.trimesh.path.Path2D if dimension == 2 else g.trimesh.path.Path3D
+    path = path_type(entities=[entity], vertices=vertices, process=False)
+    bounds = path.bounds
+    # Enclosure has no tolerance: a close but undersized box is still wrong.
+    assert (bounds[0] <= expected[0]).all()
+    assert (bounds[1] >= expected[1]).all()
+    g.np.testing.assert_allclose(bounds, expected, rtol=0, atol=scale * 1e-12)
+    entity.reverse()
+    g.np.testing.assert_array_equal(entity.bounds(path.vertices), bounds)
+
+
+@g.pytest.mark.parametrize("elevations", [1, 5, 10])
+def test_elevated_bezier_bounds(elevations):
+    # Degree elevation must preserve a quadratic's extrema, even with an offset.
+    vertices = g.np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0]]) + 5000.3
+    for _ in range(elevations):
+        weights = g.np.arange(1, len(vertices))[:, None] / len(vertices)
+        middle = weights * vertices[:-1] + (1.0 - weights) * vertices[1:]
+        vertices = g.np.vstack((vertices[0], middle, vertices[-1]))
+    bounds = g.trimesh.path.entities.Bezier(g.np.arange(len(vertices))).bounds(vertices)
+    expected = g.np.array([[5000.3, 5000.3], [5001.3, 5000.8]])
+    assert (bounds[0] <= expected[0]).all()
+    assert (bounds[1] >= expected[1]).all()
+    g.np.testing.assert_allclose(bounds, expected, rtol=0, atol=1e-7)
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     # g.unittest.main()
