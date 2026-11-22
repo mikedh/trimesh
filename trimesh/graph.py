@@ -778,6 +778,30 @@ def neighbors(edges, max_index=None, directed=False):
     return array
 
 
+def _split_crease_vertices(mesh, vertices, allowed):
+    """Split incident face corners into smooth fans at the given vertices."""
+    edges = mesh.face_adjacency_edges[allowed]
+    pair, end = np.nonzero(np.isin(edges, vertices))
+    adjacent = mesh.face_adjacency[allowed][pair]
+    # Link the two corners at the same end of each smooth edge.
+    local = (mesh.faces[adjacent] == edges[pair, end, None, None]).argmax(axis=2)
+    corners = np.flatnonzero(np.isin(mesh.faces.ravel(), vertices))
+    links = np.searchsorted(corners, adjacent * 3 + local)
+    fans = connected_components(links, nodes=np.arange(len(corners)))
+
+    faces = mesh.faces.copy()
+    sources = faces.ravel()[corners[[fan[0] for fan in fans]]]
+    faces.ravel()[corners[np.concatenate(fans)]] = len(mesh.vertices) + np.repeat(
+        np.arange(len(fans)), [len(fan) for fan in fans]
+    )
+    result = mesh.copy()
+    result.update_vertices(np.concatenate((np.arange(len(mesh.vertices)), sources)))
+    result.faces = faces
+    result.face_normals = mesh.face_normals
+    result._source = mesh.source
+    return result
+
+
 def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None = 10.0):
     """
     Return a non-watertight version of the mesh which
@@ -854,6 +878,24 @@ def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None
         # or groups below facet_minlen
         broke = np.setdiff1d(np.arange(len(mesh.faces)), unique)
         components.extend(broke.reshape((-1, 1)))
+
+    if not angle_ok.all():
+        # A path around a sharp edge can put both faces in the same patch.
+        patch = np.zeros(len(mesh.faces), dtype=np.intp)
+        patch[np.concatenate(components)] = np.repeat(
+            np.arange(len(components)), [len(c) for c in components]
+        )
+        left, right = mesh.face_adjacency.T
+        same = patch[left] == patch[right]
+        sharp = ~angle_ok
+        if len(facets) > 0:
+            # Faces in a selected planar facet intentionally share their normals.
+            sharp &= mask[left]
+        crease = same & sharp
+        if crease.any():
+            mesh = _split_crease_vertices(
+                mesh, np.unique(mesh.face_adjacency_edges[crease]), same & ~sharp
+            )
 
     # get a submesh as a single appended Trimesh
     smooth = mesh.submesh(components, only_watertight=False, append=True)
