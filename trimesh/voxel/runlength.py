@@ -82,13 +82,11 @@ def rle_to_brle(rle, dtype=None):
     """
     curr_val = 0
     out = [0]
-    acc = 0
     for value, count in np.reshape(rle, (-1, 2)):
-        acc += count
         if value not in (0, 1):
             raise ValueError("Invalid run length encoding for conversion to BRLE")
         if value == curr_val:
-            out[-1] += count
+            out[-1] += int(count)
         else:
             out.append(int(count))
             curr_val = value
@@ -131,7 +129,7 @@ def merge_brle_lengths(lengths):
     accumulating = False
     for length in lengths[1:]:
         if accumulating:
-            out[-1] += length
+            out[-1] += int(length)
             accumulating = False
         else:
             if length == 0:
@@ -232,7 +230,7 @@ def brle_to_dense(brle_data, vals=None):
         vals = np.asarray(vals)
         if vals.shape != (2,):
             raise ValueError(f"vals.shape must be (2,), got {vals.shape}")
-    ft = np.repeat(_ft[np.newaxis, :], (len(brle_data) + 1) // 2, axis=0).flatten()
+    ft = np.repeat(vals[np.newaxis, :], (len(brle_data) + 1) // 2, axis=0).flatten()
     return np.repeat(ft[: len(brle_data)], np.asarray(brle_data, dtype=int)).flatten()
 
 
@@ -310,7 +308,7 @@ def merge_rle_lengths(values, lengths):
         if length == 0:
             continue
         if value == curr:
-            ret_lengths[-1] += length
+            ret_lengths[-1] += int(length)
         else:
             curr = value
             ret_lengths.append(int(length))
@@ -596,10 +594,10 @@ def brle_gather_1d(brle_data, indices):
 
 def brle_reverse(brle_data):
     """Equivalent to dense_to_brle(brle_to_dense(brle_data)[-1::-1])."""
+    brle_data = np.asanyarray(brle_data)
     if len(brle_data) % 2 == 0:
-        brle_data = np.concatenate([brle_data, [0]], axis=0)
-    end = -1 if brle_data[-1] == 0 else None
-    return brle_data[-1:end:-1]
+        brle_data = np.pad(brle_data, (0, 1))
+    return brle_data[::-1]
 
 
 def rle_reverse(rle_data):
