@@ -409,6 +409,11 @@ def test_triangulate_collinear():
         sliver = g.Polygon([[0, 0], [4, 0], [3, 1e-13], [2, 0], [1, 1e-13]])
         v, f = g.trimesh.creation.triangulate_polygon(sliver, engine="earcut")
         assert (f != g.np.roll(f, 1, axis=1)).all()
+        # a repeated vertex shouldn't be split into a triangle with no area
+        shell = [[0, 0], [3, 0], [3, 0], [6, 0], [6, 6], [3, 6], [0, 6]]
+        repeat = g.Polygon(shell, [[[2, 2], [2, 4], [4, 4], [4, 2]]])
+        v, f = g.trimesh.creation.triangulate_polygon(repeat, engine="earcut")
+        assert (g.trimesh.triangles.area(g.trimesh.util.stack_3D(v)[f]) > 1e-8).all()
 
 
 def test_triangulate_plumbing():

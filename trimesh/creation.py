@@ -724,6 +724,8 @@ def _split_spanning(
     segments = np.tile(segments.dot([count, 1]), 2)
     # the vertices that an edge could pass through
     candidate = np.delete(index, rings - 1)
+    # only one vertex at each position or splits could have no area
+    candidate = candidate[np.unique(vertices[candidate], axis=0, return_index=True)[1]]
     points = vertices[candidate]
     # vertices were only dropped if they were exactly collinear
     epsilon = np.abs(vertices).max() * 1e-12
