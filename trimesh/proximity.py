@@ -22,6 +22,9 @@ except BaseException as E:
 
     cKDTree = ExceptionWrapper(E)
 
+# raise a `MemoryError` rather than allocate more than this
+_MEMORY_LIMIT = 16 * 2**30
+
 
 def nearby_faces(mesh, points: ArrayLike):
     """
@@ -60,20 +63,29 @@ def nearby_faces(mesh, points: ArrayLike):
     # a kd-tree containing every vertex of the mesh
     kdtree = cKDTree(mesh.vertices[mesh.referenced_vertices])
 
-    # query the distance to the nearest vertex to get AABB of a sphere
-    distance_vertex = kdtree.query(points)[0].reshape((-1, 1))
-    distance_vertex += tol.merge
-
-    # axis aligned bounds
-    bounds = np.column_stack((points - distance_vertex, points + distance_vertex))
-
-    try:
-        # use the batch API added in 1.4.0 and fixed to actually work in 1.4.1
-        hit_ids, hit_counts = rtree.intersection_v(bounds[:, :3], bounds[:, 3:])
-        return np.array_split(hit_ids, np.cumsum(hit_counts)[:-1])
-    except BaseException:
-        # fall back to a list comprehension
-        return [list(rtree.intersection(b)) for b in bounds]
+    # query in chunks of points that can't exceed the limit even if every
+    # face is a candidate and stop before `closest_point` uses ~400b each
+    chunk = max(1, _MEMORY_LIMIT // (16 * len(mesh.faces)))
+    candidates, total = [], 0
+    for start in range(0, len(points), chunk):
+        query = points[start : start + chunk]
+        # the nearest vertex bounds the distance to the surface
+        distance = kdtree.query(query)[0].reshape((-1, 1)) + tol.merge
+        try:
+            # use the batch API added in 1.4.0 and fixed to actually work in 1.4.1
+            ids, counts = rtree.intersection_v(query - distance, query + distance)
+            hits = np.array_split(ids, np.cumsum(counts)[:-1])
+        except BaseException:
+            # fall back to a list comprehension
+            hits = [
+                list(rtree.intersection(b))
+                for b in np.hstack((query - distance, query + distance))
+            ]
+        total += sum(map(len, hits))
+        if total * 400 > _MEMORY_LIMIT:
+            raise MemoryError(f"{total} candidate faces exceeds `_MEMORY_LIMIT`")
+        candidates.extend(hits)
+    return candidates
 
 
 def closest_point_naive(mesh, points):

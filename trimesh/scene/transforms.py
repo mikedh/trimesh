@@ -7,7 +7,7 @@ import numpy as np
 from .. import caching, util
 from ..caching import hash_fast
 from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
-from ..typed import ArrayLike, Floating, Hashable, NDArray, Sequence
+from ..typed import ArrayLike, Floating, Hashable, NDArray2D, Sequence
 
 # we compare to identity a lot
 _identity = np.eye(4)
@@ -56,16 +56,16 @@ class SceneGraph:
         # cache transformation matrices keyed with tuples
         self._cache = caching.Cache(self.__hash__)
 
-    def update(self, frame_to, frame_from=None, **kwargs):
+    def update(self, frame_to: Hashable, frame_from: Hashable | None = None, **kwargs):
         """
         Update a transform in the tree.
 
         Parameters
         ------------
-        frame_from : hashable object
+        frame_from : Hashable | None
           Usually a string (eg 'world').
           If left as None it will be set to self.base_frame
-        frame_to :  hashable object
+        frame_to : Hashable
           Usually a string (eg 'mesh_0')
         matrix : (4,4) float
           Homogeneous transformation matrix
@@ -77,7 +77,7 @@ class SceneGraph:
           Angle of rotation, in radians
         translation : (3,) float
           Distance to translate
-        geometry : hashable
+        geometry : Hashable
           Geometry object name, e.g. 'mesh_0'
         metadata: dictionary
           Optional metadata attached to the new frame
@@ -102,15 +102,15 @@ class SceneGraph:
 
     def get(
         self, frame_to: Hashable, frame_from: Hashable | None = None
-    ) -> tuple[NDArray[np.float64], Hashable | None]:
+    ) -> tuple[NDArray2D[np.float64], Hashable | None]:
         """
         Get the transform from one frame to another.
 
         Parameters
         ------------
-        frame_to : hashable
+        frame_to : Hashable
           Node name, usually a string (eg 'mesh_0')
-        frame_from : hashable
+        frame_from : Hashable | None
           Node name, usually a string (eg 'world').
           If None it will be set to self.base_frame
 
@@ -397,7 +397,7 @@ class SceneGraph:
 
         Parameters
         -------------
-        edgelist : (n,) tuples
+        edges : (n,) tuples
           Keyed (node_a, node_b, {key: value})
         strict : bool
           If True raise a ValueError when a
@@ -533,7 +533,7 @@ class SceneGraph:
     def __contains__(self, key: Hashable) -> bool:
         return key in self.transforms.node_data
 
-    def __getitem__(self, key: Hashable) -> tuple[NDArray[np.float64], Hashable | None]:
+    def __getitem__(self, key: Hashable) -> tuple[NDArray2D[np.float64], Hashable | None]:
         return self.get(key)
 
     def __setitem__(self, key: Hashable, value: ArrayLike):
@@ -573,16 +573,16 @@ class EnforcedForest:
         # but the connectivity hasn't changed return cached
         self._cache = {}
 
-    def add_edge(self, u, v, **kwargs):
+    def add_edge(self, u: Hashable, v: Hashable, **kwargs):
         """
         Add an edge to the forest cleanly.
 
         Parameters
         -----------
-        u : any
-          Hashable node key.
-        v : any
-          Hashable node key.
+        u : Hashable
+          Node key.
+        v : Hashable
+          Node key.
         kwargs : dict
            Stored as (u, v) edge data.
 
@@ -617,14 +617,14 @@ class EnforcedForest:
 
         return True
 
-    def remove_node(self, u):
+    def remove_node(self, u: Hashable):
         """
         Remove a node from the forest.
 
         Parameters
         -----------
-        u : any
-          Hashable node key.
+        u : Hashable
+          Node key.
 
         Returns
         --------
@@ -656,7 +656,7 @@ class EnforcedForest:
 
         return True
 
-    def shortest_path(self, u, v):
+    def shortest_path(self, u: Hashable, v: Hashable):
         """
         Find the shortest path between `u` and `v`, returning
         a path where the first element is always `u` and the
@@ -664,10 +664,10 @@ class EnforcedForest:
 
         Parameters
         -----------
-        u : any
-          Hashable node key.
-        v : any
-          Hashable node key.
+        u : Hashable
+          Node key.
+        v : Hashable
+          Node key.
 
         Returns
         -----------
@@ -769,15 +769,15 @@ class EnforcedForest:
         self._cache["children"] = dict(child)
         return self._cache["children"]
 
-    def successors(self, node):
+    def successors(self, node: Hashable):
         """
         Get all nodes that are successors to specified node,
         including the specified node.
 
         Parameters
         -------------
-        node : any
-          Hashable key for a node.
+        node : Hashable
+          Key for a node.
 
         Returns
         ------------

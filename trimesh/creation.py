@@ -1406,7 +1406,7 @@ def truncated_prisms(
 
     Parameters
     -------------
-    triangles : (n, 3, 3) float
+    tris : (n, 3, 3) float
       Triangles in space
     origin : None or (3,) float
       Origin of truncation plane

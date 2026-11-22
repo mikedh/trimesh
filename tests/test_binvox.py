@@ -47,6 +47,19 @@ class BinvoxTest(g.unittest.TestCase):
         np.testing.assert_equal(base.transform, loaded.transform)
         np.testing.assert_equal(base.shape, loaded.shape)
 
+    def test_shape_like(self):
+        # a non-cubic grid catches any axis mixed up by `axis_order`
+        np = g.np
+        expected = g.random((2, 3, 4)) > 0.5
+        stored = {"xyz": expected, "xzy": expected.transpose((0, 2, 1))}
+        for shape in ((2, 3, 4), [2, 3, 4], np.array([2, 3, 4])):
+            header = binvox.binvox_header(shape, (0, 0, 0), 1)
+            assert header.splitlines()[2] == "dim 2 3 4"
+            for axis_order, data in stored.items():
+                rle = rl.dense_to_rle(data.ravel(), dtype=np.uint8)
+                voxel = binvox.voxel_from_binvox(rle, shape, axis_order=axis_order)
+                assert np.array_equal(voxel.encoding.dense, expected)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

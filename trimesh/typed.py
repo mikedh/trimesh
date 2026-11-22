@@ -94,6 +94,10 @@ NDArray1D: TypeAlias = ndarray[tuple[int], dtype[DType]]
 NDArray2D: TypeAlias = ndarray[tuple[int, int], dtype[DType]]
 NDArray3D: TypeAlias = ndarray[tuple[int, int, int], dtype[DType]]
 
+# the shape of an array like numpy takes it, i.e. `(3, 4)`, `[3, 4]`,
+# `np.array([3, 4])` or a bare integer `3` meaning `(3,)`
+ShapeLike: TypeAlias = Integer | Sequence[Integer] | NDArray1D[integer]
+
 # anything `numpy.random.default_rng` can normalize into a `Generator`
 # passing a `Generator` lets a caller thread one stream through nested
 # calls -- `default_rng` hands it back rather than re-seeding it
@@ -139,6 +143,7 @@ __all__ = [
     "Seed",
     "Self",
     "Sequence",
+    "ShapeLike",
     "Stream",
     "ViewerType",
     "float64",

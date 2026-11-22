@@ -36,6 +36,7 @@ from ..typed import (
     Callable,
     ColorMapType,
     DTypeLike,
+    Hashable,
     Integer,
     Iterable,
     NDArray,
@@ -494,7 +495,7 @@ class ColorVisuals(Visuals):
         result = objects.concatenate(self, other, *args)
         return result
 
-    def _update_key(self, mask, key):
+    def _update_key(self, mask, key: Hashable):
         """
         Mask the value contained in the DataStore at a specified key.
 
@@ -502,7 +503,8 @@ class ColorVisuals(Visuals):
         -----------
         mask: (n,) int
               (n,) bool
-        key: hashable object, in self._data
+        key : Hashable
+          Key in self._data
         """
         mask = np.asanyarray(mask)
         if key in self._data:

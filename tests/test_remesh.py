@@ -122,6 +122,17 @@ class SubDivideTest(g.unittest.TestCase):
             # volume should be the same
             assert g.np.isclose(m.volume, s.volume)
 
+    def test_subdivide_attributes_1d(self):
+        # scalar (n,) vertex attributes are interpolated like (n, d) ones
+        m = g.trimesh.creation.box()
+        m.vertex_attributes["height"] = m.vertices[:, 2].copy()
+        m.vertex_attributes["pos"] = m.vertices.copy()
+
+        for s in (m.subdivide(), m.subdivide(face_index=[0]), m.subdivide(iterations=2)):
+            assert s.vertex_attributes["height"].shape == (len(s.vertices),)
+            assert g.np.allclose(s.vertex_attributes["height"], s.vertices[:, 2])
+            assert g.np.allclose(s.vertex_attributes["pos"], s.vertices)
+
     def test_loop(self):
         meshes = [
             g.get_mesh("soup.stl"),  # a soup of random triangles

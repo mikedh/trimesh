@@ -237,8 +237,8 @@ class Scene(Geometry3D):
 
         Parameters
         --------------
-        name : hashable
-          Name that references self.geometry
+        names : str | set | Sequence
+          One or more names that reference self.geometry
         """
         # make sure we have a set we can check
         if isinstance(names, str):
@@ -693,8 +693,6 @@ class Scene(Geometry3D):
 
         Parameters
         ----------
-        scene
-        The scene to handle.
         cost_threshold
         The maximum value for `procrustes` cost which is "squared mean
         vertex distance between pair". If the fit is above this value
@@ -725,8 +723,6 @@ class Scene(Geometry3D):
           Distance from centroid
         center : (3,) float
           Point camera should be center on
-        camera : Camera object
-          Object that stores camera parameters
         """
 
         if fov is None:
@@ -996,8 +992,8 @@ class Scene(Geometry3D):
 
         Parameters
         ------------
-        node
-          Hashable key in `scene.graph`
+        node : Hashable
+          Key in `scene.graph`
 
         Returns
         -----------
@@ -1498,19 +1494,19 @@ def append_scenes(iterable, common=None, base_frame="world"):
     # nodes which are consumed and need to be remapped
     consumed = set()
 
-    def node_remap(node):
+    def node_remap(node: Hashable) -> Hashable:
         """
         Remap node to new name if necessary
 
         Parameters
         -------------
-        node : hashable
-           Node name in original scene
+        node : Hashable
+          Node name in original scene
 
         Returns
         -------------
-        name : hashable
-           Node name in concatenated scene
+        name : Hashable
+          Node name in concatenated scene
         """
 
         # if we've already remapped a node use it

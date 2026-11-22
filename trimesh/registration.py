@@ -8,7 +8,7 @@ Functions for registering (aligning) point clouds with meshes.
 import numpy as np
 
 from . import bounds, transformations, util
-from .geometry import weighted_vertex_normals
+from .geometry import index_sparse, weighted_vertex_normals
 from .points import PointCloud, plane_fit
 from .transformations import transform_points
 from .triangles import angles, cross, normals
@@ -772,17 +772,19 @@ def _from_mesh(
     if return_normals:
         qres["normals"] = mesh.face_normals[qres["tids"]]
     if return_barycentric_coordinates or return_interpolated_normals:
+        nearest_faces = mesh.faces[qres["tids"]]
         qres["barycentric_coordinates"] = points_to_barycentric(
-            mesh.vertices[mesh.faces[qres["tids"]]], qres["nearest"]
+            mesh.vertices[nearest_faces], qres["nearest"]
         )
 
         if return_interpolated_normals:
-            # Interpolation from barycentric coordinates
-            qres["interpolated_normals"] = np.einsum(
-                "ij,ijk->ik",
-                qres["barycentric_coordinates"],
-                mesh.vertex_normals[mesh.faces[qres["tids"]]],
+            # weight the vertex normals of each nearest face by the barycentric coordinates
+            weights = index_sparse(
+                len(mesh.vertices),
+                nearest_faces,
+                data=qres["barycentric_coordinates"].ravel(),
             )
+            qres["interpolated_normals"] = weights.T.dot(mesh.vertex_normals)
     return qres
 
 
