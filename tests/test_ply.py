@@ -320,6 +320,42 @@ class PlyTest(g.unittest.TestCase):
         p = next(iter(s.geometry.values()))
         assert p.vertices.shape == (1000, 3)
 
+    def test_binary_mixed_list_lengths(self):
+        # binary faces mixing triangles, quads and pentagons have lists of
+        # different lengths, which can also add up to the size of equal ones
+        v = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 1]]
+        for faces, count in (
+            ([[0, 1, 4], [0, 1, 2, 3]], 3),
+            ([[0, 1, 2, 3], [0, 1, 4], [0, 1, 2, 3, 4]], 6),
+        ):
+            header = (
+                "ply\nformat {} 1.0\nelement vertex 5\n"
+                + "".join(f"property float {a}\n" for a in "xyz")
+                + f"element face {len(faces)}\n"
+                + "property list uchar int vertex_indices\nend_header\n"
+            )
+            text = header.format("ascii") + "".join(
+                " ".join(str(i) for i in r) + "\n"
+                for r in v + [[len(f), *f] for f in faces]
+            )
+            ascii = g.trimesh.load(
+                g.io.BytesIO(text.encode()), file_type="ply", process=False
+            )
+            for name, order in (
+                ("binary_little_endian", "<"),
+                ("binary_big_endian", ">"),
+            ):
+                data = (
+                    header.format(name).encode()
+                    + g.np.array(v, dtype=order + "f4").tobytes()
+                )
+                for f in faces:
+                    data += bytes([len(f)]) + g.np.array(f, dtype=order + "i4").tobytes()
+                m = g.trimesh.load(g.io.BytesIO(data), file_type="ply", process=False)
+                assert g.np.array_equal(m.vertices, ascii.vertices)
+                assert g.np.array_equal(m.faces, ascii.faces)
+                assert m.faces.shape == (count, 3)
+
     def test_property_before_element(self):
         # a PLY header with a property line before any element declaration used
         # to reference an unset local and raise an UnboundLocalError; it should
