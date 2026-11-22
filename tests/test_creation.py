@@ -352,6 +352,70 @@ def test_triangulate():
     g.log.info(f"benchmarked triangulation on {len(bench)} polygons: {times!s}")
 
 
+def test_triangulate_collinear():
+    # `earcut` drops vertices which are collinear with their neighbors when
+    # it bridges a hole, which left edges passing through those vertices
+
+    def ring(corners, count=3):
+        # exactly collinear integer vertices along every segment of a ring
+        corners = g.np.array(corners, dtype=g.np.int64) * count
+        step = (g.np.roll(corners, -1, axis=0) - corners) // count
+        steps = step[:, None] * g.np.arange(count)[:, None]
+        # start each ring in the middle of a segment
+        return g.np.roll((corners[:, None] + steps).reshape((-1, 2)), 2, axis=0)
+
+    # (shell, holes) including holes with edges collinear to each other
+    square = [[0, 0], [6, 0], [6, 6], [0, 6]]
+    plus = [[3, 0], [6, 0], [6, 3], [9, 3], [9, 6], [6, 6]]
+    plus += [[6, 9], [3, 9], [3, 6], [0, 6], [0, 3], [3, 3]]
+    shapes = [
+        (square, []),
+        (square, [[[2, 2], [2, 4], [4, 4], [4, 2]]]),
+        (square, [[[1, 1], [1, 2], [2, 2], [2, 1]], [[3, 1], [3, 5], [5, 5], [5, 1]]]),
+        # has a triangle where more than one edge passed through vertices
+        (plus, [[[4, 4], [4, 5], [5, 5], [5, 4]]]),
+        ([[0, 0], [12, 0], [0, 12]], [[[2, 2], [2, 5], [5, 2]]]),
+    ]
+    # check both windings of every shape with every engine
+    for (shell, holes), flip, engine in g.itertools.product(
+        shapes, [1, -1], existing_engines
+    ):
+        polygon = g.Polygon(ring(shell)[::flip], holes=[ring(h)[::flip] for h in holes])
+        v, f = g.trimesh.creation.triangulate_polygon(polygon, engine=engine)
+        check_triangulation(v, f, polygon.area)
+
+        # twice the signed area of every triangle on the integer grid
+        # has the same sign and is at least one so none are degenerate
+        (ax, ay), (bx, by) = (v[f[:, 1:]] - v[f[:, :1]]).transpose((1, 2, 0))
+        cross = ax * by - ay * bx
+        assert (cross > 0.99).all() or (cross < -0.99).all()
+
+        # every vertex is referenced and only one at each position
+        unique, inverse = g.trimesh.grouping.unique_rows(v)
+        assert len(g.np.unique(f)) == len(unique)
+        # the edges that only occur in a single triangle have to be
+        # exactly the segments of the polygon with no vertex skipped
+        edges = g.np.sort(inverse[g.trimesh.geometry.faces_to_edges(f)], axis=1)
+        once = edges[g.trimesh.grouping.group_rows(edges, require_count=1)]
+        once = v[unique].round().astype(g.np.int64)[once].tolist()
+        truth = set()
+        for r in [polygon.exterior, *polygon.interiors]:
+            c = g.np.array(r.coords, dtype=g.np.int64).tolist()
+            truth.update(frozenset(map(tuple, e)) for e in g.itertools.pairwise(c))
+        assert {frozenset(map(tuple, e)) for e in once} == truth, engine
+
+    if "earcut" in existing_engines:
+        # a polygon with no area can't be fixed but shouldn't repeat a vertex
+        sliver = g.Polygon([[0, 0], [4, 0], [3, 1e-13], [2, 0], [1, 1e-13]])
+        v, f = g.trimesh.creation.triangulate_polygon(sliver, engine="earcut")
+        assert (f != g.np.roll(f, 1, axis=1)).all()
+        # a repeated vertex shouldn't be split into a triangle with no area
+        shell = [[0, 0], [3, 0], [3, 0], [6, 0], [6, 6], [3, 6], [0, 6]]
+        repeat = g.Polygon(shell, [[[2, 2], [2, 4], [4, 4], [4, 2]]])
+        v, f = g.trimesh.creation.triangulate_polygon(repeat, engine="earcut")
+        assert (g.trimesh.triangles.area(g.trimesh.util.stack_3D(v)[f]) > 1e-8).all()
+
+
 def test_triangulate_plumbing():
     # @ Check the plumbing of path triangulation
 

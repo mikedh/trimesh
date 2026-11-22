@@ -371,6 +371,29 @@ class SliceTest(g.unittest.TestCase):
         )
         assert newmesh.is_watertight
 
+    def test_cap_collinear(self):
+        # holes with aligned edges and a plane cutting the diagonal of every
+        # wall both produce collinear vertices which the caps have to use
+        polygon = g.Polygon(
+            [[0, 0], [12, 0], [12, 6], [0, 6]],
+            holes=[[[1, 1], [1, 5], [5, 5], [5, 1]], [[7, 1], [7, 5], [11, 5], [11, 1]]],
+        )
+        for engine in [k for k, exists in g.trimesh.creation._engines if exists]:
+            mesh = g.trimesh.creation.extrude_polygon(polygon, height=3.0, engine=engine)
+            # the extrusion then the parts above and below a plane
+            solids = [(mesh, 3.0)]
+            solids.extend(
+                (mesh.slice_plane([0, 0, 1], [0, 0, n], cap=True, engine=engine), h)
+                for n, h in [(1, 2.0), (-1, 1.0)]
+            )
+            for solid, height in solids:
+                assert solid.is_volume, (engine, height)
+                assert g.np.isclose(solid.volume, polygon.area * height)
+                # two caps and a wall for every segment with nothing inside
+                assert g.np.isclose(
+                    solid.area, polygon.area * 2 + polygon.length * height
+                )
+
     def test_slice_exit(self):
         m = g.trimesh.creation.box()
         assert g.np.isclose(m.area, 6)
