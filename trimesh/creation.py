@@ -637,6 +637,8 @@ def triangulate_polygon(
             .astype(np.int64)
             .reshape((-1, 3))
         )
+        # split any triangle with an edge passing through a vertex
+        faces = _split_spanning(vertices, faces, rings)
 
     elif engine == "manifold":
         import manifold3d
@@ -680,6 +682,123 @@ def triangulate_polygon(
         raise ValueError("No available triangulation engine!")
 
     return vertices, faces
+
+
+def _split_spanning(
+    vertices: NDArray[np.float64], faces: NDArray[np.int64], rings: NDArray[np.int64]
+) -> NDArray[np.int64]:
+    """
+    Bridging a hole makes `earcut` drop vertices which are collinear with
+    their neighbors, which leaves triangles with an edge that passes through
+    vertices rather than ending at them. Split those triangles so that the
+    boundary of the triangulation is exactly the segments of the polygon.
+
+    Parameters
+    ------------
+    vertices : (n, 2) float
+      The vertices of every closed ring stacked.
+    faces : (m, 3) int
+      Triangles referencing `vertices`.
+    rings : (r,) int
+      The index one past the last vertex of each ring.
+
+    Returns
+    ------------
+    faces : (p, 3) int
+      Triangles where no edge on the boundary passes through a vertex.
+    """
+    count = len(vertices)
+    # clipping ears makes a triangle for every vertex and two for every
+    # hole less two, so with that many no vertex could have been dropped
+    if len(faces) == count + len(rings) - 4:
+        return faces
+    # the last vertex of each ring is a duplicate of the first
+    # and either could be referenced so only use the first
+    index = np.arange(count, dtype=np.int64)
+    index[rings - 1] = np.append(0, rings[:-1])
+    faces = index[faces]
+    # every segment of the polygon as a sorted integer key
+    segments = np.column_stack((index[:-1], index[1:]))
+    segments = np.sort(np.delete(segments, rings[:-1] - 1, axis=0), axis=1)
+    # twice so that an edge which is a segment never occurs only once
+    segments = np.tile(segments.dot([count, 1]), 2)
+    # the vertices that an edge could pass through
+    candidate = np.delete(index, rings - 1)
+    points = vertices[candidate]
+    # vertices were only dropped if they were exactly collinear
+    epsilon = np.abs(vertices).max() * 1e-12
+
+    # a pass splits one edge of a triangle which leaves any
+    # other edge it needs split as the edge of a new triangle
+    for _ in range(3):
+        edges = faces_to_edges(faces)
+        keys = np.sort(edges, axis=1).dot([count, 1])
+        # edges which only occur once are on the boundary and if one
+        # is not a segment it passes through the vertices of several
+        span = grouping.group_rows(np.append(keys, segments), require_count=1)
+        if len(span) == 0:
+            break
+
+        # count the vertices inside the bounds of each edge on each axis
+        low, high = np.sort(vertices[edges[span]], axis=1).transpose((1, 2, 0))
+        order = points.argsort(axis=0)
+        ordered = np.take_along_axis(points, order, axis=0).T
+        lower, upper = (
+            np.transpose(
+                [np.searchsorted(o, b, side=side) for o, b in zip(ordered, bound)]
+            )
+            for bound, side in ((low - epsilon, "left"), (high + epsilon, "right"))
+        )
+        # only check each edge against the vertices on the axis with fewer
+        axis = (upper - lower).argmin(axis=1)
+        row = np.arange(len(span))
+        lower, size = lower[row, axis], (upper - lower)[row, axis]
+        # the edge and the vertex of every pair to check
+        pair = np.repeat(row, size)
+        inside = np.arange(len(pair)) - np.repeat(size.cumsum() - size - lower, size)
+        inside = order[inside, axis[pair]]
+        # discard the pairs where the vertex is outside the other axis
+        other = points[inside, 1 - axis[pair]]
+        low, high = low[1 - axis, row] - epsilon, high[1 - axis, row] + epsilon
+        ok = (other >= low[pair]) & (other <= high[pair])
+        pair, inside = pair[ok], inside[ok]
+
+        # the scaled distance of each vertex along and across its edge
+        origin = vertices[edges[span[pair], 0]]
+        vector = vertices[edges[span[pair], 1]] - origin
+        offset = points[inside] - origin
+        along = (offset * vector).sum(axis=1)
+        across = offset[:, 0] * vector[:, 1] - offset[:, 1] * vector[:, 0]
+        length = np.linalg.norm(vector, axis=1)
+        # keep the vertices on the edge which are not the ends of it
+        ok = np.abs(across) < epsilon * length
+        ok &= (along > epsilon * length) & (along < (length - epsilon) * length)
+        # or the other vertex of a triangle that has no area
+        ok &= candidate[inside] != faces[span[pair] // 3, (span[pair] + 2) % 3]
+        # sort them by edge and then by the distance along it
+        ok = ok.nonzero()[0]
+        ok = ok[np.lexsort((along[ok], pair[ok]))]
+        edge = span[pair[ok]]
+        # only split the first edge of each triangle
+        ok = ok[np.isin(edge, edge[np.unique(edge // 3, return_index=True)[1]])]
+        if len(ok) == 0:
+            break
+
+        edge, vertex = span[pair[ok]], candidate[inside[ok]]
+        triangle, column = edge // 3, edge % 3
+        # the vertices which are not the first or are the last on their edge
+        after = np.append(False, edge[1:] == edge[:-1])
+        last = np.append(~after[1:], True)
+        # copy the triangle to end at every vertex and start at the vertex
+        # before it which keeps the winding and the vertex opposite the edge
+        fan = faces[triangle]
+        fan[np.arange(len(fan)), (column + 1) % 3] = vertex
+        fan[after, column[after]] = vertex[:-1][after[1:]]
+        # the original triangle now starts at the last vertex
+        faces[triangle[last], column[last]] = vertex[last]
+        faces = np.vstack((faces, fan))
+
+    return faces
 
 
 def _polygon_to_kwargs(polygon) -> dict:
