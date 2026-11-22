@@ -602,7 +602,7 @@ def _parse_file_args(
             # save the file name and path to metadata
             # if file_obj is a path that exists use extension as file_type
             if file_type is None:
-                file_type = util.split_extension(file_path, special=["tar.gz", "tar.bz2"])
+                file_type = util.split_extension(file_path)
             # actually open the file
             file_obj = open(file_path, "rb")
             # save that we opened it so we can cleanup later

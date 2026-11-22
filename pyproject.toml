@@ -93,7 +93,7 @@ recommend = [
     "scikit-image",
     "fast-simplification",
     "python-fcl", # do collision checks
-    "cascadio", # load `STEP` files
+    "cascadio", # load `STEP` and `IGES` files
 ]
 
 # stuff to run simple testing

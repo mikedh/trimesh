@@ -84,7 +84,7 @@ Trimesh has a lot of soft-required upstream packages, and we try to make sure th
 |`vhacdx`| A binding for VHACD which provides convex decompositions | | `easy`|
 |`embreex`| Bindings to Intel's Embree engine for fast ray/mesh intersection queries. | | `easy`|
 |`manifold3d`| A binding for the Manifold mesh boolean engine | | `recommend`|
-|`cascadio`| A binding for OpenCASCADE enabling `.STEP` loading | | `recommend`|
+|`cascadio`| A binding for OpenCASCADE enabling `.STEP`/`.IGES` loading | | `recommend`|
 
 ## Adding A Dependency
 

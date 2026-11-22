@@ -2124,7 +2124,7 @@ def compress(
 def split_extension(file_name: str, special: Iterable[str] | None = None) -> str:
     """
     Find the file extension of a file name, including support for
-    special case multipart file extensions (like .tar.gz)
+    special case multipart file extensions (like .tar.gz or .step.zst)
 
     Parameters
     ------------
@@ -2132,7 +2132,7 @@ def split_extension(file_name: str, special: Iterable[str] | None = None) -> str
       File name
     special : list of str
       Multipart extensions
-      eg: ['tar.bz2', 'tar.gz']
+      eg: ['tar.bz2', 'tar.gz', 'step.zst']
 
     Returns
     ----------
@@ -2143,11 +2143,23 @@ def split_extension(file_name: str, special: Iterable[str] | None = None) -> str
     file_name = str(file_name)
 
     if special is None:
-        special = ["tar.bz2", "tar.gz"]
-    if file_name.endswith(tuple(special)):
-        for end in special:
-            if file_name.endswith(end):
-                return end
+        special = (
+            "tar.bz2",
+            "tar.gz",
+            "step.zstd",
+            "step.zst",
+            "stp.zstd",
+            "stp.zst",
+            "iges.zstd",
+            "iges.zst",
+            "igs.zstd",
+            "igs.zst",
+        )
+    lower = file_name.lower()
+    for end in special:
+        end_lower = end.lower()
+        if lower.endswith(f".{end_lower}") or lower == end_lower:
+            return end
     return file_name.split(".")[-1]
 
 
