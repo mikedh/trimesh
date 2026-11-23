@@ -93,6 +93,7 @@ DType = TypeVar("DType", bound=generic)
 NDArray1D: TypeAlias = ndarray[tuple[int], dtype[DType]]
 NDArray2D: TypeAlias = ndarray[tuple[int, int], dtype[DType]]
 NDArray3D: TypeAlias = ndarray[tuple[int, int, int], dtype[DType]]
+NDArray4D: TypeAlias = ndarray[tuple[int, int, int, int], dtype[DType]]
 
 # the shape of an array like numpy takes it, i.e. `(3, 4)`, `[3, 4]`,
 # `np.array([3, 4])` or a bare integer `3` meaning `(3,)`
@@ -139,6 +140,7 @@ __all__ = [
     "NDArray1D",
     "NDArray2D",
     "NDArray3D",
+    "NDArray4D",
     "Number",
     "Seed",
     "Self",

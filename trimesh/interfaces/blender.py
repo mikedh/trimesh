@@ -1,11 +1,12 @@
 import os
 import platform
+import subprocess
 
 from .. import util
 from ..constants import log
 from ..resources import get_string
-from ..typed import BooleanOperationType, Floating, Iterable
-from .generic import MeshScript
+from ..typed import BooleanOperationType, Floating, Integer, Iterable
+from .generic import HIDDEN_CONSOLE, MeshScript
 
 if platform.system() == "Windows":
     # try to find Blender install on Windows
@@ -143,3 +144,47 @@ def unwrap(
         m.face_normals = None
 
     return result
+
+
+def build(scene, directory: str, count: Integer, settings, **kwargs) -> None:
+    """
+    Render a scene to `frame_*.png` files with Blender.
+
+    Parameters
+    ------------
+    scene : trimesh.Scene
+      From `trimesh.viewer.render.stage`.
+    directory : str
+      Directory for the GLB and frames.
+    count : int
+      Frames to render.
+    settings : trimesh.viewer.conversion.RenderSettings
+      How to draw the scene.
+    kwargs : dict
+      Viewer options, which Blender doesn't have.
+    """
+    if len(kwargs) > 0:
+        raise TypeError(f"unknown render settings {sorted(kwargs)}")
+    if not exists:
+        raise ValueError("No blender available!")
+
+    path = os.path.join(directory, "scene.glb")
+    scene.export(path, include_normals=True)
+    # settings glTF can't hold, and `pixel` in world units
+    arguments = {
+        **vars(settings),
+        "input": path,
+        "output": os.path.join(directory, "frame_"),
+        "camera": scene.camera.name,
+        "count": count,
+        "resolution": scene.camera.resolution,
+        "pixel": scene.scale / scene.camera.resolution[1],
+    }
+    # without `--python-exit-code` an error in the script still exits zero
+    command = [_blender_executable, "--background", "--python-exit-code", "1"]
+    command += ["--python-expr", get_string("templates/blender_scene.py")]
+    command += ["--", util.jsonify(arguments)]
+    result = subprocess.run(command, capture_output=True, text=True, **HIDDEN_CONSOLE)
+    if result.returncode != 0:
+        output = result.stdout + result.stderr
+        raise RuntimeError(f"`{_blender_executable}` failed:\n{output}")

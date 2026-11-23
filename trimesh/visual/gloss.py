@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..constants import log
+from ..constants import log, tol
 from ..exceptions import ExceptionWrapper
 from ..typed import ArrayLike, Number
 from .color import linear_to_srgb, srgb_to_linear
@@ -316,8 +316,10 @@ def specular_to_pbr(
         elif diffuse.shape[-1] == 4:
             opacity = diffuse[..., -1]
             base_color = np.concatenate([base_color, opacity[..., None]], axis=-1)
-    except BaseException:
-        log.error("unable to get opacity", exc_info=True)
+    except (ValueError, IndexError):
+        if tol.strict:
+            raise
+        log.warning("unable to get opacity", exc_info=True)
 
     result = {}
     if len(base_color.shape) > 1:

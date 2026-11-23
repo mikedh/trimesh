@@ -102,6 +102,10 @@ RUN COLUMNS=240 xvfb-run pytest \
     -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests
 
+# the viewer again on the `pyglet<2` the `recommend` extra used to pin
+RUN pip install "pyglet<2" && COLUMNS=240 xvfb-run pytest --cov=trimesh --cov-append \
+    -p no:cacheprovider tests/test_viewer.py tests/test_render.py
+
 ################################
 ### Build Sphinx Docs
 FROM output AS build_docs

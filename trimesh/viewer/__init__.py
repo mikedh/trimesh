@@ -2,7 +2,7 @@
 viewer
 -------------
 
-View meshes and scenes via pyglet or inline HTML.
+View and render meshes and scenes via pyglet or inline HTML.
 """
 
 from .. import exceptions
@@ -13,21 +13,31 @@ from .notebook import (
     scene_to_notebook,
 )
 
-try:
-    # try importing windowed which will fail
-    # if we can't create an openGL context
-    from .windowed import SceneViewer, render_scene
-except BaseException as E:
-    # if windowed failed to import only raise
-    # the exception if someone tries to use them
-    SceneViewer = exceptions.ExceptionWrapper(E)
-    render_scene = exceptions.ExceptionWrapper(E)
+
+def __getattr__(name: str):
+    """
+    Lazily import the viewer, as importing pyglet needs a display.
+
+    Parameters
+    ------------
+    name : str
+      Attribute of this module.
+
+    Returns
+    ------------
+    value : SceneViewer, render_scene or ExceptionWrapper
+      From `trimesh.viewer.windowed` or the import error.
+    """
+    if name not in ("SceneViewer", "render_scene"):
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    try:
+        from . import windowed
+    except Exception as E:
+        # only raise the exception if someone tries to use it
+        return exceptions.ExceptionWrapper(E)
+    return getattr(windowed, name)
 
 
-# this is only standard library imports
-
-# explicitly list imports in __all__
-# as otherwise flake8 gets mad
 __all__ = [
     "SceneViewer",
     "in_notebook",

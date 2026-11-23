@@ -6,6 +6,7 @@ import numpy as np
 
 from .. import caching, util
 from ..caching import hash_fast
+from ..constants import log, tol
 from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
 from ..typed import ArrayLike, Floating, Hashable, NDArray2D, Sequence
 
@@ -99,6 +100,32 @@ class SceneGraph:
         # set the node attribute with the geometry information
         if "geometry" in kwargs:
             self.transforms.node_data[frame_to]["geometry"] = kwargs["geometry"]
+
+    def update_matrices(self, edges: Sequence, matrices: ArrayLike) -> None:
+        """
+        Replace the matrices of existing edges.
+
+        Parameters
+        ------------
+        edges : (n,) of (frame_from, frame_to)
+          Edges to set, `frame_from` None for the base frame.
+        matrices : (n, 4, 4) float
+          Matrix of every edge.
+        """
+        # matrices change in place so clear the hash
+        self.transforms._hash = None
+        edge_data = self.transforms.edge_data
+        # falsy frames like `0` are valid, only `None` is the base frame
+        keys = [({None: self.base_frame}.get(a, a), b) for a, b in edges]
+        missing = set(keys).difference(edge_data)
+        if len(missing) > 0:
+            message = f"can't set the matrices of missing edges {missing}"
+            if tol.strict:
+                raise ValueError(message)
+            log.warning(message)
+        for key, matrix in zip(keys, np.asarray(matrices, dtype=float)):
+            # a missing edge sets a throwaway dict, as `get` doesn't insert
+            edge_data.get(key, {})["matrix"] = matrix
 
     def get(
         self, frame_to: Hashable, frame_from: Hashable | None = None
@@ -251,8 +278,9 @@ class SceneGraph:
         Returns
         --------
         gltf : dict
-          With 'nodes' referencing a list of dicts and 'scene_roots'
-          referencing the node indices the scene should start from.
+          With 'nodes' referencing a list of dicts, 'scene_roots'
+          referencing the node indices the scene should start from,
+          and 'node_index' as {node name : index}.
         """
 
         if mesh_index is None:
@@ -266,8 +294,8 @@ class SceneGraph:
         node_data = graph.node_data
         edge_data = graph.edge_data
         base_frame = self.base_frame
-        # does the scene have a defined camera to export
-        has_camera = scene.has_camera
+        # {node name : camera index}
+        camera_index = {camera.name: index for index, camera in enumerate(scene.cameras)}
         children = graph.children
 
         # the base frame is a synthetic wrapper: when it carries nothing
@@ -276,7 +304,7 @@ class SceneGraph:
         # writing one would grow a wrapper node on every round-trip
         skip_base = (
             "geometry" not in node_data.get(base_frame, {})
-            and not (has_camera and base_frame == scene.camera.name)
+            and base_frame not in camera_index
             and len(children.get(base_frame, [])) > 0
         )
 
@@ -316,8 +344,8 @@ class SceneGraph:
                 if mesh_key in mesh_index:
                     info["mesh"] = mesh_index[mesh_key]
             # check to see if we have camera node
-            if has_camera and node == scene.camera.name:
-                info["camera"] = 0
+            if node in camera_index:
+                info["camera"] = camera_index[node]
 
             if node != base_frame:
                 parent = graph.parents[node]
@@ -351,7 +379,7 @@ class SceneGraph:
         else:
             roots = [lookup[base_frame]]
 
-        gltf = {"nodes": result, "scene_roots": roots}
+        gltf = {"nodes": result, "scene_roots": roots, "node_index": lookup}
         if len(extensions_used) > 0:
             gltf["extensionsUsed"] = list(extensions_used)
         return gltf
@@ -596,6 +624,8 @@ class EnforcedForest:
         # topology has changed so clear cache
         if (u, v) not in self.edge_data:
             self._cache = {}
+            # drop the old edge of a reparented node
+            self.edge_data.pop((self.parents.get(v), v), None)
         else:
             # check to see if matrix and geometry are identical
             edge = self.edge_data[(u, v)]

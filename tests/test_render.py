@@ -3,6 +3,8 @@ try:
 except BaseException:
     import generic as g
 
+from pathlib import Path
+
 
 class RenderTest(g.unittest.TestCase):
     """
@@ -61,6 +63,51 @@ class RenderTest(g.unittest.TestCase):
         args = rendering.convert_to_vertexlist(P32)
         assert len(args) == 6
         assert len(args_auto) == len(args)
+
+    def test_render(self):
+        # importing trimesh or the GPU conversion loads no renderer or pyglet
+        code = "import sys, trimesh, trimesh.viewer.conversion; print(*sys.modules)"
+        loaded = g.subprocess.run(
+            [g.sys.executable, "-c", code], capture_output=True, check=True, text=True
+        ).stdout.split()
+        assert not {"trimesh.viewer.render", "trimesh.interfaces.ffmpeg", "pyglet"} & set(
+            loaded
+        ), "nothing rendering imported"
+
+        g.require_rendering()
+        box = g.trimesh.creation.box().apply_translation([0, 0, 1])
+        line = g.trimesh.load_path([[-1, -1, 0.5], [1, 1, 0.5]])
+        points = g.trimesh.PointCloud([[0.7, -0.7, 0.5], [-0.7, 0.7, 0.5]])
+        scene = g.trimesh.Scene([box, line, points])
+        resolution = (96, 72)
+        default = scene.save_image(resolution=resolution)
+        # a path holds the same still `save_image` returns
+        with g.TemporaryDirectory() as directory:
+            path = g.os.path.join(directory, "still.png")
+            assert scene.render(Path(path), resolution=resolution) is None
+            with open(path, "rb") as file_obj:
+                g.assert_images(g.png(file_obj.read()), g.png(default), "path", 2)
+        default = g.png(default)
+        assert default.shape == (72, 96, 4), "png"
+        # every drawn `RenderSettings` field changes the image
+        changed = {
+            "quality": False,
+            "exposure": 2.0,
+            "bloom": 0.0,
+            "ground_shadow": False,
+        }
+        changed.update(show_environment=True, background=[255, 0, 0, 255])
+        changed.update(line_width=6.0, point_size=12.0)
+        for key, value in changed.items():
+            image = g.png(scene.render(resolution=resolution, **{key: value}))
+            assert g.np.abs(image.astype(int) - default).max() > 8, f"{key} drawn"
+        # bloom is part of quality
+        fast = g.png(scene.render(resolution=resolution, quality=False))
+        without = g.png(scene.render(resolution=resolution, quality=False, bloom=0.0))
+        g.assert_images(without, fast, "no bloom without quality")
+        # what isn't a viewer option raises rather than being dropped
+        with g.pytest.raises(TypeError, match="bogus"):
+            scene.render(resolution=resolution, bogus=True)
 
 
 if __name__ == "__main__":

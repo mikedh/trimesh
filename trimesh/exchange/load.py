@@ -427,6 +427,13 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
         else:
             scene = Scene(geometry)
 
+        # cameras, lights, animations and skins ride nodes in the graph
+        scene.cameras.extend(kwargs.get("cameras", []))
+        scene.animations.extend(kwargs.get("animations", []))
+        scene.skins.update(kwargs.get("skins", {}))
+        if kwargs.get("lights"):
+            scene.lights = kwargs["lights"]
+
         # camera, if it exists
         camera = kwargs.get("camera")
         if camera:

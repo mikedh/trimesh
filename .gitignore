@@ -117,3 +117,7 @@ venv.bak/
 
 # pycharm project settings
 .idea
+
+# renders written by the examples
+examples/*.mp4
+examples/*.glb

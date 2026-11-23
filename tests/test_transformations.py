@@ -136,6 +136,40 @@ def test_flips_winding():
     assert state[2:] == after[2:]
 
 
+def test_trs():
+    """
+    A sheared block splits into its polar rotation, a vanishing axis is
+    finite, and batched slerp takes the shorter arc a fraction of the way.
+    """
+    tf = g.trimesh.transformations
+    shear = g.np.eye(4)
+    shear[0, 1], shear[1, 2], shear[2, 2] = 0.4, 0.2, 0.0
+    sheared = tf.random_rotation_matrix(seed=2) @ shear
+    rotation = tf.quaternion_matrix(tf.trs_from_matrix(sheared)[1])[:3, :3]
+    stretch = rotation.T @ sheared[:3, :3]
+    assert g.np.allclose(stretch, stretch.T) and g.np.isclose(
+        g.np.linalg.det(rotation), 1
+    )
+    # pairs which are random, antipodal, and nearly 180 degrees apart
+    start, end = (
+        tf.random_quaternion(num=50, seed=3),
+        tf.random_quaternion(num=50, seed=4),
+    )
+    end[:5] = -start[:5]
+    turn = tf.quaternion_about_axis(g.np.radians(178.0), [0, 0, 1])
+    end[5:10] = tf.quaternion_multiply(turn, start[5:10].T).T
+    fraction = g.np.random.default_rng(0).uniform(0, 1, 50)
+    batched = tf.quaternion_slerp(start, end, fraction)
+    # the angle between two rotations, where q and -q are the same one
+    arc = lambda a, b: 2 * g.np.arccos(g.np.clip(g.np.abs((a * b).sum(-1)), 0, 1))  # noqa: E731
+    assert g.np.allclose(
+        arc(start[10:], batched[10:]), fraction[10:] * arc(start[10:], end[10:])
+    ), "slerp arc"
+    assert g.np.allclose(
+        batched, [tf.quaternion_slerp(*p) for p in zip(start, end, fraction)]
+    )
+
+
 class TransformTest(g.unittest.TestCase):
     def test_doctest(self):
         """
@@ -267,6 +301,17 @@ class TransformTest(g.unittest.TestCase):
         assert g.np.allclose(I, rotation_matrix(g.np.pi * 2, direc))
 
         assert g.np.allclose(2, g.np.trace(rotation_matrix(g.np.pi / 2, direc, point)))
+
+        # arrays of angles and points broadcast together into a stack of
+        # exactly the matrices each pair gives on its own
+        angles, points = g.random((4, 1)) * 10 - 5, g.random((1, 3, 3)) - 0.5
+        stack = rotation_matrix(angles, direc, points)
+        pairs = g.np.ndindex(4, 3)
+        single = [rotation_matrix(angles[i, 0], direc, points[0, j]) for i, j in pairs]
+        assert stack.shape == (4, 3, 4, 4)
+        assert g.np.allclose(stack.reshape((-1, 4, 4)), single)
+        each = [rotation_matrix(angle, direc) for angle in angles[:, 0]]
+        assert g.np.allclose(rotation_matrix(angles[:, 0], direc), each)
 
         # test symbolic
         if g.sp is not None:
@@ -406,9 +451,10 @@ def test_is_rigid():
     scales = [[1, 1, 1], [-1, 1, 1], [2, 2, 2], [-2, 2, -2], [1e5] * 3, [1e-3] * 3]
     scales += [[2, 3, 4], [1, 1, 1 + 1e-4], [1, 1, 0], [0, 0, 0]]
     rotations = tr.random_rotation_matrix(num=len(scales) * 2)
+    rng = g.np.random.default_rng(0)
     for s, R1, R2 in zip(scales, rotations[::2], rotations[1::2]):
         matrix = R1 @ g.np.diag(s + [1]) @ R2
-        matrix[:3, 3] = g.np.random.random(3) * 100
+        matrix[:3, 3] = rng.random(3) * 100
         rigid = bool((g.np.abs(s) == 1).all())
         assert tr.is_rigid(matrix) == rigid
         # an equal error in every entry of the bottom row is never rigid

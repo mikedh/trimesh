@@ -87,9 +87,16 @@ class GLTFHandlerTest(g.unittest.TestCase):
 
     def test_draco_warns_by_name(self):
         # a draco-compressed primitive with no registered decoder must
-        # warn naming the real extension
-        with self.assertLogs("trimesh", level="WARNING") as cm:
-            g.trimesh.load(minimal_gltf("KHR_draco_mesh_compression"), file_type="gltf")
+        # warn naming the real extension, outside of strict tests
+        strict = g.trimesh.tol.strict
+        g.trimesh.tol.strict = False
+        try:
+            with self.assertLogs("trimesh", level="WARNING") as cm:
+                g.trimesh.load(
+                    minimal_gltf("KHR_draco_mesh_compression"), file_type="gltf"
+                )
+        finally:
+            g.trimesh.tol.strict = strict
         assert any("KHR_draco_mesh_compression" in line for line in cm.output)
 
     def test_handler_fills_placeholder(self):

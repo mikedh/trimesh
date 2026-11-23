@@ -3,56 +3,7 @@ try:
 except BaseException:
     import generic as g
 
-# Khronos' official file validator
-# can be installed with the helper script:
-# `trimesh/docker/builds/gltf_validator.bash`
-_gltf_validator = g.shutil.which("gltf_validator")
-
-
-def validate_glb(data, name=None):
-    """
-    Run the Khronos validator on GLB files using
-    subprocess.
-
-    Parameters
-    ------------
-    data : bytes
-      GLB export
-    name : str or None
-      Hint to log.
-
-    Raises
-    ------------
-    ValueError
-      If Khronos validator reports errors.
-    """
-    if _gltf_validator is None:
-        g.log.warning("no gltf_validator!")
-        return
-
-    with g.tempfile.NamedTemporaryFile(suffix=".glb") as f:
-        f.write(data)
-        f.flush()
-
-        # gltf_validator has occasional bugs being run outside
-        # of the current working directory
-        temp_dir, file_name = g.os.path.split(f.name)
-        # run khronos gltf_validator
-        report = g.subprocess.run(
-            [_gltf_validator, file_name, "-o"], cwd=temp_dir, capture_output=True
-        )
-        # -o prints JSON to stdout
-        content = report.stdout.decode("utf-8")
-        returncode = report.returncode
-
-    if returncode != 0:
-        g.log.error(f"failed on: `{name}`")
-        g.log.error(f"validator: `{content}`")
-        g.log.error(f"stderr: `{report.stderr}`")
-
-        raise ValueError("gltf_validator failed")
-
-
+validate_glb = g.validate_glb
 load_kwargs = g.trimesh.exchange.load._load_kwargs
 
 
@@ -752,7 +703,7 @@ class GLTFTest(g.unittest.TestCase):
         # if GLTF extras are defined, make sure they survive a round trip
         s = g.get_mesh("cycloidal.3DXML")
 
-        scene_extensions = {"mesh_ext": {"ext_data": 1.23}}
+        scene_extensions = {"EXT_trimesh_test": {"ext_data": 1.23}}
         # some dummy data
         dummy = {
             "who": "likes cheese",
@@ -770,7 +721,7 @@ class GLTFTest(g.unittest.TestCase):
         assert all(r.metadata[k] == v for k, v in dummy.items())
 
     def test_extras_nodes(self):
-        mesh_extensions = {"mesh_ext": {"ext_data": 1.23}}
+        mesh_extensions = {"EXT_trimesh_test": {"ext_data": 1.23}}
         test_metadata = {
             "test_str": "test_value",
             "test_int": 1,
@@ -797,7 +748,7 @@ class GLTFTest(g.unittest.TestCase):
             transform=tf1,
             metadata={"field": "extra_data1"},
         )
-        node_extensions = {"mesh_ext": {"ext_data": 1.23}}
+        node_extensions = {"EXT_trimesh_test": {"ext_data": 1.23}}
         sphere2_metadata = {"field": "extra_data2", "gltf_extensions": node_extensions}
         s.add_geometry(
             sphere2,
@@ -1363,6 +1314,19 @@ class GLTFTest(g.unittest.TestCase):
         simple = mesh.visual.material.to_simple()
         assert simple.name == mesh.visual.material.name
 
+        # the factor is the textbook sRGB decoding of the diffuse, stored
+        # in 8 bits so within half a level of it, alpha is never decoded
+        levels = g.np.arange(256, dtype=g.np.uint8)
+        rgba = g.np.column_stack([levels, levels[::-1], levels // 2, levels])
+        srgb = rgba[:, :3] / 255.0
+        exact = g.np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4)
+        to_pbr = [
+            g.trimesh.visual.material.SimpleMaterial(diffuse=c).to_pbr() for c in rgba
+        ]
+        factor = g.np.array([pbr.baseColorFactor for pbr in to_pbr])
+        assert (g.np.abs(factor[:, :3] / 255.0 - exact) <= 0.5 / 255.0 + 1e-9).all()
+        assert g.np.array_equal(factor[:, 3], rgba[:, 3]), "alpha untouched"
+
     def test_webp_roundtrip(self):
         m = g.get_mesh("fuze.obj")
         e = m.export(file_type="glb", extension_webp=True)
@@ -1379,6 +1343,240 @@ class GLTFTest(g.unittest.TestCase):
         # if they are much different this number will be absolutely huge
         mean_squared_error = ((a - b) ** 2).sum() / g.np.prod(a.shape)
         assert mean_squared_error < 10.0
+
+
+def test_scene_table():
+    """
+    Every built scene is a valid fixed point of loading which keeps its
+    nodes, poses, lights and materials and writes no unused accessor, and
+    edits of the files load back with the spec's defaults.
+    """
+    from PIL import Image
+
+    from trimesh.scene.animation import Animation
+
+    tf, lighting = g.trimesh.transformations, g.trimesh.scene.lighting
+    material = g.trimesh.visual.material.PBRMaterial
+    rng = g.np.random.default_rng(3)
+    box = g.trimesh.creation.box
+
+    def capture(scene, edit=None):
+        """A scene loaded back from its GLB and the glTF tree written for it."""
+        trees = []
+        edit = edit or (lambda tree: None)
+        exported = scene.export(
+            file_type="glb", tree_postprocessor=lambda t: (edit(t), trees.append(t))
+        )
+        return g.roundtrip(exported, "glb"), trees[0]
+
+    def described(scene):
+        """Every light as its type, values and world transform."""
+        if not scene.has_lights:
+            # asking for `Scene.lights` would make the default ones
+            return []
+        return [
+            (type(light).__name__, light.name, light.color.tolist(), light.intensity)
+            + (light.radius, getattr(light, "outerConeAngle", None))
+            + (scene.graph[light.name][0].round(6).tolist(),)
+            for light in scene.lights
+        ]
+
+    # a cubic node under a parent which carries a `matrix` and steps in
+    # scale, as two animations sharing a name are one glTF animation
+    rig = g.trimesh.Scene()
+    rig.add_geometry(box(), node_name="mover", parent_node_name="rig")
+    rig.add_geometry(box(), node_name="still", transform=tf.translation_matrix([5, 0, 0]))
+    rest = tf.rotation_matrix(0.6, [1, 1, 0], [2, 0, 0])
+    rig.graph.update(frame_to="rig", matrix=rest)
+    times = g.np.linspace(0.0, 2.0, 9)
+    mover = tf.rotation_matrix(times * g.np.pi, [0, 0, 1])
+    mover[:, :3, :3] *= rng.uniform(0.5, 2.0, (9, 1, 3))
+    mover[:, :3, 3] = rng.normal(size=(9, 3))
+    stretch = g.np.tile(g.np.eye(4), (5, 1, 1))
+    stretch[:, [0, 1, 2], [0, 1, 2]] = rng.uniform(0.5, 2.0, (5, 3))
+    rig.animations.extend(
+        [
+            Animation("spin", ["mover"], times, mover, interpolation="cubic"),
+            Animation("spin", ["rig"], times[::2], rest @ stretch, interpolation="step"),
+        ]
+    )
+    # punctual lights, and a lossless texture shared by two materials
+    lit = g.trimesh.Scene(box())
+    lit.lights = [
+        lighting.DirectionalLight(name="key", color=[255, 244, 224, 255]),
+        lighting.PointLight(name="fill", intensity=7.5, radius=12.0),
+        lighting.SpotLight(name="rim", innerConeAngle=0.2, outerConeAngle=0.6),
+    ]
+    for light, x in zip(lit.lights, [1.0, -2.0, 3.0]):
+        lit.graph[light.name] = tf.translation_matrix([x, 0, 2])
+
+    def image(shape):
+        """A random image of a shape, alpha and all."""
+        return Image.fromarray(rng.integers(0, 255, shape, g.np.uint8))
+
+    shared = image((8, 8, 3))
+    # every field of each extension from the specs, not trimesh's table
+    fields = {
+        "KHR_materials_transmission": {
+            "transmissionFactor": 0.8,
+            "transmissionTexture": image((4, 6, 3)),
+        },
+        "KHR_materials_diffuse_transmission": {
+            "diffuseTransmissionFactor": 0.3,
+            "diffuseTransmissionTexture": image((4, 6, 4)),
+            "diffuseTransmissionColorFactor": [0.2, 0.9, 0.1],
+            "diffuseTransmissionColorTexture": image((5, 3, 3)),
+        },
+        "KHR_materials_unlit": {"unlit": True},
+        "shared": {"baseColorTexture": shared, "occlusionTexture": shared},
+        "reused": {"baseColorTexture": shared, "roughnessFactor": 0.5},
+    }
+    textured = g.trimesh.Scene()
+    for name, values in fields.items():
+        mesh = box()
+        mesh.visual = g.trimesh.visual.TextureVisuals(
+            uv=rng.random((len(mesh.vertices), 2)), material=material(**values)
+        )
+        textured.add_geometry(mesh, geom_name=name)
+    # a mesh without UVs can't look a texture up so stores only scalars
+    bare = box()
+    bare.visual = g.trimesh.visual.TextureVisuals(
+        material=material(baseColorTexture=shared, metallicFactor=0.25)
+    )
+    textured.add_geometry(bare, geom_name="bare")
+    ortho = g.dolly_scene("box")
+    ortho.camera = g.trimesh.scene.Camera(
+        name="lens", magnification=[2.0, 1.5], z_near=0.5, z_far=20.0
+    )
+    sources = {
+        "rig": rig,
+        "box": g.dolly_scene("box"),
+        "dolly": g.dolly_scene("dolly"),
+        "ortho": ortho,
+        "lit": lit,
+        "textured": textured,
+        "truck": g.get_mesh("CesiumMilkTruck.glb"),
+    }
+    for name, source in sources.items():
+        g.assert_glb_roundtrip(source, name)
+        loaded, tree = capture(source)
+        assert described(loaded) == described(source), f"{name} lights"
+        used = {
+            sampler[k]
+            for a in tree.get("animations", [])
+            for sampler in a["samplers"]
+            for k in ("input", "output")
+        }
+        used.update(s["inverseBindMatrices"] for s in tree.get("skins", []))
+        for primitive in (p for m in tree["meshes"] for p in m["primitives"]):
+            used.update((*primitive["attributes"].values(), primitive.get("indices")))
+        assert used - {None} == set(range(len(tree["accessors"]))), f"{name} accessors"
+    # a scene which never had them doesn't grow animations or lights
+    plain = capture(g.trimesh.Scene(box()))[1]
+    assert "animations" not in plain and "KHR_lights" not in str(plain)
+
+    loaded, tree = capture(textured)
+    for name, values in fields.items():
+        stored = tree["materials"][
+            tree["meshes"][list(textured.geometry).index(name)]["primitives"][0][
+                "material"
+            ]
+        ]
+        if name.startswith("KHR"):
+            assert list(stored["extensions"]) == [name], f"{name} only"
+        for key, value in values.items():
+            # JSON stores floats exactly, and images are lossless PNG
+            copy = getattr(loaded.geometry[name].visual.material, key)
+            assert g.np.array_equal(g.np.asarray(copy), g.np.asarray(value)), key
+    assert len(tree["images"]) == 4, "each image stored once"
+    assert "baseColorTexture" not in tree["materials"][-1]["pbrMetallicRoughness"]
+    assert bare.visual.material.baseColorTexture is shared, "no uv source untouched"
+
+    # a node rotating in STEP or CUBICSPLINE beside a LINEAR slide is one
+    # glTF animation, whose steps hold and whose slide stays a line on import
+    keys = g.np.linspace(0.0, 2.0, 5)
+    turn = tf.rotation_matrix(keys, [0, 0, 1])[:, None]
+    slide = g.np.tile(tf.translation_matrix([0, 0, 0]), (5, 1, 1, 1))
+    slide[:, 0, :3, 3] = rng.normal(size=(5, 3))
+    for kind in ("step", "cubic"):
+        walk = g.dolly_scene("box")
+        walk.animations = [
+            Animation("walk", ["box"], keys, turn, interpolation=kind),
+            Animation("walk", ["box"], keys, slide),
+        ]
+        loaded = capture(walk)[0]
+        for time in g.np.linspace(-0.5, 2.5, 31):
+            turned, slid = (a.interpolate(time)[0] for a in walk.animations)
+            loaded.animate(time)
+            assert g.np.allclose(loaded.graph["box"][0], slid @ turned, atol=1e-6), (
+                kind,
+                time,
+            )
+
+    def strip(tree):
+        """Drop optional fields: a light's color, a camera's aspect and far."""
+        tree["extensions"]["KHR_lights_punctual"]["lights"][0].pop("color")
+        for camera in tree["cameras"]:
+            camera["perspective"].pop("aspectRatio")
+            camera["perspective"].pop("zfar")
+
+    stripped = g.dolly_scene("box")
+    stripped.lights = lit.lights
+    stripped.graph.update(frame_to="key")
+    loaded = capture(stripped, strip)[0]
+    rewritten = capture(loaded)[1]["cameras"]
+    assert (loaded.lights[0].color == 255).all(), "a light without color is white"
+    assert g.np.isclose(loaded.camera.fov[1], 45.0), "vertical fov"
+    assert loaded.camera.z_far == g.np.inf, "missing zfar is infinite"
+    assert all(len(c["perspective"]) == 2 for c in rewritten), "nothing invented"
+
+    def elsewhere(tree):
+        """Put a light on the node of a second scene, which isn't loaded."""
+        name = "KHR_lights_punctual"
+        tree["nodes"].append({"name": "elsewhere", "extensions": {name: {"light": 0}}})
+        tree["scenes"].append({"nodes": [len(tree["nodes"]) - 1]})
+        tree["extensions"] = {name: {"lights": [{"type": "point"}]}}
+        tree["extensionsUsed"] = [name]
+
+    assert not capture(g.trimesh.Scene(box()), elsewhere)[0].has_lights
+
+    # joints without weights can't skin so they stay a custom attribute,
+    # and joints and weights which aren't (n, 4) can't be a VEC4
+    mesh = box()
+    joints = g.np.ones((len(mesh.vertices), 4), dtype=g.np.uint16)
+    mesh.vertex_attributes["joints"] = joints
+    kept = capture(g.trimesh.Scene(mesh))[0].geometry.popitem()[1]
+    assert g.np.array_equal(kept.vertex_attributes["_joints"], joints)
+    mesh.vertex_attributes["weights"] = g.np.ones((len(mesh.vertices), 3))
+    with g.pytest.raises(ValueError):
+        mesh.export(file_type="glb")
+
+
+def test_keyframes_exact():
+    """
+    Hundreds of random rotations and authored cubic tangents load back
+    exactly: export is a byte fixed point and plays as the source between keys.
+    """
+    from trimesh.scene.animation import Animation
+
+    rng = g.np.random.default_rng(7)
+    # times float32 stores exactly, as random keys amplify rounding of them
+    times = g.np.arange(400) / 64.0
+    trs = g.np.concatenate(
+        (
+            rng.normal(size=(400, 1, 3)),
+            g.trimesh.util.unitize(rng.normal(size=(400, 4)))[:, None],
+            rng.uniform(0.5, 2.0, (400, 1, 3)),
+        ),
+        axis=2,
+    )
+    for interpolation in ("linear", "cubic"):
+        scene = g.dolly_scene("box")
+        tangents = rng.normal(size=(400, 2, 1, 10))
+        scene.animations = [
+            Animation("spin", ["box"], times, None, interpolation, trs, tangents)
+        ]
+        g.assert_glb_roundtrip(scene, interpolation)
 
 
 @g.pytest.mark.parametrize(

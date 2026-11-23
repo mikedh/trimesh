@@ -210,10 +210,19 @@ class SimpleMaterial(Material):
         # convert specular exponent to roughness
         roughness = (2 / (self.glossiness + 2)) ** (1.0 / 4.0)
 
+        # simple materials ignore diffuse when there is an image
+        factor = None
+        if self.image is None:
+            # diffuse is sRGB, the factor is linear
+            factor = color.to_float(self.diffuse)
+            factor[:3] = color.srgb_to_linear(factor[:3])
+
         return PBRMaterial(
+            # the glTF default is 1.0
+            metallicFactor=0.0,
             roughnessFactor=roughness,
             baseColorTexture=self.image,
-            baseColorFactor=self.diffuse,
+            baseColorFactor=factor,
         )
 
 
@@ -300,6 +309,29 @@ class MultiMaterial(Material):
         return self.materials[idx]
 
 
+def extension_property(key: str) -> property:
+    """
+    Property for a `PBRMaterial` extension field, None to remove.
+
+    Parameters
+    ------------
+    key
+      Key in `_data`.
+
+    Returns
+    ------------
+    field
+      Property for the field.
+    """
+
+    def setter(material: "PBRMaterial", value) -> None:
+        material._data.pop(key, None)
+        if value is not None:
+            material._data[key] = value
+
+    return property(lambda material: material._data.get(key), setter)
+
+
 class PBRMaterial(Material):
     """
     Create a material for physically based rendering as
@@ -308,6 +340,20 @@ class PBRMaterial(Material):
 
     Parameters with `Texture` in them must be PIL.Image objects
     """
+
+    # fields of glTF extensions stored by `extension_property`
+    EXTENSION_FIELDS = (
+        # `KHR_materials_transmission`
+        "transmissionFactor",
+        "transmissionTexture",
+        # `KHR_materials_diffuse_transmission`
+        "diffuseTransmissionFactor",
+        "diffuseTransmissionTexture",
+        "diffuseTransmissionColorFactor",
+        "diffuseTransmissionColorTexture",
+        # `KHR_materials_unlit`
+        "unlit",
+    )
 
     def __init__(
         self,
@@ -353,6 +399,9 @@ class PBRMaterial(Material):
         self.name = name
         self.alphaMode = alphaMode
 
+        for key in self.EXTENSION_FIELDS:
+            if key in kwargs:
+                setattr(self, key, kwargs.pop(key))
         if len(kwargs) > 0:
             util.log.debug(
                 "unsupported material keys: {}".format(", ".join(kwargs.keys()))
@@ -638,12 +687,27 @@ class PBRMaterial(Material):
         else:
             self._data["name"] = value
 
-    def copy(self):
+    def copy(self, textures: bool = True):
+        """
+        Get a copy of the material.
+
+        Parameters
+        ----------
+        textures
+          Include images.
+
+        Returns
+        ----------
+        copied
+          A new material.
+        """
         # doing a straight deepcopy fails due to PIL images
         kwargs = {}
         # collect stored values as kwargs
         for k, v in self._data.items():
             if v is None:
+                continue
+            if not textures and k.endswith("Texture"):
                 continue
             if hasattr(v, "copy"):
                 # use an objects explicit copy if available
@@ -672,6 +736,17 @@ class PBRMaterial(Material):
             colors = self.baseColorFactor.copy()
         return colors
 
+    def to_pbr(self):
+        """
+        Return this material, which is already PBR.
+
+        Returns
+        ------------
+        pbr : PBRMaterial
+          This material.
+        """
+        return self
+
     def to_simple(self):
         """
         Get a copy of the current PBR material as
@@ -688,17 +763,14 @@ class PBRMaterial(Material):
             # invert `SimpleMaterial.to_pbr` clipped so `Ns` is in [0, 1000]
             roughness = np.clip(self.roughnessFactor, (2.0 / 1002.0) ** 0.25, 1.0)
             glossiness = 2.0 / roughness**4 - 2.0
-
-        # `self.baseColorFactor` is really a linear value
-        # so the "right" thing to do here would probably be:
-        #  `diffuse = color.to_rgba(color.linear_to_srgb(self.baseColorFactor))`
-        # however that subtle transformation seems like it would confuse
-        # the absolute heck out of people looking at this. If someone wants
-        # this and has opinions happy to accept that change but otherwise
-        # we'll just keep passing it through as "probably-RGBA-like"
+        diffuse = self.baseColorFactor
+        if diffuse is not None:
+            # `baseColorFactor` is linear and `diffuse` is sRGB
+            diffuse = color.to_float(diffuse)
+            diffuse[:3] = color.linear_to_srgb(diffuse[:3])
         return SimpleMaterial(
             image=self.baseColorTexture,
-            diffuse=self.baseColorFactor,
+            diffuse=diffuse,
             name=self.name,
             glossiness=glossiness,
         )
@@ -724,6 +796,10 @@ class PBRMaterial(Material):
                 np.asanyarray(v).tobytes() for v in self._data.values() if v is not None
             )
         )
+
+
+for field_name in PBRMaterial.EXTENSION_FIELDS:
+    setattr(PBRMaterial, field_name, extension_property(field_name))
 
 
 def empty_material(color: NDArray[np.uint8] | None = None) -> SimpleMaterial:
@@ -818,12 +894,12 @@ def pack(
 
     def multiply_factor(img, factor, mode):
         """
-        Multiply an image by a factor.
+        Multiply an image by a uint8 or 0.0-1.0 float factor.
         """
         if factor is None:
             return img.convert(mode)
         img = (
-            (np.array(img.convert(mode), dtype=np.float64) * factor)
+            (np.array(img.convert(mode), dtype=np.float64) * color.to_float(factor))
             .round()
             .astype(np.uint8)
         )
@@ -1008,6 +1084,9 @@ def pack(
     assert set(np.concatenate(mat_idx).ravel()) == set(range(len(uvs)))
     assert len(uvs) == len(materials)
     use_pbr = any(isinstance(m, PBRMaterial) for m in materials)
+    if use_pbr:
+        # pack every material the same way
+        materials = [m.to_pbr() for m in materials]
 
     # in some cases, the fused scene results in huge trimsheets
     # we can try to prevent this by downscaling the textures iteratively

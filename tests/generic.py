@@ -8,6 +8,7 @@ import os
 import sys
 import io
 import json
+import types
 import copy
 import time
 import pickle
@@ -76,7 +77,8 @@ all_dependencies = "ALL_DEPENDENCIES" in argv
 # if we're testing rendering scenes
 include_rendering = "INCLUDE_RENDERING" in argv
 
-if all_dependencies and not trimesh.ray.has_embree:
+# embreex has no wheels past Python 3.14
+if all_dependencies and not trimesh.ray.has_embree and sys.version_info < (3, 15):
     import embreex
 
 try:
@@ -183,7 +185,7 @@ def random(*args, **kwargs):
     return state.random_sample(*args, **kwargs)
 
 
-def random_transforms(count, translate=1000, seed=0):
+def random_transforms(count, translate=1000, seed=0, rigid=True):
     """
     Deterministic generation of random transforms so unit
     tests have limited levels of flake.
@@ -196,6 +198,9 @@ def random_transforms(count, translate=1000, seed=0):
       The scale of translation to apply.
     seed : int
       Seed the generator these are drawn from.
+    rigid : bool
+      If False every fifth transform is mirrored and all are
+      scaled differently along each axis between 0.2 and 4.
 
     Yields
     ------------
@@ -207,9 +212,14 @@ def random_transforms(count, translate=1000, seed=0):
     with RandomSeed(seed) as r:
         quaternion = r.random((count, 3))
         translate = (r.random((count, 3)) - 0.5) * float(translate)
+        # drawn last so rigid transforms don't change with the option
+        scale = r.uniform(0.2, 4.0, (count, 3))
+    scale[::5, 0] *= -1.0
 
-    for quat, trans in zip(quaternion, translate):
+    for quat, trans, stretch in zip(quaternion, translate, scale):
         matrix = tf.random_rotation_matrix(rand=quat)
+        if not rigid:
+            matrix[:3, :3] *= stretch
         matrix[:3, 3] = trans
         yield matrix
 
@@ -660,6 +670,384 @@ def roundtrip(exported, file_type, **kwargs):
     )
 
 
+def require_rendering():
+    """Skip without OpenGL unless `INCLUDE_RENDERING`, where failing is loud."""
+    try:
+        from trimesh.viewer.opengl.viewer import hidden_context
+
+        hidden_context()
+    except ValueError:
+        # our own shaders failing to compile is a bug, never a skip
+        raise
+    except Exception as E:
+        if include_rendering:
+            raise
+        raise unittest.SkipTest(f"unable to create an OpenGL context: {E}")
+
+
+def set_environment(scene, environment, pose=None):
+    """
+    Light `scene` with an `EnvironmentLight` on a node at `pose` and the
+    scene's own lights or the default key and rim lights, returning it.
+    """
+    from trimesh.scene.lighting import EnvironmentLight, autolight
+
+    if scene.has_lights:
+        lights = scene.lights
+    else:
+        lights, transforms = autolight(scene)
+        for light, transform in zip(lights, transforms):
+            scene.graph[light.name] = transform
+    lights = [light for light in lights if not isinstance(light, EnvironmentLight)]
+    if pose is None:
+        pose = np.eye(4)
+    scene.graph[environment.name] = pose
+    scene.lights = [*lights, environment]
+    return scene
+
+
+def offscreen_viewer(scene, resolution=(320, 240), studio=False, **kwargs):
+    """A hidden viewer without the bloom truth lacks, or the floor unless `studio`."""
+    require_rendering()
+    from trimesh.viewer.opengl.viewer import SceneViewer
+
+    kwargs = {"bloom": 0.0, **kwargs}
+    if not studio:
+        kwargs = {"ground_shadow": False, **kwargs}
+    # tests compare against rays from the scene's camera at this resolution
+    scene.camera.fit_resolution(resolution)
+    return SceneViewer(
+        scene, visible=False, start_loop=False, resolution=resolution, **kwargs
+    )
+
+
+def render(scene, include_depth=False, include_segmentation=False, **kwargs):
+    """`to_array` of a scene from a hidden viewer which is then closed."""
+    viewer = offscreen_viewer(scene, **kwargs)
+    try:
+        return viewer.to_array(
+            include_depth=include_depth, include_segmentation=include_segmentation
+        )
+    finally:
+        viewer.close()
+
+
+def render_frames(scene, resolution, fps, duration=None):
+    """Every raw frame `Scene.render` encodes."""
+    from trimesh.viewer.conversion import RenderSettings
+    from trimesh.viewer.render import render_frames, stage
+
+    staged, count = stage(scene, resolution, duration=duration, fps=fps)
+    settings = RenderSettings(fps=fps, duration=duration)
+    return list(render_frames(staged, count, settings, directory=""))
+
+
+def png(data):
+    """Decode PNG bytes to an array."""
+    from PIL import Image
+
+    return np.array(Image.open(trimesh.util.wrap_as_stream(data)))
+
+
+def camera_hits(scene, meshes=None):
+    """
+    Where every pixel's center camera ray first hits `meshes`, which
+    default to each mesh of `scene.dump()`, i.e. as posed and skinned.
+    """
+    if meshes is None:
+        # bare triangles are all a ray needs, and `node` is `nodes_geometry` order
+        nodes = scene.graph.nodes_geometry
+        dumped = [m for m in scene.dump() if isinstance(m, trimesh.Trimesh)]
+        meshes = [trimesh.Trimesh(m.vertices, m.faces, process=False) for m in dumped]
+        node = np.array([nodes.index(m.metadata["node"]) for m in dumped])
+    else:
+        node = np.arange(len(meshes))
+    combined = trimesh.util.concatenate(meshes)
+    origins, vectors, pixels = scene.camera_rays()
+    points, ray, face = combined.ray.intersects_location(
+        origins, vectors, multiple_hits=False
+    )
+    # without embree no hits at all are shaped (0,)
+    points = np.reshape(points, (-1, 3))
+    mesh = np.repeat(np.arange(len(meshes)), [len(m.faces) for m in meshes])[face]
+    return types.SimpleNamespace(
+        combined=combined,
+        points=points,
+        ray=ray,
+        face=face,
+        # which of `meshes` each hit is on, and which node that is
+        mesh=mesh,
+        node=node[mesh],
+        origins=origins,
+        vectors=vectors,
+        # camera ray pixels have the first row at the bottom
+        rows=scene.camera.resolution[1] - 1 - pixels[ray, 1],
+        columns=pixels[ray, 0],
+    )
+
+
+def assert_images(a, b, name, atol=1):
+    """
+    Assert two renders agree within `atol` levels at every pixel: GPUs
+    redraw identical uploads a level apart, and bloom spreads that to 2.
+    """
+    a, b = np.asarray(a, dtype=np.float64), np.asarray(b, dtype=np.float64)
+    assert a.shape == b.shape, f"{name}: shape {a.shape} is not {b.shape}"
+    difference = np.abs(a - b)
+    if difference.ndim == 3:
+        difference = difference.max(axis=2)
+    rows, columns = np.nonzero(difference > atol)
+    assert len(rows) == 0, (
+        f"{name}: {len(rows)} pixels differ by up to {difference.max():.0f} "
+        f"in rows {rows.min()}-{rows.max()} and columns {columns.min()}-{columns.max()}"
+    )
+
+
+def assert_rays(scene, arrays, prefix: str = "", depth: bool = True):
+    """
+    Assert a render's `segmentation`, and `depth` along the view axis, are
+    what each pixel's center camera ray hits wherever its neighbors' agree.
+    """
+    from scipy import ndimage
+
+    width, height = scene.camera.resolution
+    hits = camera_hits(scene)
+    node, distance = np.full((height, width), -1), np.zeros((height, width))
+    node[hits.rows, hits.columns] = hits.node
+    # perspective depth is from the camera and orthographic from its plane
+    forward = trimesh.util.unitize(-scene.camera_transform[:3, 2])
+    distance[hits.rows, hits.columns] = (hits.points - hits.origins[hits.ray]) @ forward
+    # no edge crosses a pixel whose neighbors all see its node, and nothing
+    # is known past the border
+    agreed = ndimage.maximum_filter(node, 3) == ndimage.minimum_filter(node, 3)
+    agreed[[0, -1], :], agreed[:, [0, -1]] = False, False
+    # depth is float32 so it is rounded to half an epsilon of its own size,
+    # and the float32 viewport moves a sample a sliver of a pixel, which
+    # moves depth by a fraction of how much it changes across neighbors
+    span = ndimage.maximum_filter(distance, 3) - ndimage.minimum_filter(distance, 3)
+    tolerance = 4.0 * np.finfo(np.float32).eps * distance.max() + 0.005 * span
+    assert (agreed & (node >= 0)).any(), f"{prefix}rays hit the scene"
+    assert np.allclose(np.linalg.norm(hits.vectors, axis=1), 1.0), f"{prefix}unit rays"
+    assert (arrays.segmentation == node)[agreed].all(), f"{prefix}segmentation is rays"
+    if depth:
+        close = np.abs(arrays.depth - distance) <= tolerance
+        assert close[agreed].all(), f"{prefix}depth is rays"
+
+
+def dolly_scene(node, duration=1.0):
+    """
+    A red box seen by a camera on a dolly, with `node`, which is "box"
+    or "dolly", sliding along X a unit a second for `duration` seconds.
+    """
+    from trimesh.scene.animation import Animation
+
+    box = trimesh.creation.box()
+    box.visual.face_colors = [255, 0, 0, 255]
+    scene = trimesh.Scene()
+    scene.add_geometry(box, node_name="box")
+    scene.graph.update(frame_to="dolly", matrix=np.eye(4))
+    scene.camera = trimesh.scene.Camera(name="lens", fov=(60, 45))
+    lens = trimesh.transformations.translation_matrix([0, 0, 6])
+    scene.graph.update(frame_from="dolly", frame_to="lens", matrix=lens)
+    times = np.linspace(0.0, duration, 5)
+    slide = np.tile(np.eye(4), (len(times), 1, 1, 1))
+    slide[:, 0, 0, 3] = times
+    scene.animations.append(
+        Animation(name="slide", nodes=[node], times=times, matrices=slide)
+    )
+    return scene
+
+
+def case_geometry(item):
+    """One `geometry` entry of a render case: `material` is `PBRMaterial`
+    keywords where every `*Texture` is the RGB color of a 4x4 image."""
+    from PIL import Image
+
+    kind, uv = item["kind"], None
+    if kind == "path":
+        return trimesh.load_path(item["vertices"])
+    if kind == "points":
+        return trimesh.PointCloud(item["vertices"])
+    if kind == "file":
+        mesh = get_mesh(item["file"]).apply_scale(item.get("scale", 1.0))
+        return mesh.apply_translation(item.get("translation", [0.0] * 3))
+    if kind == "sphere":
+        mesh = trimesh.creation.icosphere(
+            subdivisions=item.get("subdivisions", 4), radius=item.get("radius", 1.0)
+        )
+    elif kind == "plane":
+        mesh = trimesh.creation.box(extents=[10.0, 10.0, 0.1])
+        mesh.apply_translation([0, 0, -0.05])
+        if item.get("top_only", False):
+            # nothing under the top to block light from below
+            mesh.update_faces(mesh.face_normals[:, 2] > 0.5)
+            mesh.remove_unreferenced_vertices()
+    elif kind == "square":
+        vertices = np.array([[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]], float)
+        mesh = trimesh.Trimesh(vertices, [[0, 1, 2], [0, 2, 3]], process=False)
+        uv = (vertices[:, :2] + 1.0) / 2.0
+        if item.get("mirror", False):
+            # mirrored textures flip the tangent
+            uv[:, 0] = 1.0 - uv[:, 0]
+    else:
+        mesh = trimesh.creation.box(extents=item.get("extents", [1.0] * 3))
+    mesh.apply_transform(
+        trimesh.transformations.euler_matrix(*item.get("euler", [0] * 3))
+    )
+    mesh.apply_translation(item.get("translation", [0.0] * 3))
+    if uv is None:
+        uv = np.zeros((len(mesh.vertices), 2))
+    # what render case meshes which don't set them are
+    material = {"baseColorFactor": [200, 120, 60, 255], "metallicFactor": 0.0}
+    material.update({"roughnessFactor": 0.5, **item.get("material", {})})
+    material.update(
+        {
+            key: Image.fromarray(np.full((4, 4, 3), value, dtype=np.uint8))
+            for key, value in material.items()
+            if key.endswith("Texture")
+        }
+    )
+    mesh.visual = trimesh.visual.TextureVisuals(
+        uv=uv, material=trimesh.visual.material.PBRMaterial(**material)
+    )
+    if "vertex_color" in item:
+        mesh.visual.vertex_attributes["color"] = np.tile(
+            item["vertex_color"], (len(mesh.vertices), 1)
+        )
+    if "visual" in item:
+        # trimesh's own colors rather than a material
+        mesh.visual = trimesh.visual.ColorVisuals(mesh)
+        setattr(mesh.visual, f"{item['visual']}_colors", material["baseColorFactor"])
+    return mesh
+
+
+def case_scene(case):
+    """The scene of a row of `tests/data/render_cases.json`."""
+    from trimesh.scene import lighting
+
+    tf = trimesh.transformations
+    scene = trimesh.Scene()
+    items = case.get("geometry", [{"kind": "sphere"}])
+    for index, item in enumerate(items):
+        name = f"geometry_{index}"
+        mesh = case_geometry(item)
+        if "instances" not in item:
+            scene.add_geometry(mesh, geom_name=name, node_name=name)
+            continue
+        # one geometry drawn by several nodes, optionally under a parent
+        scene.geometry[name] = mesh
+        parent = scene.graph.base_frame
+        if "parent" in item:
+            parent = f"parent_{index}"
+            pose = tf.euler_matrix(*item["parent"]["euler"])
+            scene.graph[parent] = pose @ tf.scale_matrix(item["parent"]["scale"])
+        node_scale = np.diag([item.get("node_scale", 1.0)] * 3 + [1.0])
+        for number, offset in enumerate(item["instances"]):
+            scene.graph.update(
+                frame_from=parent,
+                frame_to=f"{name}_{number}",
+                geometry=name,
+                matrix=tf.translation_matrix(offset) @ node_scale,
+            )
+
+    view = case.get("camera", "fixed")
+    if isinstance(view, dict):
+        scene.camera = trimesh.scene.Camera(
+            resolution=view["resolution"], fov=view["fov"]
+        )
+        scene.camera_transform = tf.euler_matrix(
+            *view.get("euler", [0] * 3)
+        ) @ tf.translation_matrix(view["translation"])
+    elif view == "default":
+        scene.camera.fit_resolution((200, 150))
+    elif view == "square":
+        scene.camera.fit_resolution((160, 120))
+        scene.camera_transform = scene.camera.look_at(
+            mesh.vertices, rotation=tf.euler_matrix(0.3, 0.2, 0.0)
+        )
+    else:
+        # square pixels, keeping the vertical view when wider
+        scene.camera = trimesh.scene.Camera(resolution=[150, 150], fov=(40, 40))
+        scene.camera.fit_resolution((200, 150))
+        look = {"points": mesh.bounds, "distance": 4.0}
+        if items[0]["kind"] == "plane":
+            look = {
+                "points": [[-5, -5, 0], [5, 5, 0]],
+                "rotation": tf.euler_matrix(0.5, 0, 0.2),
+            }
+        scene.camera_transform = scene.camera.look_at(**look)
+    if case.get("studio", False):
+        return scene
+
+    lights = []
+    for index, item in enumerate(case.get("lights", [])):
+        # keys other than the class and pose are keywords of the light
+        options = {
+            k: v for k, v in item.items() if k not in ("type", "translation", "euler")
+        }
+        light = getattr(lighting, item["type"])(f"light_{index}", [255] * 4, **options)
+        pose = tf.translation_matrix(item.get("translation", [0, 0, 0]))
+        scene.graph[light.name] = pose @ tf.euler_matrix(*item.get("euler", [0] * 3))
+        lights.append(light)
+    scene.lights = lights
+    # a constant environment, which is an ambient light
+    cubemap = np.tile(case.get("environment", [0.0] * 3), (6, 1, 1, 1))
+    environment = lighting.EnvironmentLight("environment", cubemap=cubemap)
+    # the environment's +Y is up, which is where the ground goes
+    pose = tf.euler_matrix(*case.get("environment_euler", [0] * 3))
+    return set_environment(scene, environment, pose=pose)
+
+
+def project(scene, points):
+    """World points through the scene camera to normalized device coordinates."""
+    camera = scene.camera
+    camera_scale = 1.0 / np.tan(np.radians(camera.fov) / 2.0)
+    if camera.magnification is not None:
+        camera_scale = 1.0 / np.asarray(camera.magnification)
+    projection = trimesh.scene.cameras.projection_matrices(
+        camera_scale, camera.z_near, camera.z_far, camera.magnification is not None
+    )[0]
+    world = np.column_stack((points, np.ones(len(points))))
+    clip = world @ (projection @ np.linalg.inv(scene.camera_transform)).T
+    return clip[:, :3] / clip[:, 3:]
+
+
+def assert_glb_roundtrip(source, name):
+    """
+    A valid GLB of `source` loads with every node and camera, every node
+    where `source` puts it relative to its parent at every keyframe and
+    three times between, and loading then exporting is a fixed point.
+    """
+    first = source.export(file_type="glb")
+    loaded = roundtrip(first, "glb")
+    once = loaded.export(file_type="glb")
+    validate_glb(first, name)
+    # loading then exporting an export changes no byte
+    again = roundtrip(once, "glb").export(file_type="glb")
+    assert once == again, f"{name} fixed point"
+    nodes = sorted(set(source.graph.nodes) - {source.graph.base_frame})
+    assert set(nodes) <= set(loaded.graph.nodes), f"{name} keeps every node"
+    lenses = [
+        [(c.name, c.fov[1], c.magnification, c.z_near, c.z_far) for c in s.cameras]
+        for s in (source, loaded)
+    ]
+    assert str(lenses[0]) == str(lenses[1]), f"{name} keeps every camera"
+    keys = [animation.times for animation in source.animations] or [[0.0]]
+    keys = np.unique(np.concatenate(keys))
+    between = np.diff(keys)[:, None] * np.linspace(0.0, 1.0, 4, endpoint=False)
+    eps = np.finfo(np.float32).eps
+    for time in [*(keys[:-1, None] + between).ravel(), keys[-1]]:
+        posed = []
+        for scene in (source, loaded):
+            scene.animate(time)
+            parents = scene.graph.transforms.parents
+            posed.append([scene.graph.get(n, parents.get(n))[0] for n in nodes])
+        # float32 values and times in the file compound through rotation
+        # and scale to a few epsilons of the largest value
+        tolerance = 8 * eps * max(1.0, np.abs(posed[0]).max())
+        assert np.allclose(*posed, atol=tolerance), f"{name} at {time:.3f}"
+
+
 def to_glb_bytes(geom: trimesh.Geometry) -> bytes:
     """
     Returns the content of the binary glTF file for the given geometry.
@@ -699,6 +1087,54 @@ def from_glb_bytes(data: bytes) -> trimesh.Scene:
     scene = trimesh.exchange.load._load_kwargs(kwargs)
 
     return scene
+
+
+# Khronos' official file validator
+# can be installed with the helper script:
+# `helpers/trimesh-setup --install=gltf_validator`
+_gltf_validator = shutil.which("gltf_validator")
+
+
+def validate_glb(data, name=None):
+    """Raise if the Khronos validator reports any error or warning on a GLB."""
+    if _gltf_validator is None:
+        if all_dependencies:
+            raise ValueError("gltf_validator is required!")
+        log.warning("no gltf_validator!")
+        return
+    with tempfile.NamedTemporaryFile(suffix=".glb") as f:
+        f.write(data)
+        f.flush()
+        # gltf_validator has bugs when run outside of the file's directory
+        temp_dir, file_name = os.path.split(f.name)
+        report = subprocess.run(
+            [_gltf_validator, file_name, "-o"], cwd=temp_dir, capture_output=True
+        )
+        issues = json.loads(report.stdout)["issues"]
+    # exports are clean: a warning is a viewer somewhere doing the wrong thing,
+    # except tangents being absent, which the glTF spec has clients generate
+    # with MikkTSpace and which source files like AlphaBlendModeTest.glb note
+    # counted from the listed codes, so a truncated list only counts more
+    generated = sum(
+        message["severity"] == 1
+        and message["code"] == "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE"
+        for message in issues["messages"]
+    )
+    counted = issues["numWarnings"] - generated
+    if report.returncode != 0 or issues["numErrors"] > 0 or counted > 0:
+        log.error(f"`{name}` failed validation: {issues['messages']} {report.stderr}")
+        raise ValueError("gltf_validator failed")
+
+
+def decode_video(path, resolution):
+    """Decode a video file to (frames, height, width, 3) uint8 with ffmpeg."""
+    decoded = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", path, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+        capture_output=True,
+        check=True,
+    ).stdout
+    width, height = resolution
+    return np.frombuffer(decoded, dtype=np.uint8).reshape((-1, height, width, 3))
 
 
 # all the JSON files with truth data

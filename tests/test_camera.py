@@ -82,6 +82,35 @@ class CameraTests(g.unittest.TestCase):
         )
         assert np.allclose(camera.fov, fov)
 
+    def test_resolution_keeps_fov(self):
+        """
+        A resolution keeps a set field of view, and only the view a scene
+        is rendered with widens to the image with square pixels.
+        """
+        Camera = g.trimesh.scene.Camera
+        current_view = g.trimesh.scene.cameras.current_view
+        camera = Camera(resolution=[640, 480], fov=(60, 45))
+        camera.resolution = (1920, 1080)
+        assert g.np.array_equal(camera.fov, (60, 45)), "resolution keeps fov"
+        views = []
+        for lens in ({"fov": (60, 45)}, {"magnification": (2.0, 1.5)}):
+            scene = g.trimesh.creation.box().scene()
+            scene.camera = Camera(resolution=[640, 480], **lens)
+            scene.graph[scene.camera.name] = g.np.eye(4)
+            views.append(current_view(scene, resolution=(1920, 1080))[0])
+            assert g.np.array_equal(views[-1].resolution, (1920, 1080)), "resolution"
+            assert g.np.array_equal(scene.camera.resolution, (640, 480)), "unchanged"
+        # both keep their height and widen to square pixels
+        half = g.np.tan(g.np.radians(views[0].fov) / 2)
+        assert g.np.allclose(half, [g.np.tan(g.np.radians(22.5)) * 1920 / 1080, half[1]])
+        assert g.np.isclose(views[0].fov[1], 45.0), "perspective keeps vertical fov"
+        assert g.np.allclose(views[1].magnification, (1.5 * 1920 / 1080, 1.5)), "ortho"
+        # `set_camera` keeps the fov it is passed however often it's called
+        framed = g.trimesh.creation.box().scene()
+        for resolution in (None, (1920, 1080)):
+            framed.set_camera(fov=(50, 40), resolution=resolution)
+        assert g.np.array_equal(framed.camera.fov, (50, 40)), "set_camera keeps fov"
+
     def test_focal_updates_on_resolution_change(self):
         """
         Test changing resolution with set fov updates focal.
@@ -159,6 +188,16 @@ class CameraTests(g.unittest.TestCase):
         g.trimesh.scene.cameras.look_at(points, fov, center=points[0])
         g.trimesh.scene.cameras.look_at(points, fov, distance=1)
 
+        # a scaled rotation frames from the same place as the unit one
+        # and keeps its scale, as a camera node scaled with its scene
+        rotation = g.trimesh.transformations.random_rotation_matrix(seed=3)
+        for scale in (0.025, 40.0):
+            scaled = rotation @ g.np.diag([scale] * 3 + [1])
+            unit = g.trimesh.scene.cameras.look_at(moved, fov, rotation=rotation)
+            framed = g.trimesh.scene.cameras.look_at(moved, fov, rotation=scaled)
+            assert g.np.allclose(framed[:3, 3], unit[:3, 3]), f"{scale} same translation"
+            assert g.np.allclose(framed[:3, :3], scaled[:3, :3]), f"{scale} keeps scale"
+
     def test_ray_index(self):
         # make sure to_rays is giving valid indexes
         s = g.trimesh.scene.Scene()
@@ -180,6 +219,13 @@ class CameraTests(g.unittest.TestCase):
         # the camera node should have been removed on copy
         b = s.convert_units("m")
         assert b.camera_transform.shape == (4, 4)
+
+    def test_default_framing(self):
+        """The default camera centers a whole assembly inside its frustum."""
+        scene = g.get_mesh("cycloidal.3DXML")
+        ndc = g.project(scene, g.trimesh.bounds.corners(scene.bounds))
+        assert (g.np.abs(ndc) <= 1.0 + 1e-6).all(), "corners in frustum"
+        assert g.np.linalg.norm(ndc[:, :2].mean(axis=0)) < 0.25, "centered"
 
 
 if __name__ == "__main__":

@@ -15,6 +15,19 @@ def test_forest():
     for a, b in edges:
         graph.add_edge(chr(ord("a") + a), chr(ord("a") + b))
 
+    # moving a node to a new parent through the scene graph
+    shift = g.tf.translation_matrix([1, 0, 0])
+    scene = g.trimesh.Scene()
+    scene.graph.update(frame_from="world", frame_to="parent", matrix=shift)
+    scene.graph.update(frame_from="world", frame_to="child")
+    scene.graph.update(frame_from="parent", frame_to="child")
+    # so the child is found through its new parent
+    assert g.np.allclose(scene.graph.get("child")[0], shift), "moved child"
+    for name, forest in [("forest", graph), ("scene", scene.graph.transforms)]:
+        # a forest stores exactly one edge per child: the one from its parent
+        parents = {(parent, child) for child, parent in forest.parents.items()}
+        assert set(forest.edge_data) == parents, f"{name} edges are parents"
+
 
 def test_cache():
     for _i in range(10):
@@ -140,6 +153,21 @@ def test_subscene():
     assert len(ss.graph.transforms.node_data) == 2
     assert len(ss.graph.transforms.edge_data) == 1
     assert list(ss.graph.transforms.edge_data.keys()) == [("3", "4")]
+
+    # lights under the subscene's root survive and the rest don't, and
+    # `test_every_scene` draws scaled lights the same
+    lamps = ["inside", "outside"]
+    s.lights = [g.trimesh.scene.lighting.PointLight(name=n, radius=2.0) for n in lamps]
+    s.graph.update(frame_from="3", frame_to="inside")
+    s.graph["outside"] = g.np.eye(4)
+    s.metadata["ambient_light"] = [0.5, 0.5, 0.5]
+    ss = s.subscene("3")
+    s.scaled(3.0)
+    assert [light.name for light in ss.lights] == ["inside"], "only lights under the root"
+    assert ss.metadata["ambient_light"] == [0.5, 0.5, 0.5], "metadata kept"
+    assert [(light.radius, light.intensity) for light in s.lights] == [(2.0, 1.0)] * 2, (
+        "original untouched"
+    )
 
 
 def test_scene_transform():
@@ -294,6 +322,7 @@ def test_scaling_order():
     c = s.scaled(scaling)
     factor = c.geometry["geometry_0"].vertices / s.geometry["geometry_0"].vertices
     assert g.np.allclose(factor, scaling)
+
     # should be returning itself
     r = s.apply_translation([10.5, 10.5, 10.5])
     assert g.np.allclose(r.bounds, [[10, 10, 10], [11, 11, 11]])
@@ -339,6 +368,24 @@ def test_falsy_base_frame():
     assert sub.graph.base_frame == 0
     assert set(sub.graph.nodes_geometry) == {"child"}
     assert g.np.isclose(sub.volume, box.volume)
+
+    # setting many matrices at once keeps a falsy parent, and the world
+    # transforms cached before it are recomputed
+    edges = set(s.graph.transforms.edge_data)
+    before = s.graph["child"][0]
+    shift = g.tf.translation_matrix([1, 2, 3])
+    s.graph.update_matrices([(0, "child")], [shift])
+    assert s.graph.transforms.parents["child"] == 0, "parent kept"
+    assert set(s.graph.transforms.edge_data) == edges, "edges unchanged"
+    assert g.np.array_equal(
+        s.graph.transforms.edge_data[(0, "child")].get("matrix"), shift
+    ), "matrix set"
+    assert g.np.allclose(s.graph["child"][0], before @ shift), "cache cleared"
+
+    # an edge which isn't in the graph is never added, in strict mode it raises
+    with g.pytest.raises(ValueError):
+        s.graph.update_matrices([("nowhere", "ghost"), (0, "child")], [shift, shift])
+    assert "ghost" not in s.graph.nodes, "no node added"
 
 
 def test_reconstruct():

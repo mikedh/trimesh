@@ -141,7 +141,8 @@ def test_path_to_gltf_with_line():
                 [0, 0, 0],
                 [0, 1, 0],
                 [1, 1, 0],
-                [0, 0, 1],
+                # the second line starts where the first ends
+                [1, 1, 0],
                 [0, 1, 1],
                 [1, 1, 2],
             ]
@@ -159,6 +160,29 @@ def test_path_to_gltf_with_line():
     assert len(tree["accessors"]) == 2
     acc = tree["accessors"]
     assert acc[0]["count"] == acc[1]["count"]
+
+    # a GLB round trip has exactly the same segments in the same colors
+    path.colors = [[255, 0, 0, 255], [0, 0, 255, 255]]
+    loaded = next(iter(g.from_glb_bytes(g.to_glb_bytes(path)).geometry.values()))
+    from trimesh.path.segments import from_path
+
+    colored = []
+    for item in [loaded, path]:
+        # every segment as its sorted endpoints followed by its color
+        segments, entity = from_path(item)
+        segments = g.np.sort(segments.reshape((-1, 6)), axis=1)
+        colored.append(
+            g.np.unique(g.np.column_stack((segments, item.colors[entity])), axis=0)
+        )
+    assert g.np.allclose(*colored), "segments and colors"
+    assert len(loaded.entities) == len(path.entities), "polylines stay joined"
+    # each segment matches the polyline of the entity it is labeled with
+    segments, entity = from_path(path)
+    for index, item in enumerate(path.entities):
+        discrete = item.discrete(path.vertices, scale=path.scale)
+        assert g.np.array_equal(
+            segments[entity == index], g.np.stack((discrete[:-1], discrete[1:]), axis=1)
+        )
 
 
 def test_path_to_gltf_with_arc():
@@ -263,7 +287,9 @@ def test_text():
                 "type bases:", [i.__name__ for i in g.trimesh.util.type_bases(t)]
             )
     # make sure this doesn't crash with text entities
-    g.trimesh.rendering.convert_to_vertexlist(p)
+    from trimesh.rendering import convert_to_vertexlist
+
+    convert_to_vertexlist(p)
 
 
 def test_empty():
