@@ -35,6 +35,9 @@ def test_svg():
                 )
             assert lines[0] == lines[1]
             assert g.np.isclose(*sweeps)
+            if g.trimesh.path.exchange.svg_io.svg_string is None:
+                # the pre-trimkit writer exports one entity per entity
+                assert len(d.entities) == len(loaded.entities)
 
             path_str = g.trimesh.path.exchange.svg_io.export_svg(d, return_path=True)
             assert isinstance(path_str, str)
@@ -100,9 +103,12 @@ def test_arc_pieces():
                 g.trimesh.util.wrap_as_stream(path.export(file_type="svg")),
                 file_type="svg",
             )
-            assert len(loaded.entities) == g.np.ceil(
-                sweep * 3.0 / (g.np.pi * 2.0) - g.tol.merge
-            )
+            # a closed circle loads back as one closed arc
+            pieces = 1
+            if not closed:
+                pieces = g.np.ceil(sweep * 3.0 / (g.np.pi * 2.0) - g.tol.merge)
+            assert len(loaded.entities) == pieces
+            assert all(entity.closed == closed for entity in loaded.entities)
             assert g.np.isclose(loaded.length, path.length, rtol=1e-9)
             for entity in loaded.entities:
                 assert type(entity).__name__ == "Arc"

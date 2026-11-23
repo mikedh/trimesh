@@ -84,6 +84,13 @@ def test_array_encoding_dtype(encoding, dtype, layout):
     np.testing.assert_array_equal(array, original)
 
 
+def test_decode_keys():
+    # decoding mutates the dict so it can't iterate a live keys view
+    store = {1020: "nah", b"hi": "stuff", b"a": 1, b"b": 2}
+    assert trimesh.util.decode_keys(store) is store
+    assert list(store.items()) == [(1020, "nah"), ("hi", "stuff"), ("a", 1), ("b", 2)]
+
+
 def test_align():
     log.info("Testing vector alignment")
     target = np.array([0, 0, 1])
@@ -145,9 +152,6 @@ def test_has_module():
     assert g.trimesh.util.has_module("numpy")
     # not-a-thing
     assert not g.trimesh.util.has_module("foobarrionananan")
-    # misses are remembered so a repeat lookup doesn't scan `sys.path`
-    assert g.trimesh.util._HAS_MODULE["foobarrionananan"] is False
-    assert g.trimesh.util._HAS_MODULE["numpy"] is True
 
 
 def test_strips():

@@ -17,7 +17,7 @@ from typing import TypeAlias
 from urllib.parse import quote, urlparse
 
 from . import caching, util
-from .typed import HttpSessionLike, Mapping
+from .typed import Floating, HttpOpenSession, HttpSessionLike, Mapping
 
 
 class Resolver(util.ABC):
@@ -262,7 +262,7 @@ class ZipResolver(Resolver):
 
         Parameters
         -----------
-        key : hashable
+        key : str
           Key to store data under.
         value : str, bytes, file-like
           Value to store.
@@ -356,8 +356,8 @@ class WebResolver(Resolver):
     def __init__(
         self,
         url: str,
-        session: HttpSessionLike | None = None,
-        timeout: float = 30.0,
+        session: HttpSessionLike | HttpOpenSession | None = None,
+        timeout: Floating = 30.0,
     ):
         """
         Resolve assets from a base URL.
@@ -367,11 +367,11 @@ class WebResolver(Resolver):
         url : str
           Location where a mesh was stored or
           directory where mesh was stored.
-        session : HttpSessionLike or None
+        session : HttpSessionLike, HttpOpenSession or None
           Optional HTTP session used for fetches. Accepts
           `urllib.request.build_opener()`, `httpx.Client`
           or `requests.Session`.
-        timeout : float
+        timeout : Floating
           Per-request timeout in seconds.
         """
         if hasattr(url, "decode"):
@@ -390,7 +390,7 @@ class WebResolver(Resolver):
 
             warnings.warn(
                 "`WebResolver` without a `session` DEPRECATED FOR REMOVAL "
-                + "JANUARY 2028: pass `urllib.request.build_opener()`, "
+                + "MAY 2028: pass `urllib.request.build_opener()`, "
                 + "an `httpx.Client` or a `requests.Session`.",
                 category=DeprecationWarning,
                 stacklevel=2,
@@ -549,8 +549,8 @@ class GithubResolver(Resolver):
         branch: str | None = None,
         commit: str | None = None,
         save: str | None = None,
-        session: HttpSessionLike | None = None,
-        timeout: float = 30.0,
+        session: HttpSessionLike | HttpOpenSession | None = None,
+        timeout: Floating = 30.0,
     ):
         """
         Get files from a remote Github repository by
@@ -567,11 +567,11 @@ class GithubResolver(Resolver):
           The full commit hash: pass either this OR branch.
         save
           A path if you want to save results locally.
-        session : HttpSessionLike or None
+        session : HttpSessionLike, HttpOpenSession or None
           Optional HTTP session used for fetches. Accepts
           `urllib.request.build_opener()`, `httpx.Client`
           or `requests.Session`.
-        timeout : float
+        timeout : Floating
           Per-request timeout in seconds.
         """
 

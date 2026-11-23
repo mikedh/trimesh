@@ -212,10 +212,11 @@ class Trimesh(Geometry3D):
             self.vertex_normals = vertex_normals
 
         # trimkit's tinybvh is a much, much faster raytracer
-        # and every intersector shares the API in `ray.parent`
+        # and every intersector shares the same `intersects_*` API
         if use_embree and util.has_module("trimkit"):
             self.ray = ray.tinybvh.RayMeshIntersector(self)
         elif ray.has_embree and use_embree:
+            # embreex fallback: delete with its deprecation
             self.ray = ray.ray_pyembree.RayMeshIntersector(self)
         else:
             # create a ray-mesh query object for the current mesh
@@ -2467,14 +2468,17 @@ class Trimesh(Geometry3D):
         unwrapped : trimesh.Trimesh
           Mesh with unwrapped uv coordinates
         """
-        try:
+        if util.has_module("trimkit"):
             from trimkit import parametrize
-        except ImportError:
-            from xatlas import parametrize
 
-        vmap, faces, uv = parametrize(
-            self.vertices.view(np.ndarray), self.faces.view(np.ndarray)
-        )
+            vmap, faces, uv = parametrize(
+                self.vertices.view(np.ndarray), self.faces.view(np.ndarray)
+            )
+        else:
+            # xatlas fallback: delete with its deprecation
+            import xatlas
+
+            vmap, faces, uv = xatlas.parametrize(self.vertices, self.faces)
 
         result = Trimesh(
             vertices=self.vertices[vmap],
@@ -2748,7 +2752,7 @@ class Trimesh(Geometry3D):
         simple : trimesh.Trimesh
           Simplified version of mesh.
         """
-        try:
+        if util.has_module("trimkit"):
             from trimkit import simplify
 
             if face_count is None:
@@ -2758,8 +2762,9 @@ class Trimesh(Geometry3D):
                 self.vertices.view(np.ndarray), self.faces.view(np.ndarray), face_count
             )
             return Trimesh(vertices=vertices, faces=faces)
-        except ImportError:
-            from fast_simplification import simplify
+
+        # fast_simplification fallback: delete with its deprecation
+        from fast_simplification import simplify
 
         # create keyword arguments as dict so we can filter out `None`
         # values as the C wrapper as of writing is not happy with `None`

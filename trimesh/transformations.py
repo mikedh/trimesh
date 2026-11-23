@@ -1631,7 +1631,7 @@ def random_rotation_matrix(
     >>> np.allclose(np.dot(R.T, R), np.identity(4))
     True
     >>> R = random_rotation_matrix(num=10)
-    >>> np.allclose(np.einsum('...ji,...jk->...ik', R, R), np.identity(4))
+    >>> np.allclose(np.matmul(np.swapaxes(R, -1, -2), R), np.identity(4))
     True
     >>> bool(np.allclose(random_rotation_matrix(seed=0, translate=10),
     ...                  random_rotation_matrix(seed=0, translate=10)))
@@ -2232,35 +2232,38 @@ def fix_rigid(matrix, max_deviance=1e-5):
 
     Parameters
     -----------
-    matrix : (4, 4) or (3, 3) float
-      Homogeneous transformation matrix.
+    matrix : (..., 4, 4) or (..., 3, 3) float
+      Homogeneous transformation matrix or a stack of them.
     max_deviance : float
-      Do not alter the matrix if it is not rigid by more
+      Do not alter a matrix if it is not rigid by more
       than this amount.
 
     Returns
     ----------
-    repaired : (4, 4) or (3, 3) float
-      Repaired homogeneous transformation matrix
+    repaired : (..., 4, 4) or (..., 3, 3) float
+      Repaired homogeneous transformation matrices.
     """
-    dim = matrix.shape[0] - 1
-    check = np.abs(
-        np.dot(matrix[:dim, :dim], matrix[:dim, :dim].T) - _IDENTITY[:dim, :dim]
-    ).max()
+    dim = matrix.shape[-1] - 1
+    rotation = matrix[..., :dim, :dim]
+    check = np.abs(rotation @ np.swapaxes(rotation, -2, -1) - _IDENTITY[:dim, :dim]).max(
+        axis=(-2, -1)
+    )
     # if the matrix differs by more than float-zero and less
     # than the threshold try to repair the matrix with SVD
-    if check > 1e-13 and check < max_deviance:
-        # reconstruct the rotation from the SVD
-        U, _, V = np.linalg.svd(matrix[:dim, :dim])
-        repaired = np.eye(dim + 1)
-        repaired[:dim, :dim] = np.dot(U, V)
-        # copy in the translation
-        repaired[:dim, dim] = matrix[:dim, dim]
-        # should be within tolerance of the original matrix
-        assert np.allclose(repaired, matrix, atol=max_deviance)
-        return repaired
+    broken = (check > 1e-13) & (check < max_deviance)
+    if not broken.any():
+        return matrix
 
-    return matrix
+    # reconstruct the rotation from the SVD
+    U, _, V = np.linalg.svd(rotation[broken])
+    repaired = np.array(matrix, dtype=np.float64)
+    repaired[broken] = _IDENTITY[: dim + 1, : dim + 1]
+    repaired[..., :dim, :dim][broken] = U @ V
+    # copy in the translation
+    repaired[..., :dim, dim][broken] = matrix[..., :dim, dim][broken]
+    # should be within tolerance of the original matrix
+    assert np.allclose(repaired, matrix, atol=max_deviance)
+    return repaired
 
 
 def is_rigid(matrix, epsilon=1e-8):

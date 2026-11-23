@@ -239,8 +239,8 @@ class Scene(Geometry3D):
 
         Parameters
         --------------
-        name : hashable
-          Name that references self.geometry
+        names : str | set | Sequence
+          One or more names that reference self.geometry
         """
         # make sure we have a set we can check
         if isinstance(names, str):
@@ -664,15 +664,17 @@ class Scene(Geometry3D):
 
         Returns
         ---------
-        collision : trimesh.collision.SceneCollision
+        collision : trimesh.scene.queries.SceneCollision
           i.e. `collision.nodes[collision.collides().pairs]`
         """
         collision = self._geometry_cache["collision"]
         if collision is None:
-            # raises here rather than in a fallback base class
-            from trimkit import CollisionScene  # noqa: F401
-
-            from ..collision import SceneCollision
+            try:
+                from .queries import SceneCollision
+            except ImportError as E:
+                raise ImportError(
+                    "`Scene.collision` requires `pip install trimkit` (Python >= 3.12)"
+                ) from E
 
             collision = SceneCollision(self)
             self._geometry_cache["collision"] = collision
@@ -681,18 +683,23 @@ class Scene(Geometry3D):
     @property
     def ray(self):
         """
-        Ray queries against every node where it currently is, with
-        the same interface as `Trimesh.ray` on any installed engine,
-        i.e. `ray.intersects_id(origins, directions, return_instance=True)`.
+        Every geometry built once into a `trimkit.RayScene` which
+        casts rays at every node where it currently is. Moving
+        nodes never rebuilds it; changing geometry does.
 
         Returns
         ---------
-        ray : trimesh.ray.ray_scene.SceneRay
-          Which with `trimkit` never rebuilds when nodes move.
+        ray : trimesh.scene.queries.SceneRay
+          i.e. `ray.nodes[ray.intersect(origins, directions)[1]]`
         """
         ray = self._geometry_cache["ray"]
         if ray is None:
-            from ..ray.ray_scene import SceneRay
+            try:
+                from .queries import SceneRay
+            except ImportError as E:
+                raise ImportError(
+                    "`Scene.ray` requires `pip install trimkit` (Python >= 3.12)"
+                ) from E
 
             ray = SceneRay(self)
             self._geometry_cache["ray"] = ray
@@ -766,8 +773,6 @@ class Scene(Geometry3D):
 
         Parameters
         ----------
-        scene
-        The scene to handle.
         cost_threshold
         The maximum value for `procrustes` cost which is "squared mean
         vertex distance between pair". If the fit is above this value
@@ -798,8 +803,6 @@ class Scene(Geometry3D):
           Distance from centroid
         center : (3,) float
           Point camera should be center on
-        camera : Camera object
-          Object that stores camera parameters
         """
 
         if fov is None:
@@ -1069,8 +1072,8 @@ class Scene(Geometry3D):
 
         Parameters
         ------------
-        node
-          Hashable key in `scene.graph`
+        node : Hashable
+          Key in `scene.graph`
 
         Returns
         -----------
@@ -1571,19 +1574,19 @@ def append_scenes(iterable, common=None, base_frame="world"):
     # nodes which are consumed and need to be remapped
     consumed = set()
 
-    def node_remap(node):
+    def node_remap(node: Hashable) -> Hashable:
         """
         Remap node to new name if necessary
 
         Parameters
         -------------
-        node : hashable
-           Node name in original scene
+        node : Hashable
+          Node name in original scene
 
         Returns
         -------------
-        name : hashable
-           Node name in concatenated scene
+        name : Hashable
+          Node name in concatenated scene
         """
 
         # if we've already remapped a node use it
@@ -1652,33 +1655,6 @@ def append_scenes(iterable, common=None, base_frame="world"):
     result.geometry.update(geometry)
 
     return result
-
-
-def trimkit_meshes(geometry: dict) -> list:
-    """
-    Every geometry as the `(vertices, faces)` trimkit builds, in order,
-    with anything that isn't a `Trimesh` as an empty mesh that nothing
-    ever touches or hits.
-
-    Parameters
-    ------------
-    geometry
-      Keyed `{name: geometry}`, i.e. `Scene.geometry`.
-
-    Returns
-    ---------
-    meshes : list of ((n, 3) float, (m, 3) int)
-      One mesh per geometry.
-    """
-    empty = (np.zeros((0, 3), dtype=np.float64), np.zeros((0, 3), dtype=np.int64))
-    meshes = [empty] * len(geometry)
-    for index, value in enumerate(geometry.values()):
-        if util.is_instance_named(value, "Trimesh"):
-            meshes[index] = (
-                value.vertices.view(np.ndarray),
-                value.faces.view(np.ndarray),
-            )
-    return meshes
 
 
 def reconstruct_instances(scene: Scene, cost_threshold: Floating = 1e-6) -> Scene:

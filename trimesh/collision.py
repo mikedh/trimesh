@@ -1,24 +1,27 @@
+"""
+collision.py
+--------------
+
+Mesh-mesh collision checks with `python-fcl`.
+
+.. deprecated::
+  `trimesh.collision` will be removed in May 2029: use `Scene.collision`
+  with `trimkit` installed, see `docs/content/upgrading.md`.
+"""
+
 import collections
 import warnings
 
 import numpy as np
 
 from . import util
-from .typed import NDArray
+from .typed import Hashable
 
 try:
     # pip install python-fcl
     import fcl
 except BaseException:
     fcl = None
-
-try:
-    # pip install trimkit
-    from trimkit import CollisionScene
-except BaseException:
-    # lets `SceneCollision` be defined without trimkit: it is only
-    # ever built by `Scene.collision` which imports trimkit first
-    CollisionScene = object
 
 
 # contact cap per pair
@@ -196,19 +199,21 @@ class CollisionManager:
     A mesh-mesh collision manager.
 
     .. deprecated::
-      `python-fcl` is unmaintained: use `Scene.collision`.
+      Removed in May 2029: use `Scene.collision` with `trimkit` installed.
     """
 
     def __init__(self):
         """
         Initialize a mesh-mesh collision manager.
         """
-        warnings.warn(
-            "`CollisionManager` will be deprecated as `python-fcl` is "
-            + "unmaintained: use `Scene.collision`",
-            category=PendingDeprecationWarning,
-            stacklevel=2,
-        )
+        # only warn where the replacement works: no trimkit, no warning
+        if util.has_module("trimkit"):
+            warnings.warn(
+                "`trimesh.collision` DEPRECATED FOR REMOVAL MAY 2029: "
+                + "use `Scene.collision`",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
         if fcl is None:
             raise ValueError("No FCL Available! Please install the python-fcl library")
         # {name: {geom:, obj}}
@@ -498,7 +503,7 @@ class CollisionManager:
           The geometry of the collision object
         transform : (4,4) float
           Homogeneous transform matrix for the object
-        return_names : bool
+        return_name : bool
           If true, return name of the closest object
         return_data : bool
           If true, a DistanceData object is returned as well
@@ -729,10 +734,10 @@ class CollisionManager:
             obj = mesh_to_BVH(mesh)
         return obj
 
-    def _extract_name(self, geom):
+    def _extract_name(self, geom) -> Hashable:
         """
         Retrieve the name of an object from the manager by its
-        CollisionObject, or return None if not found.
+        CollisionObject, raising a KeyError if not found.
 
         Parameters
         -----------
@@ -741,7 +746,7 @@ class CollisionManager:
 
         Returns
         ------------
-        names : hashable
+        name : Hashable
           Name of input geometry
         """
         return self._names[id(geom)]
@@ -793,7 +798,7 @@ def scene_to_collision(scene):
     Create collision objects from a trimesh.Scene object.
 
     .. deprecated::
-      `python-fcl` is unmaintained: use `Scene.collision`.
+      Removed in May 2029: use `Scene.collision` with `trimkit` installed.
 
     Parameters
     ------------
@@ -815,91 +820,3 @@ def scene_to_collision(scene):
             name=node, mesh=scene.geometry[geometry], transform=T
         )
     return manager, objects
-
-
-class SceneCollision(CollisionScene):
-    """
-    A `trimkit.CollisionScene` of a `Scene`'s geometry that queries every
-    node of the scene where it currently is. To query other instances,
-    such as many poses of a robot, call trimkit itself, which reuses the
-    meshes built here: `trimkit.CollisionScene.collides(collision, matrices, index)`
-    """
-
-    def __init__(self, scene):
-        """
-        Build every geometry once: moving nodes never rebuilds it.
-
-        Parameters
-        ----------
-        scene : trimesh.Scene
-          Scene to query, a convex mesh measured as a solid.
-        """
-        from .scene.scene import trimkit_meshes
-
-        super().__init__(
-            trimkit_meshes(scene.geometry),
-            convex=np.array(
-                [
-                    util.is_instance_named(value, "Trimesh") and value.is_convex
-                    for value in scene.geometry.values()
-                ],
-                dtype=bool,
-            ),
-        )
-        self.scene = scene
-        # the order of the meshes built, which instance indexes refer to
-        self.geometry = list(scene.geometry)
-
-    @property
-    def nodes(self) -> NDArray:
-        """
-        The node of every instance, as `nodes[result.pairs]` names them.
-
-        Returns
-        ---------
-        nodes : (k,) object
-          The scene graph's `nodes_geometry`.
-        """
-        nodes = np.zeros(len(self.scene.graph.nodes_geometry), dtype=object)
-        nodes[:] = self.scene.graph.nodes_geometry
-        return nodes
-
-    def collides(self, **kwargs):
-        """
-        `trimkit.CollisionScene.collides` of every node.
-
-        Parameters
-        ----------
-        **kwargs
-          Passed to `trimkit.CollisionScene.collides`, i.e. `pairs`.
-
-        Returns
-        ---------
-        result : trimkit.CollisionResult
-          Rows of instance pairs, which `self.nodes` names.
-        """
-        return super().collides(
-            *self.scene.graph.instance_matrices(self.geometry), **kwargs
-        )
-
-    def distances(self, **kwargs):
-        """
-        `trimkit.CollisionScene.distances` of every node.
-
-        Parameters
-        ----------
-        **kwargs
-          Passed to `trimkit.CollisionScene.distances`, i.e. `pairs`.
-
-        Returns
-        ---------
-        result : trimkit.CollisionResult
-          Rows of instance pairs, which `self.nodes` names.
-        """
-        return super().distances(
-            *self.scene.graph.instance_matrices(self.geometry), **kwargs
-        )
-
-    def __reduce__(self):
-        # rebuilt from the scene rather than from trimkit's own state
-        return (type(self), (self.scene,))

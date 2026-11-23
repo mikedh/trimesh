@@ -26,7 +26,7 @@ No dependencies indicates a minimal install of just `trimesh` and `numpy` can lo
 | `3MF`  | `lxml`, `networkx` | An XML-based, 3D-printing-focused mesh format. |
 | `3DXML` | `lxml`, `networkx`, `PIL` | Dassault's XML format from CATIA/SolidWorks, the easiest way to get from Solidworks to a nice 3D scene. |
 | `DAE`/`ZAE` | `lxml`, `PIL`, `pycollada` | COLLADA, an XML-based scene format that supports everything. |
-| `STEP`/`STP` | `cascadio` | The only boundary representation format with open-source loaders available. `cascadio` uses OpenCASCADE to convert to GLB before loading. |
+| `STEP`/`STP`/`IGES`/`IGS` (and `.zst`/`.zstd`) | `cascadio` | Boundary representation CAD formats with open-source loaders available. `cascadio` uses OpenCASCADE to convert to GLB in memory before loading. |
 | `XAML` | `lxml` | Microsoft's 3D XAML format which exports from Solidworks |
 | `DXF` | | AutoCAD's drawing format, we only support the ASCII version with 2D geometry. |
 | `SVG` | `svg.path` | We import 2D paths as `trimesh.Path2D` from these, discarding pretty much all visual information other than the curves. |

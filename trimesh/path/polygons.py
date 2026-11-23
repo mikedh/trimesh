@@ -7,7 +7,7 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..iteration import reduce_cascade
 from ..transformations import transform_points
-from ..typed import ArrayLike, Iterable, NDArray, Number, Seed, float64, int64
+from ..typed import ArrayLike, Floating, Iterable, NDArray, Number, Seed, float64, int64
 from ..util import random_generator
 from .simplify import fit_circle_check
 from .traversal import resample_path
@@ -75,7 +75,7 @@ def enclosure_tree(polygons):
     # the polygon index and (minx, miny, maxx, maxy) of each valid polygon
     keys = list(bounds.keys())
     boxes = np.array(list(bounds.values()), dtype=np.float64).reshape((-1, 4))
-    if len(keys) > 0:
+    if len(bounds) > 0:
         # if there are no valid bounds tree creation will fail
         # and we won't be calling `tree.intersection` anywhere
         # we could return here but having multiple return paths
@@ -83,19 +83,19 @@ def enclosure_tree(polygons):
         tree = util.bounds_tree(boxes)
 
     # loop through every polygon
-    for polygon_index, box in zip(keys, boxes):
+    for i, b in zip(keys, boxes):
         # we first query for bounding box intersections from the R-tree
         # which holds positions into `keys` rather than polygon indexes
-        for other in (keys[position] for position in tree.intersection(box)):
+        for j in (keys[position] for position in tree.intersection(b)):
             # if we are checking a polygon against itself continue
-            if polygon_index == other:
+            if i == j:
                 continue
             # do a more accurate polygon in polygon test
             # for the enclosure tree information
-            if polygons[polygon_index].contains(polygons[other]):
-                contains.add_edge(polygon_index, other)
-            elif polygons[other].contains(polygons[polygon_index]):
-                contains.add_edge(other, polygon_index)
+            if polygons[i].contains(polygons[j]):
+                contains.add_edge(i, j)
+            elif polygons[j].contains(polygons[i]):
+                contains.add_edge(j, i)
 
     # a root or exterior curve has an even number of parents
     # wrap in dict call to avoid networkx view
@@ -195,7 +195,7 @@ def polygon_obb(polygon: Polygon | NDArray):
 
     Parameters
     -------------
-    polygons : shapely.geometry.Polygon
+    polygon : shapely.geometry.Polygon
       Input geometry
 
     Returns
@@ -322,7 +322,7 @@ def plot(polygon=None, show=True, axes=None, **kwargs):
     return axes
 
 
-def resample_boundaries(polygon: Polygon, resolution: float, clip=None):
+def resample_boundaries(polygon: Polygon, resolution: Floating, clip=None):
     """
     Return a version of a polygon with boundaries re-sampled
     to a specified resolution.
@@ -331,7 +331,7 @@ def resample_boundaries(polygon: Polygon, resolution: float, clip=None):
     -------------
     polygon : shapely.geometry.Polygon
       Source geometry
-    resolution : float
+    resolution : Floating
       Desired distance between points on boundary
     clip : (2,) int
       Upper and lower bounds to clip
@@ -744,7 +744,7 @@ def projected(
     apad=None,
     tol_dot=1e-10,
     precise: bool = False,
-    precise_eps: float = 1e-10,
+    precise_eps: Floating = 1e-10,
 ):
     """
     Project a mesh onto a plane and then extract the polygon
@@ -783,7 +783,7 @@ def projected(
       Tolerance for discarding on-edge triangles.
     precise : bool
       Use the precise projection computation using shapely.
-    precise_eps : float
+    precise_eps : Floating
       Tolerance for precise triangle checks.
 
     Returns

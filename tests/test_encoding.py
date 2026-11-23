@@ -138,7 +138,17 @@ class EncodingTest(g.unittest.TestCase):
             self._test_dense(encoding.flat, dense_data.reshape((-1,)))
 
     def test_reshape(self):
-        shapes = ((10, 10, 10), (5, 20, 10), (50, 4, 5), (-1, 4, 5))
+        # every shape numpy accepts: tuples, arrays, wildcards and bare integers
+        shapes = (
+            (10, 10, 10),
+            (5, 20, 10),
+            (50, 4, 5),
+            (-1, 4, 5),
+            (-1,),
+            -1,
+            np.int64(-1),
+            np.array([50, -1, 5]),
+        )
         for encoding in encodings:
             for shape in shapes:
                 self._test_dense(encoding.reshape(shape), dense_data.reshape(shape))

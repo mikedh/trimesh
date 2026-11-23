@@ -11,7 +11,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry, LoadSource
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import HttpSessionLike, Loadable
+from ..typed import HttpOpenSession, HttpSessionLike, Loadable
 from ..util import log
 from . import misc
 from .binvox import _binvox_loaders
@@ -161,7 +161,7 @@ def load_scene(
     resolver: resolvers.ResolverLike | None = None,
     allow_remote: bool = False,
     metadata: dict | None = None,
-    session: HttpSessionLike | None = None,
+    session: HttpSessionLike | HttpOpenSession | None = None,
     **kwargs,
 ) -> Scene:
     """
@@ -182,9 +182,10 @@ def load_scene(
       For 'scene': try to coerce everything into a scene
     allow_remote
       If True allow this load call to work on a remote URL.
-    session : HttpSessionLike or None
-      Optional HTTP session passed through to a `WebResolver` when loading
-      from a URL. Accepts `httpx.Client` or `requests.Session`.
+    session : HttpSessionLike, HttpOpenSession or None
+      HTTP session passed through to a `WebResolver` when loading from
+      a URL: `urllib.request.build_opener()`, `httpx.Client` or
+      `requests.Session`, or the standard library's if not passed.
     kwargs : dict
       Passed to geometry __init__
 
@@ -526,7 +527,7 @@ def _parse_file_args(
     file_type: str | None,
     resolver: resolvers.ResolverLike | None = None,
     allow_remote: bool = False,
-    session: HttpSessionLike | None = None,
+    session: HttpSessionLike | HttpOpenSession | None = None,
     **kwargs,
 ) -> LoadSource:
     """
@@ -602,7 +603,7 @@ def _parse_file_args(
             # save the file name and path to metadata
             # if file_obj is a path that exists use extension as file_type
             if file_type is None:
-                file_type = util.split_extension(file_path, special=["tar.gz", "tar.bz2"])
+                file_type = util.split_extension(file_path)
             # actually open the file
             file_obj = open(file_path, "rb")
             # save that we opened it so we can cleanup later

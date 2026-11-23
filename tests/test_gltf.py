@@ -1381,6 +1381,27 @@ class GLTFTest(g.unittest.TestCase):
         assert mean_squared_error < 10.0
 
 
+@g.pytest.mark.parametrize(
+    "values",
+    [
+        g.np.arange(8),
+        g.np.arange(8, dtype=g.np.int32) - 3,
+        g.np.arange(8) % 2 == 0,
+        g.np.arange(8, dtype=">f8") / 4,
+    ],
+)
+def test_export_custom_attribute_dtypes(values):
+    # dtypes GLTF can't store directly should be cast rather than fail
+    mesh = g.trimesh.creation.box()
+    mesh.vertex_attributes["_values"] = values
+    export = mesh.export(file_type="glb")
+    validate_glb(export)
+    scene = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
+    loaded = next(iter(scene.geometry.values())).vertex_attributes["_values"]
+    # scalar attributes are padded out to 4 byte rows
+    assert g.np.array_equal(loaded[:, 0], values)
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

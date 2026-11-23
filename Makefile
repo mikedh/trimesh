@@ -69,6 +69,19 @@ tests: ## Run unit tests inside docker images.
 type-check: ## Print a per-file `ty` type-check report
 	uv run --with ty python helpers/run_typecheck.py
 
+# seconds to run `tests/fuzz.py` for
+FUZZ_TIME ?= 60
+FUZZ_DIR := build/fuzz
+# atheris has no wheels past python 3.13 so fuzz in a separate environment
+FUZZ := uv run --isolated --python 3.13 --extra easy --extra test --with atheris python
+
+.PHONY: fuzz
+fuzz: ## Fuzz the loaders for FUZZ_TIME seconds, seeded from `models`
+	rm -rf $(FUZZ_DIR)/corpus
+	$(FUZZ) tests/fuzz.py -dump $(FUZZ_DIR)/corpus -local models -count 100
+	$(FUZZ) tests/fuzz.py -max_total_time=$(FUZZ_TIME) \
+		-artifact_prefix=$(FUZZ_DIR)/ $(FUZZ_DIR)/corpus
+
 # build the docs inside our image and eject the contents
 # into `./html` directory
 .PHONY: docs

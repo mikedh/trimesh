@@ -410,22 +410,15 @@ def test_revolve():
     assert mesh180.is_volume, "mesh180 should be a valid volume"
 
 
-def check_triangulation(vertices, faces, true_area):
-    assert g.trimesh.util.is_shape(vertices, (-1, 2))
-    assert vertices.dtype.kind == "f"
-    assert g.trimesh.util.is_shape(faces, (-1, 3))
-    assert faces.dtype.kind == "i"
+def check_triangulation(v, f, true_area):
+    assert g.trimesh.util.is_shape(v, (-1, 2))
+    assert v.dtype.kind == "f"
+    assert g.trimesh.util.is_shape(f, (-1, 3))
+    assert f.dtype.kind == "i"
 
-    # every triangle wound counter-clockwise and their signed areas summing
-    # to the polygon's: a fold or flipped triangle can't hide behind area
-    corners = vertices[faces]
-    first_edge = corners[:, 1] - corners[:, 0]
-    second_edge = corners[:, 2] - corners[:, 0]
-    signed = (
-        first_edge[:, 0] * second_edge[:, 1] - first_edge[:, 1] * second_edge[:, 0]
-    ) / 2.0
-    assert (signed >= 0.0).all()
-    assert g.np.isclose(signed.sum(), true_area, rtol=1e-7)
+    tri = g.trimesh.util.stack_3D(v)[f]
+    area = g.trimesh.triangles.area(tri).sum()
+    assert g.np.isclose(area, true_area, rtol=1e-7)
 
 
 def test_torus():

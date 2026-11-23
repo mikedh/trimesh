@@ -32,7 +32,7 @@ def contains_points(intersector, points: ArrayLike, check_direction: bool | None
 
     # cull points outside of the axis aligned bounding box
     # this avoids running ray tests unless points are close
-    inside_aabb = bounds.contains(intersector.bounds, points)
+    inside_aabb = bounds.contains(intersector.mesh.bounds, points)
 
     # if everything is outside the AABB, exit early
     if not inside_aabb.any():

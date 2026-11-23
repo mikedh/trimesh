@@ -126,7 +126,7 @@ def element_transform(element, max_depth=10):
 
     Parameters
     --------------
-    e : lxml.etree.Element
+    element : lxml.etree.Element
       Element to search upwards from.
     max_depth : int
       Maximum depth to search for transforms.
@@ -219,16 +219,22 @@ def transform_to_matrices(transform: str) -> NDArray[np.float64]:
     return np.array(matrices, dtype=np.float64)
 
 
-def segments_to_entities(segments: NDArray, offset: int = 0, metadata=None) -> list:
+def segments_to_entities(
+    segments: NDArray, vertices: NDArray, offset: int = 0, metadata=None
+) -> list:
     """
-    Entities for SVG path segments, a line continuing a line extending it.
+    Entities for SVG path segments: a line continuing a line extends
+    it, and arcs on one circle that end where they began are one
+    closed circle.
 
     Parameters
     ------------
     segments : (n,) SvgSegment
-      Rows indexing their vertices.
+      Rows indexing `vertices`.
+    vertices : (m, 2) float
+      The points the segments index.
     offset : int
-      Added to every vertex index.
+      Added to every vertex index of the entities.
     metadata : None or dict
       Copied onto every entity.
 
@@ -237,17 +243,45 @@ def segments_to_entities(segments: NDArray, offset: int = 0, metadata=None) -> l
     entities : list
       `Line`, `Bezier` and `Arc` entities.
     """
-    kinds, points = segments["kind"], segments["points"] + offset
+    kinds, points = segments["kind"], segments["points"]
+    arcs = kinds == SvgKind.ARC
+    # an arc continuing an arc with the same center, radii and rotation
+    circle = np.column_stack(
+        (vertices[points[:, 1]], segments["radius"], segments["rotation"])
+    )
+    same = np.zeros(len(kinds), dtype=bool)
+    same[1:] = (
+        arcs[1:]
+        & arcs[:-1]
+        & (points[1:, 0] == points[:-1, 3])
+        & (np.abs(np.diff(circle, axis=0)).max(axis=1, initial=0.0) < 1e-3)
+    )
+    # every run of such arcs from its first to its last arc is one
+    # closed circle when its last arc ends where its first began
+    first = np.flatnonzero(arcs & ~same)
+    last = np.flatnonzero(arcs & ~np.append(same[1:], False))
+    closed = (last > first) & np.isclose(
+        vertices[points[last, 3]], vertices[points[first, 0]]
+    ).all(axis=1)
+    # whether each segment is in a closed run, with no run as -1
+    closes = np.append(closed, False)[np.cumsum(arcs & ~same) - 1]
+    # a closed circle is its first arc alone
+    keep = ~(same & closes)
+    kinds, points, closes = kinds[keep], points[keep] + offset, closes[keep]
+
     lines = kinds == SvgKind.LINE
     starts = np.ones(len(kinds), dtype=bool)
     starts[1:] = ~(lines[1:] & lines[:-1] & (points[1:, 0] == points[:-1, 3]))
     starts = np.flatnonzero(starts)
-    return [
+    entities = [
         SVG_TYPES[kind](
             points=np.append(run[:, SVG_COLUMNS[kind]], run[-1, 3]), metadata=metadata
         )
         for kind, run in zip(kinds[starts].tolist(), np.split(points, starts[1:]))
     ]
+    for index in np.flatnonzero(closes[starts]):
+        entities[index].closed = True
+    return entities
 
 
 def entity_to_segments(entity, vertices: NDArray) -> tuple[NDArray, NDArray]:
@@ -318,20 +352,29 @@ def entity_to_segments(entity, vertices: NDArray) -> tuple[NDArray, NDArray]:
     return vertices, segments
 
 
-def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
+def svg_path_entities(path_string: str, offset: int, metadata: dict) -> tuple:
+    # svg.path fallback: delete with its deprecation
     """
-    Convert an SVG path string into a Path2D object
+    Entities and vertices for an SVG path string parsed by `svg.path`.
 
     Parameters
     -------------
-    paths: list of tuples
-      Containing (path string, (3, 3) matrix, metadata)
+    path_string
+      The `d` attribute of an SVG path.
+    offset
+      Added to every vertex index of the entities.
+    metadata
+      Copied onto every entity.
 
     Returns
     -------------
-    drawing : dict
-      Kwargs for Path2D constructor
+    entities : list
+      `Line`, `Bezier` and `Arc` entities.
+    vertices : (n, 2) float
+      The vertices the entities index, less `offset`.
     """
+    # the index of the next vertex
+    count = offset
 
     def complex_to_float(values):
         return np.array([[i.real, i.imag] for i in values], dtype=np.float64)
@@ -339,7 +382,7 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
     def load_multi(multi):
         # load a previously parsed multiline
         # start the count where indicated
-        start = counts[name]
+        start = count
         # end at the block of our new points
         end = start + len(multi.points)
 
@@ -350,7 +393,7 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
         points = complex_to_float([svg_arc.start, svg_arc.point(0.5), svg_arc.end])
         # create an arc from the now numpy points
         arc = Arc(
-            points=np.arange(3) + counts[name],
+            points=np.arange(3) + count,
             # we may have monkey-patched the entity to
             # indicate that it is a closed circle
             closed=getattr(svg_arc, "closed", False),
@@ -362,14 +405,14 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
         points = complex_to_float(
             [svg_quadratic.start, svg_quadratic.control, svg_quadratic.end]
         )
-        return Bezier(points=np.arange(3) + counts[name]), points
+        return Bezier(points=np.arange(3) + count), points
 
     def load_cubic(svg_cubic):
         # load a cubic bezier spline
         points = complex_to_float(
             [svg_cubic.start, svg_cubic.control1, svg_cubic.control2, svg_cubic.end]
         )
-        return Bezier(np.arange(4) + counts[name]), points
+        return Bezier(np.arange(4) + count), points
 
     class MultiLine:
         # An object to hold one or multiple Line entities.
@@ -392,6 +435,109 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
         "QuadraticBezier": load_quadratic,
     }
 
+    entities, vertices = [], [np.zeros((0, 2), dtype=np.float64)]
+
+    # get parsed entities from svg.path
+    raw = np.array(list(parse_path(path_string)))
+
+    # if there is no path string exit
+    if len(raw) == 0:
+        return entities, np.vstack(vertices)
+
+    # create an integer code for entities we can combine
+    kinds_lookup = {"Line": 1, "Close": 1, "Arc": 2}
+    # get a code for each entity we parsed
+    kinds = np.array([kinds_lookup.get(type(i).__name__, 0) for i in raw], dtype=int)
+
+    # find groups of consecutive entities so we can combine
+    blocks = grouping.blocks(kinds, min_len=1, only_nonzero=False)
+
+    if tol.strict:
+        # in unit tests make sure we didn't lose any entities
+        assert util.allclose(np.hstack(blocks), np.arange(len(raw)))
+
+    # Combine consecutive entities that can be represented
+    # more concisely as a single trimesh entity.
+    parsed = []
+    for b in blocks:
+        chunk = raw[b]
+        current = type(raw[b[0]]).__name__
+        if current in ("Line", "Close"):
+            # if entity consists of lines add a multiline
+            parsed.append(MultiLine(chunk))
+        elif len(b) > 1 and current == "Arc":
+            # if we have multiple arcs check to see if they
+            # actually represent a single closed circle
+            # get a single array with the relevant arc points
+            verts = np.array(
+                [
+                    [
+                        a.start.real,
+                        a.start.imag,
+                        a.end.real,
+                        a.end.imag,
+                        a.center.real,
+                        a.center.imag,
+                        a.radius.real,
+                        a.radius.imag,
+                        a.rotation,
+                    ]
+                    for a in chunk
+                ],
+                dtype=np.float64,
+            )
+            # all arcs share the same center radius and rotation
+            closed = False
+            if np.ptp(verts[:, 4:], axis=0).mean() < 1e-3:
+                start, end = verts[:, :2], verts[:, 2:4]
+                # if every end point matches the start point of a new
+                # arc that means this is really a closed circle made
+                # up of multiple arc segments
+                closed = util.allclose(start, np.roll(end, 1, axis=0))
+            if closed:
+                # hot-patch a closed arc flag
+                chunk[0].closed = True
+                # all arcs in this block are now represented by one entity
+                parsed.append(chunk[0])
+            else:
+                # we don't have a closed circle so add each
+                # arc entity individually without combining
+                parsed.extend(chunk)
+        else:
+            # otherwise just add the entities
+            parsed.extend(chunk)
+
+    # loop through parsed entity objects
+    for svg_entity in parsed:
+        # keyed by entity class name
+        type_name = type(svg_entity).__name__
+        if type_name in loaders:
+            # get new entities and vertices
+            e, v = loaders[type_name](svg_entity)
+            e.metadata.update(metadata)
+            # append them to the result
+            entities.append(e)
+            vertices.append(v)
+            count += len(v)
+
+    return entities, np.vstack(vertices)
+
+
+def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
+    """
+    Convert an SVG path string into a Path2D object
+
+    Parameters
+    -------------
+    paths: list of tuples
+      Containing (path string, (3, 3) matrix, metadata)
+
+    Returns
+    -------------
+    drawing : dict
+      Kwargs for Path2D constructor
+    """
+
     entities = defaultdict(list)
     vertices = defaultdict(list)
     counts = defaultdict(lambda: 0)
@@ -406,103 +552,20 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
         # get the name of the geometry if trimesh specified it
         # note that the get will by default return `None`
         name = _decode(attrib.get(_ns + "name"))
+        metadata = _attrib_metadata(attrib=attrib)
         if svg_parse is not None:
             path_vertices, segments = svg_parse(path_string)
-            entities[name].extend(
-                segments_to_entities(
-                    segments, counts[name], _attrib_metadata(attrib=attrib)
-                )
+            path_entities = segments_to_entities(
+                segments, path_vertices, counts[name], metadata
             )
-            vertices[name].append(transform_points(path_vertices, matrix))
-            counts[name] += len(path_vertices)
-            continue
-
-        # svg.path fallback: delete with its deprecation
-        # get parsed entities from svg.path
-        raw = np.array(list(parse_path(path_string)))
-
-        # if there is no path string exit
-        if len(raw) == 0:
-            continue
-
-        # create an integer code for entities we can combine
-        kinds_lookup = {"Line": 1, "Close": 1, "Arc": 2}
-        # get a code for each entity we parsed
-        kinds = np.array([kinds_lookup.get(type(i).__name__, 0) for i in raw], dtype=int)
-
-        # find groups of consecutive entities so we can combine
-        blocks = grouping.blocks(kinds, min_len=1, only_nonzero=False)
-
-        if tol.strict:
-            # in unit tests make sure we didn't lose any entities
-            assert util.allclose(np.hstack(blocks), np.arange(len(raw)))
-
-        # Combine consecutive entities that can be represented
-        # more concisely as a single trimesh entity.
-        parsed = []
-        for b in blocks:
-            chunk = raw[b]
-            current = type(raw[b[0]]).__name__
-            if current in ("Line", "Close"):
-                # if entity consists of lines add a multiline
-                parsed.append(MultiLine(chunk))
-            elif len(b) > 1 and current == "Arc":
-                # if we have multiple arcs check to see if they
-                # actually represent a single closed circle
-                # get a single array with the relevant arc points
-                verts = np.array(
-                    [
-                        [
-                            a.start.real,
-                            a.start.imag,
-                            a.end.real,
-                            a.end.imag,
-                            a.center.real,
-                            a.center.imag,
-                            a.radius.real,
-                            a.radius.imag,
-                            a.rotation,
-                        ]
-                        for a in chunk
-                    ],
-                    dtype=np.float64,
-                )
-                # all arcs share the same center radius and rotation
-                closed = False
-                if np.ptp(verts[:, 4:], axis=0).mean() < 1e-3:
-                    start, end = verts[:, :2], verts[:, 2:4]
-                    # if every end point matches the start point of a new
-                    # arc that means this is really a closed circle made
-                    # up of multiple arc segments
-                    closed = util.allclose(start, np.roll(end, 1, axis=0))
-                if closed:
-                    # hot-patch a closed arc flag
-                    chunk[0].closed = True
-                    # all arcs in this block are now represented by one entity
-                    parsed.append(chunk[0])
-                else:
-                    # we don't have a closed circle so add each
-                    # arc entity individually without combining
-                    parsed.extend(chunk)
-            else:
-                # otherwise just add the entities
-                parsed.extend(chunk)
-
-        entity_meta = _attrib_metadata(attrib=attrib)
-
-        # loop through parsed entity objects
-        for svg_entity in parsed:
-            # keyed by entity class name
-            type_name = type(svg_entity).__name__
-            if type_name in loaders:
-                # get new entities and vertices
-                e, v = loaders[type_name](svg_entity)
-                e.metadata.update(entity_meta)
-                # append them to the result
-                entities[name].append(e)
-                # transform the vertices by the matrix and append
-                vertices[name].append(transform_points(v, matrix))
-                counts[name] += len(v)
+        else:
+            # svg.path fallback: delete with its deprecation
+            path_entities, path_vertices = svg_path_entities(
+                path_string, counts[name], metadata
+            )
+        entities[name].extend(path_entities)
+        vertices[name].append(transform_points(path_vertices, matrix))
+        counts[name] += len(path_vertices)
 
     # load simple shape geometry
     for kind, attrib, matrix in shapes:
@@ -576,9 +639,11 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
     return kwargs
 
 
-def _entities_to_str(entities, vertices, name=None, digits=None, only_layers=None):
+def entities_to_path_strings(entities: list, vertices: NDArray, digits=None) -> list:
+    # pre-trimkit export fallback: delete with its deprecation
     """
-    Convert the entities of a path to path strings.
+    SVG path strings for entities: arcs exactly and anything else
+    as the polyline of its discrete points.
 
     Parameters
     ------------
@@ -586,17 +651,14 @@ def _entities_to_str(entities, vertices, name=None, digits=None, only_layers=Non
       Entity objects
     vertices : (m, 2) float
       Vertices entities reference
-    name : any
-      Trimesh namespace name to assign to entity
-    digits : int
+    digits : None or int
       Number of digits to format exports into
-    only_layers : set
-      Only export these layers if passed
+
+    Returns
+    ------------
+    path_strings : (n,) list of str
+      The path data of each entity.
     """
-    # trimkit writes every number exactly unless asked to round
-    if digits is not None:
-        vertices = np.round(vertices, int(digits))
-    # svg.path fallback: delete with its deprecation
     if digits is None:
         digits = 13
 
@@ -664,21 +726,49 @@ def _entities_to_str(entities, vertices, name=None, digits=None, only_layers=Non
             *discrete.reshape(-1)
         )
 
-    # tuples of (metadata, path string)
-    pairs = []
-
+    path_strings = []
     for entity in entities:
-        if only_layers is not None and entity.layer not in only_layers:
-            continue
-        if svg_string is not None:
-            path_string = svg_string(*entity_to_segments(entity, vertices))
-        # svg.path fallback: delete with its deprecation
-        elif entity.__class__.__name__ == "Arc":
+        # check the class name of the entity
+        if entity.__class__.__name__ == "Arc":
             # export the exact version of the entity
-            path_string = svg_arc(entity)
+            path_strings.append(svg_arc(entity))
         else:
             # just export the polyline version of the entity
-            path_string = svg_discrete(entity)
+            path_strings.append(svg_discrete(entity))
+    return path_strings
+
+
+def _entities_to_str(entities, vertices, name=None, digits=None, only_layers=None):
+    """
+    Convert the entities of a path to path strings.
+
+    Parameters
+    ------------
+    entities : (n,) list
+      Entity objects
+    vertices : (m, 2) float
+      Vertices entities reference
+    name : any
+      Trimesh namespace name to assign to entity
+    digits : int
+      Number of digits to format exports into
+    only_layers : set
+      Only export these layers if passed
+    """
+    entities = [e for e in entities if only_layers is None or e.layer in only_layers]
+    if svg_string is not None:
+        # trimkit writes every number exactly unless asked to round
+        exact = vertices
+        if digits is not None:
+            exact = np.round(vertices, int(digits))
+        path_strings = [svg_string(*entity_to_segments(e, exact)) for e in entities]
+    else:
+        # pre-trimkit export fallback: delete with its deprecation
+        path_strings = entities_to_path_strings(entities, vertices, digits)
+
+    # tuples of (metadata, path string)
+    pairs = []
+    for entity, path_string in zip(entities, path_strings):
         meta = deepcopy(entity.metadata)
         if name is not None:
             meta["name"] = name

@@ -3,33 +3,23 @@ A basic slow implementation of ray- triangle queries.
 """
 
 import itertools
-import warnings
 
 import numpy as np
 
 from .. import caching, grouping
 from ..constants import tol
 from ..typed import ArrayLike, NDArray
-from .parent import RayParent
+from .ray_util import contains_points
 
 
-class RayMeshIntersector(RayParent):
+class RayMeshIntersector:
     """
     An object to query a mesh for ray intersections.
+    Precomputes a bounding volume hierarchy of the mesh's triangles.
     """
 
-    def __init__(self, mesh, meshes=None):
-        """
-        Parameters
-        ------------
-        mesh : Trimesh
-          Mesh to do ray tests on.
-        meshes : None or sequence of (vertices, faces)
-          `mesh` as the separate meshes it concatenates, so hits
-          report which, or `mesh` alone.
-        """
+    def __init__(self, mesh):
         self.mesh = mesh
-        self.meshes = meshes
         self._cache = caching.Cache(self.mesh.__hash__)
 
     @caching.cache_decorator
@@ -44,28 +34,12 @@ class RayMeshIntersector(RayParent):
         """
         return bounding_volume_hierarchy(self.mesh.triangles)
 
-    @caching.cache_decorator
-    def face_geometry(self):
-        """
-        Which of `meshes` each face of `mesh` came from.
-
-        Returns
-        ---------
-        face_geometry : (len(mesh.faces),) int
-          Index into `meshes`, all 0 without them.
-        """
-        if self.meshes is None:
-            return np.zeros(len(self.mesh.faces), dtype=np.int64)
-        counts = [len(faces) for _, faces in self.meshes]
-        return np.repeat(np.arange(len(counts), dtype=np.int64), counts)
-
     def intersects_id(
         self,
         ray_origins,
         ray_directions,
         return_locations=False,
         multiple_hits=True,
-        return_instance=False,
         **kwargs,
     ):
         """
@@ -82,8 +56,6 @@ class RayMeshIntersector(RayParent):
           Consider multiple hits of each ray or not
         return_locations : bool
           Return hit locations or not
-        return_instance : bool
-          Also return which of `meshes` each hit is on
 
         Returns
         -----------
@@ -93,8 +65,6 @@ class RayMeshIntersector(RayParent):
           Index of ray that hit triangle
         locations : (h, 3) float
           [optional] Position of intersection in space
-        index_instance : (h,) int
-          [optional] Index into `meshes`, or 0 without them
         """
         (index_tri, index_ray, locations) = ray_triangle_id(
             triangles=self.mesh.triangles,
@@ -103,14 +73,78 @@ class RayMeshIntersector(RayParent):
             multiple_hits=multiple_hits,
             hierarchy=self.hierarchy,
         )
-        # a hit on a shared edge or vertex is reported once, in ray order
-        unique = np.sort(grouping.unique_rows(np.column_stack((locations, index_ray)))[0])
-        result = [index_tri[unique], index_ray[unique]]
         if return_locations:
-            result.append(locations[unique])
-        if return_instance:
-            result.append(self.face_geometry[index_tri[unique]])
-        return tuple(result)
+            if len(index_tri) == 0:
+                return index_tri, index_ray, locations
+            # a hit on a shared edge or vertex is reported once, in ray order
+            unique = np.sort(
+                grouping.unique_rows(np.column_stack((locations, index_ray)))[0]
+            )
+            return index_tri[unique], index_ray[unique], locations[unique]
+        return index_tri, index_ray
+
+    def intersects_location(self, ray_origins, ray_directions, **kwargs):
+        """
+        Return unique cartesian locations where rays hit the mesh.
+        If you are counting the number of hits a ray had, this method
+        should be used as if only the triangle index is used on- edge hits
+        will be counted twice.
+
+        Parameters
+        ------------
+        ray_origins : (m, 3) float
+          Ray origin points
+        ray_directions : (m, 3) float
+          Ray direction vectors
+
+        Returns
+        ---------
+        locations : (n) sequence of (m,3) float
+          Intersection points
+        index_ray : (n,) int
+          Array of ray indexes
+        index_tri: (n,) int
+          Array of triangle (face) indexes
+        """
+        (index_tri, index_ray, locations) = self.intersects_id(
+            ray_origins=ray_origins,
+            ray_directions=ray_directions,
+            return_locations=True,
+            **kwargs,
+        )
+        return locations, index_ray, index_tri
+
+    def intersects_first(self, ray_origins, ray_directions, **kwargs):
+        """
+        Find the index of the first triangle a ray hits.
+
+
+        Parameters
+        ----------
+        ray_origins : (n, 3) float
+          Origins of rays
+        ray_directions : (n, 3) float
+          Direction (vector) of rays
+
+        Returns
+        ----------
+        triangle_index : (n,) int
+          Index of triangle ray hit, or -1 if not hit
+        """
+
+        (index_tri, index_ray) = self.intersects_id(
+            ray_origins=ray_origins,
+            ray_directions=ray_directions,
+            return_locations=False,
+            multiple_hits=False,
+            **kwargs,
+        )
+
+        # put the result into the form of "one triangle index per ray"
+        result = np.ones(len(ray_origins), dtype=np.int64) * -1
+        result[index_ray] = index_tri
+
+        return result
 
     def intersects_any(self, ray_origins, ray_directions, **kwargs):
         """
@@ -132,6 +166,26 @@ class RayMeshIntersector(RayParent):
             ray_origins, ray_directions, multiple_hits=False
         )
         return np.bincount(index_ray, minlength=len(ray_origins)) > 0
+
+    def contains_points(self, points):
+        """
+        Check if a mesh contains a list of points, using ray tests.
+
+        If the point is on the surface of the mesh the behavior
+        is undefined.
+
+        Parameters
+        ------------
+        points : (n, 3) float
+          Points in space
+
+        Returns
+        ---------
+        contains : (n,) bool
+          Whether point is inside mesh or not
+        """
+
+        return contains_points(self, points)
 
 
 def ray_triangle_id(
@@ -215,7 +269,8 @@ def ray_triangle_id(
             distance = (edge_two * cross_offset).sum(axis=0) / determinant
             # a degenerate or parallel triangle divides by zero and fails
             hit = (u > -tol.zero) & (v > -tol.zero) & (u + v < 1.0 + tol.zero)
-            hit &= distance > -tol.zero
+            # forward of the origin by the same projection as before
+            hit &= distance * (direction * direction).sum(axis=0) > -1e-6
             found.append((triangle[hit], ray[hit], distance[hit]))
     index_tri, index_ray, distance = (np.concatenate(column) for column in zip(*found))
 
@@ -281,116 +336,3 @@ def bounding_volume_hierarchy(
     )
     levels = [level * [[[1.0]], [[-1.0]]] for level in merged][::-1]
     return order, levels
-
-
-def ray_triangle_candidates(ray_origins, ray_directions, tree):
-    """
-    Do broad- phase search for triangles that the rays
-    may intersect.
-
-    Does this by creating a bounding box for the ray as it
-    passes through the volume occupied by the tree
-
-    Parameters
-    ------------
-    ray_origins : (m, 3) float
-      Ray origin points.
-    ray_directions : (m, 3) float
-      Ray direction vectors
-    tree : rtree object
-      Ccontains AABB of each triangle
-
-    Returns
-    ----------
-    ray_candidates : (n,) int
-      Triangle indexes
-    ray_id : (n,) int
-      Corresponding ray index for a triangle candidate
-    """
-    warnings.warn(
-        "`ray_triangle_candidates` DEPRECATED FOR REMOVAL MAY 2028: "
-        + "use `mesh.ray.intersects_id`",
-        category=DeprecationWarning,
-        stacklevel=2,
-    )
-    bounding = ray_bounds(
-        ray_origins=ray_origins, ray_directions=ray_directions, bounds=tree.bounds
-    )
-
-    index = []
-    candidates = []
-    for i, bounds in enumerate(bounding):
-        cand = list(tree.intersection(bounds))
-        candidates.extend(cand)
-        index.extend([i] * len(cand))
-    return np.array(candidates, dtype=np.int64), np.array(index, dtype=np.int64)
-
-
-def ray_bounds(ray_origins, ray_directions, bounds, buffer_dist=1e-5):
-    """
-    Given a set of rays and a bounding box for the volume of interest
-    where the rays will be passing through, find the bounding boxes
-    of the rays as they pass through the volume.
-
-    Parameters
-    ------------
-    ray_origins:      (m,3) float, ray origin points
-    ray_directions:   (m,3) float, ray direction vectors
-    bounds:           (2,3) bounding box (min, max)
-    buffer_dist:      float, distance to pad zero width bounding boxes
-
-    Returns
-    ---------
-    ray_bounding: (n) set of AABB of rays passing through volume
-    """
-    warnings.warn(
-        "`ray_bounds` DEPRECATED FOR REMOVAL MAY 2028: " + "use `mesh.ray.intersects_id`",
-        category=DeprecationWarning,
-        stacklevel=2,
-    )
-
-    ray_origins = np.asanyarray(ray_origins, dtype=np.float64)
-    ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
-
-    # bounding box we are testing against
-    bounds = np.asanyarray(bounds)
-
-    # find the primary axis of the vector
-    axis = np.abs(ray_directions).argmax(axis=1)
-    axis_bound = bounds.reshape((2, -1)).T[axis]
-    axis_ori = np.array([ray_origins[i][a] for i, a in enumerate(axis)]).reshape((-1, 1))
-    axis_dir = np.array([ray_directions[i][a] for i, a in enumerate(axis)]).reshape(
-        (-1, 1)
-    )
-
-    # parametric equation of a line
-    # point = direction*t + origin
-    # p = dt + o
-    # t = (p-o)/d
-    nonzero = (axis_dir != 0.0).reshape(-1)
-    t = np.zeros_like(axis_bound)
-    t[nonzero] = (axis_bound[nonzero] - axis_ori[nonzero]) / axis_dir[nonzero]
-
-    # prevent the bounding box from including triangles
-    # behind the ray origin
-    t[t < buffer_dist] = buffer_dist
-
-    # the value of t for both the upper and lower bounds
-    t_a = t[:, 0].reshape((-1, 1))
-    t_b = t[:, 1].reshape((-1, 1))
-
-    # the cartesian point for where the line hits the plane defined by
-    # axis
-    on_a = (ray_directions * t_a) + ray_origins
-    on_b = (ray_directions * t_b) + ray_origins
-
-    on_plane = np.column_stack((on_a, on_b)).reshape((-1, 2, ray_directions.shape[1]))
-
-    ray_bounding = np.hstack((on_plane.min(axis=1), on_plane.max(axis=1)))
-    # pad the bounding box by TOL_BUFFER
-    # not sure if this is necessary, but if the ray is  axis aligned
-    # this function will otherwise return zero volume bounding boxes
-    # which may or may not screw up the r-tree intersection queries
-    ray_bounding += np.array([-1, -1, -1, 1, 1, 1]) * buffer_dist
-
-    return ray_bounding

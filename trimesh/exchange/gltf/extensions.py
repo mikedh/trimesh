@@ -443,10 +443,6 @@ def draco_encode(context: PrimitiveExportContext) -> bool | None:
     return True
 
 
-# the attributes trimkit compresses, each a `DracoKind` by its name's prefix
-_TRIMKIT_DRACO_ATTRIBUTES = ("POSITION", "COLOR_0", "TEXCOORD_0", "NORMAL")
-
-
 def trimkit_draco_decode(context: PrimitivePreprocessContext) -> None:
     """
     Replace a primitive's placeholder accessors with draco data
@@ -503,9 +499,14 @@ def trimkit_draco_encode(context: PrimitiveExportContext) -> bool | None:
     attributes = primitive["attributes"]
     arrays = context["arrays"]
 
-    # draco attribute `i` is `names[i]`: anything the exporter stored itself,
-    # like a custom `_ATTRIBUTE`, is not in `arrays` and is not compressed
-    names = [name for name in _TRIMKIT_DRACO_ATTRIBUTES if attributes.get(name) in arrays]
+    # draco attribute `i` is `names[i]`, each a `DracoKind` by its name's
+    # prefix: anything the exporter stored itself, like a custom
+    # `_ATTRIBUTE`, is not in `arrays` and is not compressed
+    names = [
+        name
+        for name in ("POSITION", "COLOR_0", "TEXCOORD_0", "NORMAL")
+        if attributes.get(name) in arrays
+    ]
     values = [arrays[attributes[name]] for name in names]
     faces = arrays[primitive["indices"]].astype(np.int64)
     # each kind's default bits: 14 for positions, which is what blender emits
@@ -521,7 +522,9 @@ def trimkit_draco_encode(context: PrimitiveExportContext) -> bool | None:
     # and silently corrupt geometry in the exported file.
     ids = list(range(len(names)))
     decoded_faces, decoded = draco_decode(buffer, np.array(ids, dtype=np.int64))
-    if len(decoded_faces) != len(faces) or len(decoded[0]) != len(values[0]):
+    if len(decoded_faces) != len(faces) or [len(d) for d in decoded] != [
+        len(v) for v in values
+    ]:
         log.warning("draco round trip changed the vertex count, not compressing")
         return None
 

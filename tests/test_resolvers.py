@@ -84,7 +84,7 @@ def test_web_sessions(local_url):
 
     for library, session in sessions.items():
         if session is None:
-            with pytest.warns(DeprecationWarning, match="JANUARY 2028"):
+            with pytest.warns(DeprecationWarning, match="MAY 2028"):
                 resolver = g.trimesh.resolvers.WebResolver(local_url)
         else:
             resolver = g.trimesh.resolvers.WebResolver(local_url, session=session)

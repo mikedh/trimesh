@@ -7,7 +7,7 @@ import numpy as np
 from .. import caching, util
 from ..caching import hash_fast
 from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
-from ..typed import ArrayLike, Floating, Hashable, NDArray, Sequence
+from ..typed import ArrayLike, Floating, Hashable, NDArray, NDArray2D, Sequence
 
 # we compare to identity a lot
 _identity = np.eye(4)
@@ -56,16 +56,16 @@ class SceneGraph:
         # cache transformation matrices keyed with tuples
         self._cache = caching.Cache(self.__hash__)
 
-    def update(self, frame_to, frame_from=None, **kwargs):
+    def update(self, frame_to: Hashable, frame_from: Hashable | None = None, **kwargs):
         """
         Update a transform in the tree.
 
         Parameters
         ------------
-        frame_from : hashable object
+        frame_from : Hashable | None
           Usually a string (eg 'world').
           If left as None it will be set to self.base_frame
-        frame_to :  hashable object
+        frame_to : Hashable
           Usually a string (eg 'mesh_0')
         matrix : (4,4) float
           Homogeneous transformation matrix
@@ -77,7 +77,7 @@ class SceneGraph:
           Angle of rotation, in radians
         translation : (3,) float
           Distance to translate
-        geometry : hashable
+        geometry : Hashable
           Geometry object name, e.g. 'mesh_0'
         metadata: dictionary
           Optional metadata attached to the new frame
@@ -102,15 +102,15 @@ class SceneGraph:
 
     def get(
         self, frame_to: Hashable, frame_from: Hashable | None = None
-    ) -> tuple[NDArray[np.float64], Hashable | None]:
+    ) -> tuple[NDArray2D[np.float64], Hashable | None]:
         """
         Get the transform from one frame to another.
 
         Parameters
         ------------
-        frame_to : hashable
+        frame_to : Hashable
           Node name, usually a string (eg 'mesh_0')
-        frame_from : hashable
+        frame_from : Hashable | None
           Node name, usually a string (eg 'world').
           If None it will be set to self.base_frame
 
@@ -397,7 +397,7 @@ class SceneGraph:
 
         Parameters
         -------------
-        edgelist : (n,) tuples
+        edges : (n,) tuples
           Keyed (node_a, node_b, {key: value})
         strict : bool
           If True raise a ValueError when a
@@ -502,20 +502,51 @@ class SceneGraph:
         Returns
         ------------
         matrices : (k, 4, 4) float
-          Each node's transform from the base frame.
+          Each node's transform from the base frame, as `get` returns it.
         index : (k,) int
           The position in `geometry` of each node's geometry.
         """
         # cleared with everything else in the cache when the graph changes
-        key = ("instance_matrices", tuple(geometry))
+        key = ("instance_matrices", self.base_frame, tuple(geometry))
         cached = self._cache[key]
         if cached is not None:
             return cached
+
+        forest = self.transforms
+        nodes, parent, edges, backward, levels = forest.traversal(self.base_frame)
+        placed = self.nodes_geometry
+        if not set(placed).issubset(nodes):
+            raise ValueError(f"No path from {self.base_frame} to every node!")
+
+        # every node's edge from its parent, then from the base frame down
+        world = np.zeros((len(nodes), 4, 4), dtype=np.float64)
+        world[0] = _identity
+        world[1:] = np.reshape(
+            [forest.edge_data[edge]["matrix"] for edge in edges], (-1, 4, 4)
+        )
+        world[1:][backward] = np.linalg.inv(world[1:][backward])
+        # `get` returns a single forward edge exactly as stored but
+        # drops near-identity matrices from any longer path
+        direct = np.flatnonzero((parent[1:] == 0) & ~backward) + 1
+        stored = world[direct]
+        world[np.abs(world - _identity).max(axis=(1, 2)) <= 1e-8] = _identity
+        for start, stop in itertools.pairwise(levels[1:]):
+            world[start:stop] = world[parent[start:stop]] @ world[start:stop]
+        world[direct] = stored
+        if self.repair_rigid is not None:
+            world = fix_rigid(world, max_deviance=self.repair_rigid)
+
+        row = {node: index for index, node in enumerate(nodes)}
         position = {name: index for index, name in enumerate(geometry)}
-        placed = [self.get(node) for node in self.nodes_geometry]
-        matrices = np.array([row[0] for row in placed], dtype=np.float64)
-        index = np.array([position[row[1]] for row in placed], dtype=np.int64)
-        self._cache[key] = (matrices.reshape((-1, 4, 4)), index)
+        node_data = forest.node_data
+        matrices = world[np.array([row[node] for node in placed], dtype=np.int64)]
+        index = np.array(
+            [position[node_data[node]["geometry"]] for node in placed], dtype=np.int64
+        )
+        # shared by every query so an edit can't corrupt the cache
+        matrices.flags.writeable = False
+        index.flags.writeable = False
+        self._cache[key] = (matrices, index)
         return self._cache[key]
 
     @caching.cache_decorator
@@ -565,7 +596,7 @@ class SceneGraph:
     def __contains__(self, key: Hashable) -> bool:
         return key in self.transforms.node_data
 
-    def __getitem__(self, key: Hashable) -> tuple[NDArray[np.float64], Hashable | None]:
+    def __getitem__(self, key: Hashable) -> tuple[NDArray2D[np.float64], Hashable | None]:
         return self.get(key)
 
     def __setitem__(self, key: Hashable, value: ArrayLike):
@@ -605,16 +636,16 @@ class EnforcedForest:
         # but the connectivity hasn't changed return cached
         self._cache = {}
 
-    def add_edge(self, u, v, **kwargs):
+    def add_edge(self, u: Hashable, v: Hashable, **kwargs):
         """
         Add an edge to the forest cleanly.
 
         Parameters
         -----------
-        u : any
-          Hashable node key.
-        v : any
-          Hashable node key.
+        u : Hashable
+          Node key.
+        v : Hashable
+          Node key.
         kwargs : dict
            Stored as (u, v) edge data.
 
@@ -649,14 +680,14 @@ class EnforcedForest:
 
         return True
 
-    def remove_node(self, u):
+    def remove_node(self, u: Hashable):
         """
         Remove a node from the forest.
 
         Parameters
         -----------
-        u : any
-          Hashable node key.
+        u : Hashable
+          Node key.
 
         Returns
         --------
@@ -688,7 +719,7 @@ class EnforcedForest:
 
         return True
 
-    def shortest_path(self, u, v):
+    def shortest_path(self, u: Hashable, v: Hashable):
         """
         Find the shortest path between `u` and `v`, returning
         a path where the first element is always `u` and the
@@ -696,10 +727,10 @@ class EnforcedForest:
 
         Parameters
         -----------
-        u : any
-          Hashable node key.
-        v : any
-          Hashable node key.
+        u : Hashable
+          Node key.
+        v : Hashable
+          Node key.
 
         Returns
         -----------
@@ -801,15 +832,15 @@ class EnforcedForest:
         self._cache["children"] = dict(child)
         return self._cache["children"]
 
-    def successors(self, node):
+    def successors(self, node: Hashable):
         """
         Get all nodes that are successors to specified node,
         including the specified node.
 
         Parameters
         -------------
-        node : any
-          Hashable key for a node.
+        node : Hashable
+          Key for a node.
 
         Returns
         ------------
@@ -838,6 +869,59 @@ class EnforcedForest:
                 queue.extend(childs)
                 collected.update(childs)
         return collected
+
+    def traversal(self, root: Hashable) -> tuple:
+        """
+        Every node reachable from `root` in breadth first order by
+        depth, which only changes when the forest's edges do.
+
+        Parameters
+        -------------
+        root : Hashable
+          The node to traverse from.
+
+        Returns
+        ------------
+        nodes : list
+          Every reachable node, `root` first.
+        parent : (n,) int
+          The position in `nodes` of each node's predecessor.
+        edges : (n - 1,) list of (u, v)
+          The edge from each node after `root` to its predecessor.
+        backward : (n - 1,) bool
+          Whether that edge points toward `root` and so is inverted.
+        levels : list of int
+          Where each depth starts in `nodes`.
+        """
+        key = ("traversal", "from", root)
+        if key in self._cache:
+            return self._cache[key]
+        children, parents = self.children, self.parents
+        nodes, parent, edges, backward, levels = [root], [0], [], [], [0, 1]
+        seen = {root}
+        while levels[-1] > levels[-2]:
+            for row in range(levels[-2], levels[-1]):
+                u = nodes[row]
+                near = [(v, (u, v), False) for v in children.get(u, [])]
+                if u in parents:
+                    near.append((parents[u], (parents[u], u), True))
+                for v, edge, flipped in near:
+                    if v in seen:
+                        continue
+                    seen.add(v)
+                    nodes.append(v)
+                    parent.append(row)
+                    edges.append(edge)
+                    backward.append(flipped)
+            levels.append(len(nodes))
+        self._cache[key] = (
+            nodes,
+            np.array(parent, dtype=np.int64),
+            edges,
+            np.array(backward, dtype=bool),
+            levels[:-1],
+        )
+        return self._cache[key]
 
     def __hash__(self):
         """

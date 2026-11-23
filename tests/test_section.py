@@ -283,9 +283,7 @@ class SliceTest(g.unittest.TestCase):
         neck_plane_origin = g.np.array([-0.0441905, 0.124347, 0.0235287])
         neck_plane_normal = g.np.array([0.35534835, -0.93424839, -0.03012456])
 
-        dots = g.np.einsum(
-            "i,ij->j", neck_plane_normal, (bunny.vertices - neck_plane_origin).T
-        )
+        dots = g.np.dot(bunny.vertices - neck_plane_origin, neck_plane_normal)
         signs = g.np.zeros(len(bunny.vertices), dtype=g.np.int8)
         signs[dots < -g.tol.merge] = 1
         signs[dots > g.tol.merge] = -1
@@ -493,6 +491,56 @@ class SliceTest(g.unittest.TestCase):
             dot = g.np.dot(n, (sliced_capped.vertices - o).T)
             # should be lots of stuff at the plane and nothing behind
             assert g.np.isclose(dot.min(), 0.0)
+
+
+@g.pytest.mark.parametrize("offset", [-0.5, 0.5])
+def test_slice_cap_near_vertex(offset):
+    # a plane within `tol.merge` of a vertex must reuse it exactly
+    # or the capped halves will have a crack in them
+    mesh = g.trimesh.creation.box()
+    normal = g.trimesh.unitize([1.0, -1.0, 7.0])
+    origin = mesh.vertices[0] + offset * g.tol.merge * normal
+    positive = mesh.slice_plane(origin, normal, cap=True)
+    negative = mesh.slice_plane(origin, -normal, cap=True)
+    assert positive.is_volume and negative.is_volume
+    assert positive.euler_number == negative.euler_number == 2
+    assert abs(positive.volume + negative.volume - mesh.volume) < 1e-6
+
+
+def test_slice_uv_linear():
+    # UVs that are a linear function of position must stay exact after
+    # slicing and the UVs must not change the sliced geometry
+    mesh = g.trimesh.creation.icosphere(subdivisions=5)
+    vertices, faces = mesh.vertices.view(g.np.ndarray), mesh.faces.view(g.np.ndarray)
+    normal = g.trimesh.unitize([1.0, -1.0, 7.0])
+    origin = [0.1, 0.2, 0.3]
+
+    tic = [g.time.time()]
+    a = g.trimesh.intersections.slice_faces_plane(vertices, faces, normal, origin)
+    tic.append(g.time.time())
+    b = g.trimesh.intersections.slice_faces_plane(
+        vertices, faces, normal, origin, uv=vertices[:, :2]
+    )
+    tic.append(g.time.time())
+
+    assert (a[0] == b[0]).all() and (a[1] == b[1]).all()
+    # every vertex is on the kept side and the cut added vertices on the plane
+    distance = g.np.dot(b[0] - origin, normal)
+    assert (distance > -g.tol.merge).all()
+    assert (g.np.abs(distance) < g.tol.merge).sum() > 0
+    assert g.np.allclose(b[2], b[0][:, :2])
+    g.log.info("slice without, with uv: %s seconds", g.np.diff(tic))
+
+    # a zero-area sliver made the old barycentric UVs NaN
+    vertices = g.np.array([[0, 0, -1], [0, 0, 1], [0, 0, 0.5], [1, 0, -1]], dtype=float)
+    sliced = g.trimesh.intersections.slice_faces_plane(
+        vertices,
+        g.np.array([[0, 1, 2], [0, 3, 1]]),
+        [0, 0, 1],
+        [0, 0, 0],
+        uv=vertices[:, [0, 2]],
+    )
+    assert g.np.allclose(sliced[2], sliced[0][:, [0, 2]])
 
 
 if __name__ == "__main__":

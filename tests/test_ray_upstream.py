@@ -394,7 +394,10 @@ def test_issue_457_multihit_cylinder_count():
         origins = np.array([[x, y, -5.0] for x in xy for y in xy])
         directions = np.tile([[0.0, 0.0, 1.0]], (len(origins), 1))
 
-        _tri, index_ray = mesh.ray.intersects_id(origins, directions, multiple_hits=True)
+        # counted by location so a hit on a shared edge counts once
+        _locations, index_ray, _tri = mesh.ray.intersects_location(
+            origins, directions, multiple_hits=True
+        )
 
         # histogram hits-per-ray; every ray must have exactly 2 hits
         hits_per_ray = np.bincount(index_ray, minlength=len(origins))

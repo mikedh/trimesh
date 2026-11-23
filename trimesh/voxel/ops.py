@@ -128,15 +128,15 @@ def matrix_to_marching_cubes(
     else:
         matrix = np.asanyarray(matrix, dtype=bool)
 
-    try:
+    if util.has_module("trimkit"):
         from trimkit import contour
 
         # vertices are in index space with cell `i` centered at `i`
         vertices, faces, _ = contour(matrix)
         return Trimesh(vertices=vertices * pitch, faces=faces)
-    except ImportError:
-        # scikit-image fallback: delete with its deprecation
-        from skimage import measure
+
+    # scikit-image fallback: delete with its deprecation
+    from skimage import measure
 
     rev_matrix = np.logical_not(matrix)  # Takes set about 0.
     # Add in padding so marching cubes can function properly with

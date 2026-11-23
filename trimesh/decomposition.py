@@ -1,5 +1,7 @@
 import numpy as np
 
+from . import util
+
 
 def convex_decomposition(mesh, **kwargs) -> list[dict]:
     """
@@ -20,13 +22,15 @@ def convex_decomposition(mesh, **kwargs) -> list[dict]:
     minEdgeLength                     2
     findBestPlane                     False
 
+    With `trimkit` installed `maxConvexHulls`, `resolution`,
+    `minimumVolumePercentErrorAllowed` and `maxNumVerticesPerCH`
+    are passed to `trimkit.decompose` and the others to `vhacdx`.
+
     Parameters
     ----------
     mesh : trimesh.Trimesh
       Mesh to be decomposed into convex parts
-    **kwargs
-      Passed to `trimkit.decompose` if installed, i.e. `maximum_hulls`,
-      otherwise the VHACD keyword arguments above for `vhacdx`.
+    **kwargs : VHACD keyword arguments
 
     Returns
     -------
@@ -34,26 +38,25 @@ def convex_decomposition(mesh, **kwargs) -> list[dict]:
       List of **kwargs for Trimeshes that are nearly
       convex and approximate the original.
     """
-    try:
+    # the VHACD names documented above as trimkit names them
+    names = {
+        "maxConvexHulls": "maximum_hulls",
+        "resolution": "resolution",
+        "minimumVolumePercentErrorAllowed": "maximum_error",
+        "maxNumVerticesPerCH": "maximum_vertices",
+    }
+    if util.has_module("trimkit") and names.keys() >= kwargs.keys():
         from trimkit import decompose
 
-        # the VHACD names documented above as trimkit names them
-        names = {
-            "maxConvexHulls": "maximum_hulls",
-            "maxNumVerticesPerCH": "maximum_vertices",
-            "minimumVolumePercentErrorAllowed": "maximum_error",
-        }
         hulls = decompose(
             mesh.vertices.view(np.ndarray),
             mesh.faces.view(np.ndarray),
-            **{names.get(key, key): value for key, value in kwargs.items()},
+            **{names[key]: value for key, value in kwargs.items()},
         )
-        return [
-            {"vertices": hull_vertices, "faces": hull_faces}
-            for hull_vertices, hull_faces in hulls
-        ]
-    except ImportError:
-        from vhacdx import compute_vhacd
+        return [{"vertices": v, "faces": f} for v, f in hulls]
+
+    # vhacdx fallback: delete with its deprecation
+    from vhacdx import compute_vhacd
 
     # the faces are triangulated in a (len(face), ...vertex-index)
     # for vtkPolyData
@@ -65,6 +68,6 @@ def convex_decomposition(mesh, **kwargs) -> list[dict]:
     )
 
     return [
-        {"vertices": hull_vertices, "faces": hull_faces}
-        for hull_vertices, hull_faces in compute_vhacd(mesh.vertices, faces, **kwargs)
+        {"vertices": v, "faces": f}
+        for v, f in compute_vhacd(mesh.vertices, faces, **kwargs)
     ]

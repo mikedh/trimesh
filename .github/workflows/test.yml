@@ -41,6 +41,9 @@ jobs:
         python tests/test_minimal.py
     - name: Install Trimesh
       run: pip install --no-cache-dir .[easy,test]
+    - name: Install meshio on Windows
+      if: runner.os == 'Windows'
+      run: pip install --no-cache-dir meshio
     - name: Run Pytest
       run: |
         pytest

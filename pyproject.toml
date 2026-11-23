@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.10"
-version = "6.0.0rc0"
+version = "5.3.0"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -81,27 +81,28 @@ easy = [
     "scipy",
     "pillow",
 
-    # bundle of mature C/C++ collision, ray, simplification
+    # one compiled package for rays, collision, trees, triangulation,
+    # simplification, svg paths and draco on the newest Python
     "trimkit; python_version>='3.15'",
 
-    #### these are the bindings replaced by `trimkit`
+    #### the bindings `trimkit` replaces, installed before it existed
     "svg.path; python_version<'3.15'",
     "rtree; python_version<'3.15'",
     "embreex; platform_machine!='aarch64' and python_version<'3.15'",
     "vhacdx; python_version<'3.15'",
+    # old versions of mapbox_earcut produce incorrect values on numpy 2.0
     "mapbox_earcut >= 1.0.2; python_version<'3.15'",
 ]
 
 recommend = [
     "sympy",
     "pyglet<2",
-    "cascadio", # load `STEP` files
+    "cascadio", # load `STEP` and `IGES` files
 
-    #### Supplanted by `trimkit`
+    #### the bindings `trimkit` replaces, installed before it existed
     "scikit-image; python_version<'3.15'", # marching cubes
     "fast-simplification; python_version<'3.15'",
     "python-fcl; python_version<'3.15'", # do collision checks
-
 ]
 
 # stuff to run simple testing
@@ -119,17 +120,16 @@ test = [
 test_more = [
     "ezdxf",      # compare our DXF loading with theirs
     "meshio",     # load some FEA-adjacent format s
-    "xatlas",     # provide unwrapping for texturing
+    "xatlas; python_version<'3.15'", # provide unwrapping for texturing
     "pytest-beartype", # fail on bad type hints
     "matplotlib", # compare our color maps with theirs
     "pymeshlab; python_version<'3.14'", # compare our vertex counts
     "triangle; python_version<'3.14'",  # polygon tesselator
     "ipython",  # check the notebook stuff
     "marimo",   # different notebook stuff
-    "httpx",    # check WebResolver session compatibility
     "requests", # check WebResolver session compatibility
     "aiohttp",  # check WebResolver session compatibility
-    "DracoPy>=1.7.0",  # KHR_draco_mesh_compression for glTF, `attributes` added in 1.7.0
+    "DracoPy>=1.7.0; python_version<'3.15'",  # KHR_draco_mesh_compression for glTF, `attributes` added in 1.7.0
 ]
 
 # kept empty so downstream `trimesh[deprecated]` 
@@ -207,6 +207,10 @@ flake8-implicit-str-concat = {"allow-multiline" = false}
 "httpx".msg = "trimesh never opens a network connection: callers pass a `session`"
 "aiohttp".msg = "trimesh never opens a network connection: callers pass a `session`"
 "requests".msg = "trimesh never opens a network connection: callers pass a `session`"
+
+# arbitrarily banned because I find it hard to understand
+# and it's almost always slower than slicing and dot products
+"numpy.einsum".msg = "einsum is banned: use numpy.dot or numpy.matmul"
 
 [tool.codespell]
 skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"

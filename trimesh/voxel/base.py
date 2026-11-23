@@ -15,6 +15,7 @@ from .. import transformations as tr
 from ..constants import log
 from ..exchange.binvox import export_binvox
 from ..parent import Geometry
+from ..typed import ShapeLike
 from . import morphology, ops, transforms
 from .encoding import DenseEncoding, Encoding
 
@@ -204,14 +205,14 @@ class VoxelGrid(Geometry):
         is_filled[in_range] = self.encoding.gather_nd(indices[in_range])
         return is_filled
 
-    def fill(self, method="holes", **kwargs):
+    def fill(self, method: str = "holes", **kwargs):
         """
         Mutates self by filling in the encoding according
         to `morphology.fill`.
 
         Parameters
         ----------
-        method : hashable
+        method : str
           Implementation key, one of
           `trimesh.voxel.morphology.fill.fillers` keys
         **kwargs : dict
@@ -398,14 +399,14 @@ class VoxelGrid(Geometry):
                 f.write(exported)
         return exported
 
-    def revoxelized(self, shape):
+    def revoxelized(self, shape: ShapeLike):
         """
         Create a new VoxelGrid without rotations, reflections
         or shearing.
 
         Parameters
         ----------
-        shape : (3, int)
+        shape : (3,) int
           The shape of the returned VoxelGrid.
 
         Returns
@@ -414,14 +415,15 @@ class VoxelGrid(Geometry):
           Of the given shape with possibly non-uniform
           scale and translation transformation matrix.
         """
-        shape = tuple(shape)
-        bounds = self.bounds.copy()
-        extents = self.extents
-        points = util.grid_linspace(bounds, shape).reshape(shape + (3,))
+        shape = np.atleast_1d(shape)
+        if shape.shape != (3,):
+            raise ValueError(f"shape must be 3D, got {shape}")
+        scale = self.extents / shape
+        # the first and last cell centers of a grid spanning `self.bounds`
+        centers = self.bounds + np.array([scale, -scale]) / 2.0
+        points = util.grid_linspace(centers, shape).reshape((*shape, 3))
         dense = self.is_filled(points)
-        scale = extents / np.asanyarray(shape)
-        translate = bounds[0]
-        return VoxelGrid(dense, transform=tr.scale_and_translate(scale, translate))
+        return VoxelGrid(dense, transform=tr.scale_and_translate(scale, centers[0]))
 
     def __add__(self, other):
         raise NotImplementedError("TODO : implement voxel concatenation")

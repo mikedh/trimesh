@@ -21,6 +21,7 @@ import warnings
 import tempfile
 import unittest
 import threading
+import functools
 import itertools
 import contextlib
 import subprocess
@@ -136,13 +137,16 @@ if all_dependencies and not has_binvox:
 def ray_engines():
     """
     Every importable ray intersector and how close its hits
-    land: float64 engines to 1e-9, embree's float32 to 1e-4.
+    land: float64 engines to 1e-9, embree's float32 to 1e-4
+    both scaled to a unit box and as given.
     """
     engines = [(trimesh.ray.ray_triangle.RayMeshIntersector, 1e-9)]
     if trimesh.util.has_module("trimkit"):
         engines.append((trimesh.ray.tinybvh.RayMeshIntersector, 1e-9))
     if trimesh.ray.has_embree:
-        engines.append((trimesh.ray.ray_pyembree.RayMeshIntersector, 1e-4))
+        embree = trimesh.ray.ray_pyembree.RayMeshIntersector
+        engines.append((embree, 1e-4))
+        engines.append((functools.partial(embree, scale_to_box=False), 1e-4))
     return engines
 
 

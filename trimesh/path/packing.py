@@ -797,7 +797,7 @@ def roll_transform(bounds: ArrayLike, extents: ArrayLike) -> NDArray[float64]:
 def bounds_overlap(bounds, epsilon=1e-8):
     """
     Check to see if multiple axis-aligned bounding boxes
-    contains overlaps using a spatial tree.
+    contains overlaps using `rtree`.
 
     Parameters
     ------------

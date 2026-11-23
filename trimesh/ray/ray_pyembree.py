@@ -12,7 +12,6 @@ from embreex.mesh_construction import TriangleMesh
 from .. import caching, intersections, util
 from ..constants import log_time
 from ..typed import ArrayLike, Integer
-from .parent import RayParent
 from .ray_util import contains_points
 
 # embree operates on float32 values
@@ -23,8 +22,8 @@ _ray_offset_factor = 1e-6
 _ray_offset_floor = 1e-8
 
 
-class RayMeshIntersector(RayParent):
-    def __init__(self, geometry, scale_to_box: bool = True, meshes=None):
+class RayMeshIntersector:
+    def __init__(self, geometry, scale_to_box: bool = True):
         """
         Do ray- mesh queries.
 
@@ -36,12 +35,8 @@ class RayMeshIntersector(RayParent):
           If true, will scale mesh to approximate
           unit cube to avoid problems with extreme
           large or small meshes.
-        meshes : None or sequence of (vertices, faces)
-          `geometry` as the separate meshes it concatenates, each its
-          own embree geometry so hits report which, or `geometry` alone.
         """
         self.mesh = geometry
-        self.meshes = meshes
         self._scale_to_box = scale_to_box
         self._cache = caching.Cache(id_function=self.mesh.__hash__)
 
@@ -63,17 +58,15 @@ class RayMeshIntersector(RayParent):
         """
         A cached version of the embreex scene.
         """
-        meshes = self.meshes
-        if meshes is None:
-            meshes = [(self.mesh.vertices, self.mesh.faces)]
-        return _EmbreeWrap(meshes=meshes, scale=self._scale)
+        return _EmbreeWrap(
+            vertices=self.mesh.vertices, faces=self.mesh.faces, scale=self._scale
+        )
 
     def intersects_location(
         self,
         ray_origins: ArrayLike,
         ray_directions: ArrayLike,
         multiple_hits: bool = True,
-        return_instance: bool = False,
     ):
         """
         Return the location of where a ray hits a surface.
@@ -84,8 +77,6 @@ class RayMeshIntersector(RayParent):
           Origins of rays
         ray_directions : (n, 3) float
           Direction (vector) of rays
-        return_instance : bool
-          Also return which embree geometry each hit is on
 
         Returns
         ---------
@@ -95,18 +86,15 @@ class RayMeshIntersector(RayParent):
           Indexes of ray
         index_tri : (m,) int
           Indexes of mesh.faces
-        index_instance : (m,) int
-          Index into `meshes` of each hit, only if `return_instance`
         """
-        (index_tri, index_ray, locations, *instance) = self.intersects_id(
+        (index_tri, index_ray, locations) = self.intersects_id(
             ray_origins=ray_origins,
             ray_directions=ray_directions,
             multiple_hits=multiple_hits,
             return_locations=True,
-            return_instance=return_instance,
         )
 
-        return (locations, index_ray, index_tri, *instance)
+        return locations, index_ray, index_tri
 
     @log_time
     def intersects_id(
@@ -116,7 +104,6 @@ class RayMeshIntersector(RayParent):
         multiple_hits: bool = True,
         max_hits: Integer = 100,
         return_locations: bool = False,
-        return_instance: bool = False,
     ):
         """
         Find the triangles hit by a list of rays, including
@@ -136,8 +123,6 @@ class RayMeshIntersector(RayParent):
           Maximum number of hits per ray
         return_locations : bool
           Should we return hit locations or not
-        return_instance : bool
-          Also return which embree geometry each hit is on
 
         Returns
         ---------
@@ -147,8 +132,6 @@ class RayMeshIntersector(RayParent):
           Indexes of ray
         locations : (m) sequence of (p, 3) float
           Intersection points, only returned if return_locations
-        index_instance : (m,) int
-          Index into `meshes` of each hit, only if `return_instance`
         """
 
         # make sure input is _dtype for embree
@@ -162,7 +145,6 @@ class RayMeshIntersector(RayParent):
         result_triangle = [np.zeros(0, dtype=np.int64)]
         result_ray_idx = [np.zeros(0, dtype=np.int64)]
         result_locations = [np.zeros((0, 3), dtype=np.float64)]
-        result_instance = [np.zeros(0, dtype=np.int64)]
 
         if multiple_hits or return_locations:
             # how much to offset ray to transport to the other side of face
@@ -171,8 +153,7 @@ class RayMeshIntersector(RayParent):
 
             # grab the planes from triangles
             plane_origins = self.mesh.triangles[:, 0, :]
-            # from the vertices, as stored normals can be off by degrees
-            plane_normals = util.unitize(self.mesh.triangles_cross)
+            plane_normals = self.mesh.face_normals
 
         # what each ray hit last iteration; -1 means nothing, used to
         # detect a ray stuck on the same face due to precision issues
@@ -188,14 +169,7 @@ class RayMeshIntersector(RayParent):
             # if you set output=1 embreex returns distance along the ray
             # which is bizarrely slower than our own plane-line calc
             # TODO: switch `run(..., output=True)` once embreex>=4.4.0rc1 is stable
-            query = self._scene.run(
-                ray_origins[live], ray_directions[live], return_geometry=return_instance
-            )
-            if return_instance:
-                query, geometry = query
-            else:
-                # unused: gathered alongside the hits only to keep one code path
-                geometry = query
+            query = self._scene.run(ray_origins[live], ray_directions[live])
             hit = query != -1
             if not hit.any():
                 break
@@ -203,13 +177,11 @@ class RayMeshIntersector(RayParent):
             # absolute indices and triangle indices for rays that hit
             hit_rays = live[hit]
             hit_tris = query[hit]
-            hit_geometry = geometry[hit]
 
             # first-hit-only fast path: no duplicates or locations to track
             if not multiple_hits and not return_locations:
                 result_triangle.append(hit_tris)
                 result_ray_idx.append(hit_rays)
-                result_instance.append(hit_geometry)
                 break
 
             # rays that hit the same triangle as last iteration are stuck
@@ -219,7 +191,6 @@ class RayMeshIntersector(RayParent):
             # subset to separate duplicates and non-duplicates
             ok_rays = hit_rays[~dupe]
             ok_tris = hit_tris[~dupe]
-            ok_geometry = hit_geometry[~dupe]
             dupe_rays = hit_rays[dupe]
 
             # compute where clean hits actually land on their triangle;
@@ -232,12 +203,10 @@ class RayMeshIntersector(RayParent):
                 line_directions=ray_directions[ok_rays],
             )
             ok_rays, ok_tris = ok_rays[valid], ok_tris[valid]
-            ok_geometry = ok_geometry[valid]
 
             result_locations.append(new_origins)
             result_triangle.append(ok_tris)
             result_ray_idx.append(ok_rays)
-            result_instance.append(ok_geometry)
 
             if not multiple_hits:
                 break
@@ -253,15 +222,14 @@ class RayMeshIntersector(RayParent):
             # dropped rays (misses, near-parallel planes) die here
             live = np.concatenate([ok_rays, dupe_rays])
 
-        result = [np.concatenate(result_triangle), np.concatenate(result_ray_idx)]
+        index_tri = np.concatenate(result_triangle)
+        index_ray = np.concatenate(result_ray_idx)
         if return_locations:
-            result.append(np.concatenate(result_locations))
-        if return_instance:
-            result.append(np.concatenate(result_instance))
-        return tuple(result)
+            return index_tri, index_ray, np.concatenate(result_locations)
+        return index_tri, index_ray
 
     @log_time
-    def intersects_first(self, ray_origins, ray_directions, return_instance=False):
+    def intersects_first(self, ray_origins, ray_directions):
         """
         Find the index of the first triangle a ray hits.
 
@@ -272,16 +240,11 @@ class RayMeshIntersector(RayParent):
           Origins of rays
         ray_directions : (n, 3) float
           Direction (vector) of rays
-        return_instance : bool
-          Also return which embree geometry each first hit is on
 
         Returns
         ----------
         triangle_index : (n,) int
           Index of triangle ray hit, or -1 if not hit
-        instance_index : (n,) int
-          Index into `meshes` of each first hit, or -1 if not hit,
-          only returned if `return_instance`
         """
         # make sure our arrays are in the `embree` dtype
         ray_origins = np.array(ray_origins, dtype=_embree_dtype)
@@ -290,8 +253,6 @@ class RayMeshIntersector(RayParent):
             raise ValueError("Ray origin and direction don't match!")
         ray_directions = util.unitize(ray_directions)
 
-        if return_instance:
-            return self._scene.run(ray_origins, ray_directions, return_geometry=True)
         return self._scene.run(ray_origins, ray_directions)
 
     def intersects_any(self, ray_origins, ray_directions):
@@ -350,9 +311,7 @@ class RayMeshIntersector(RayParent):
         return self.__copy__()
 
     def __copy__(self, *args):
-        return RayMeshIntersector(
-            geometry=self.mesh, scale_to_box=self._scale_to_box, meshes=self.meshes
-        )
+        return RayMeshIntersector(geometry=self.mesh, scale_to_box=self._scale_to_box)
 
 
 class _EmbreeWrap:
@@ -362,52 +321,23 @@ class _EmbreeWrap:
     issues, as well as selecting the correct dtypes.
     """
 
-    def __init__(self, meshes, scale):
-        vertices = [np.array(v, dtype=np.float64) for v, _ in meshes]
-        self.origin = np.vstack(vertices).min(axis=0)
+    def __init__(self, vertices, faces, scale):
+        scaled = np.array(vertices, dtype=np.float64)
+        self.origin = scaled.min(axis=0)
         self.scale = float(scale)
-        # where each geometry's faces start in their concatenation
-        self.offsets = np.cumsum([0] + [len(f) for _, f in meshes[:-1]], dtype=np.int64)
+        scaled = (scaled - self.origin) * self.scale
 
         self.scene = rtcore_scene.EmbreeScene()
-        # assign each geometry to the scene, which embree numbers in order
-        for scaled, (_, faces) in zip(vertices, meshes):
-            TriangleMesh(
-                scene=self.scene,
-                vertices=((scaled - self.origin) * self.scale).astype(_embree_dtype),
-                indices=np.asarray(faces).astype(np.int32),
-            )
+        # assign the geometry to the scene
+        TriangleMesh(
+            scene=self.scene,
+            vertices=scaled.astype(_embree_dtype),
+            indices=faces.view(np.ndarray).astype(np.int32),
+        )
 
-    def run(self, origins, normals, return_geometry=False):
-        """
-        The concatenated face each ray hits first, or -1.
-
-        Parameters
-        ----------
-        origins : (n, 3) float
-          Origins of rays
-        normals : (n, 3) float
-          Direction (vector) of rays
-        return_geometry : bool
-          Also return the embree geometry of each hit, or -1
-
-        Returns
-        ----------
-        faces : (n,) int
-          Face in the concatenated meshes, or -1
-        geometry : (n,) int
-          Embree geometry, only returned if `return_geometry`
-        """
+    def run(self, origins, normals, **kwargs):
         scaled = (np.array(origins, dtype=np.float64) - self.origin) * self.scale
-        scaled, normals = scaled.astype(_embree_dtype), normals.astype(_embree_dtype)
-        if len(self.offsets) == 1 and not return_geometry:
-            # one geometry: embree's own face index is already global
-            return self.scene.run(scaled, normals)
-        query = self.scene.run(scaled, normals, output=1)
-        geometry = query["geomID"].astype(np.int64)
-        faces = query["primID"].astype(np.int64)
-        hit = geometry >= 0
-        faces[hit] += self.offsets[geometry[hit]]
-        if return_geometry:
-            return faces, geometry
-        return faces
+
+        return self.scene.run(
+            scaled.astype(_embree_dtype), normals.astype(_embree_dtype), **kwargs
+        )

@@ -182,6 +182,33 @@ def test_scene_transform():
         assert g.np.allclose(scene.graph[node][0], matrix)
     assert g.np.allclose(T @ before, matrices)
 
+    # a deep random forest with identity and near-identity edges queried
+    # from base frames that are not its root, against `get` per node
+    random = g.np.random.default_rng(0)
+    graph = g.trimesh.scene.transforms.SceneGraph()
+    frames = ["world"]
+    for i in range(300):
+        matrix = g.trimesh.transformations.random_rotation_matrix(random.random(3))
+        matrix[:3, 3] = random.random(3) * 100
+        if i % 7 == 0:
+            matrix = g.np.eye(4)
+        if i % 11 == 0:
+            matrix = g.np.eye(4)
+            matrix[:3, 3] = 5e-9
+        parent = frames[int(random.integers(max(0, len(frames) - 20), len(frames)))]
+        graph.update(f"n{i}", parent, matrix=matrix, geometry=f"g{i % 3}")
+        frames.append(f"n{i}")
+    names = ["g2", "g0", "g1"]
+    for base in ["world", "n150", "n299"]:
+        graph.base_frame = base
+        matrices, index = graph.instance_matrices(names)
+        assert not matrices.flags.writeable
+        expected = [graph[node] for node in graph.nodes_geometry]
+        assert [names[i] for i in index] == [e[1] for e in expected]
+        reference = g.np.array([e[0] for e in expected])
+        scale = g.np.abs(reference).max()
+        assert g.np.allclose(matrices, reference, rtol=0.0, atol=1e-12 * scale)
+
 
 def test_simplify():
     if not (

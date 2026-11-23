@@ -24,11 +24,14 @@ class CollisionTest(g.unittest.TestCase):
         tf2 = g.np.eye(4)
         tf2[:3, 3] = g.np.array([-5, 0, 0])
 
-        # Test one-to-many collision checking, warned once and quietly
-        # ahead of its deprecation as python-fcl is unmaintained
-        with g.pytest.warns(PendingDeprecationWarning, match="Scene.collision") as caught:
+        # Test one-to-many collision checking, deprecated with a warning
+        # only where its replacement `Scene.collision` works
+        with g.warnings.catch_warnings(record=True) as caught:
+            g.warnings.simplefilter("always")
             m = g.trimesh.collision.CollisionManager()
-        assert len(caught) == 1
+        deprecated = [w for w in caught if "Scene.collision" in str(w.message)]
+        assert len(deprecated) == int(g.trimesh.util.has_module("trimkit"))
+        assert all(w.category is DeprecationWarning for w in deprecated)
         m.add_object("cube0", cube)
         m.add_object("cube1", cube, tf1)
 
@@ -278,9 +281,11 @@ def test_scene_collides():
             return g.np.linalg.norm(gaps)
         return -(1.0 - separation).min()
 
+    from trimkit import CollisionScene
+
     # the scene's trimkit scene, which every trimkit query works on
     collision = scene.collision
-    assert isinstance(collision, g.trimesh.collision.CollisionScene)
+    assert isinstance(collision, CollisionScene)
     nodes = collision.nodes
     lookup = {node: instance for instance, node in enumerate(nodes)}
 
@@ -321,7 +326,7 @@ def test_scene_collides():
     single = g.np.zeros(1, dtype=g.np.int64)
     with g.pytest.raises(TypeError):
         collision.collides(alone, single)
-    assert len(g.trimesh.collision.CollisionScene.collides(collision, alone, single)) == 0
+    assert len(CollisionScene.collides(collision, alone, single)) == 0
 
     # it pickles as itself with its scene, and the scene pickles with it built
     restored = g.pickle.loads(g.pickle.dumps(collision))

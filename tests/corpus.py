@@ -21,6 +21,18 @@ from pyinstrument.renderers.jsonrenderer import JSONRenderer
 import trimesh
 from trimesh.util import log, wrap_as_stream
 
+# pinned `(repo, commit, root)` corpuses checked by `run`
+REPOS = [
+    # the small trimesh corpus
+    ("mikedh/trimesh", "76b6dd1a2f552673b3b38ffd44ce4342d4e95273", "models"),
+    # the assimp corpus, about 50mb
+    ("assimp/assimp", "ab28db52f022a7268ffff499cd85bbabf84c4271", "test"),
+    # the gltf-sample-models, about 1gb
+    ("KhronosGroup/glTF-Sample-Models", "8e9a5a6ad1a2790e2333e3eb48a1ee39f9e0e31b", None),
+    # the universal robot models
+    ("ros-industrial/universal_robot", "8f01aa1934079e5a2c859ccaa9dd6623d4cfa2fe", None),
+]
+
 
 @dataclass
 class LoadReport:
@@ -409,42 +421,13 @@ def run(save: bool = False) -> Report:
     )
 
     with Profiler() as P:
-        # check against the small trimesh corpus
-        loads = on_repo(
-            repo="mikedh/trimesh",
-            commit="76b6dd1a2f552673b3b38ffd44ce4342d4e95273",
-            available=available,
-            root="models",
-        )
-
-        # check the assimp corpus, about 50mb
-        loads.extend(
-            on_repo(
-                repo="assimp/assimp",
-                commit="ab28db52f022a7268ffff499cd85bbabf84c4271",
-                available=available,
-                root="test",
+        loads = []
+        for repo, commit, root in REPOS:
+            loads.extend(
+                on_repo(repo=repo, commit=commit, available=available, root=root)
             )
-        )
-        # check the gltf-sample-models, about 1gb
-        loads.extend(
-            on_repo(
-                repo="KhronosGroup/glTF-Sample-Models",
-                commit="8e9a5a6ad1a2790e2333e3eb48a1ee39f9e0e31b",
-                available=available,
-            )
-        )
         # check draco decoding against the uncompressed originals
         compare_draco()
-
-        # try on the universal robot models
-        loads.extend(
-            on_repo(
-                repo="ros-industrial/universal_robot",
-                commit="8f01aa1934079e5a2c859ccaa9dd6623d4cfa2fe",
-                available=available,
-            )
-        )
 
     # show all profiler lines
     log.info(P.output_text(show_all=True))
