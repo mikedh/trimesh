@@ -34,7 +34,7 @@ def subdivide(
       if None: all faces of mesh will be subdivided
       if (n,) int array of indices: only specified faces
     vertex_attributes : dict
-      Contains (n, d) attribute data
+      Contains (n,) or (n, d) attribute data
     return_index : bool
       If True, return index of original face for new faces
 
@@ -95,7 +95,7 @@ def subdivide(
             if len(values) != len(vertices):
                 continue
             attr_mid = values[edges[unique]].mean(axis=1)
-            new_attributes[key] = np.vstack((values, attr_mid))
+            new_attributes[key] = np.concatenate((values, attr_mid))
         return new_vertices, new_faces, new_attributes
 
     if return_index:

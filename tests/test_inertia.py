@@ -478,6 +478,20 @@ def test_points_inertia():
             assert g.np.allclose(summed, g.np.sum(collect, axis=0))
 
 
+@g.pytest.mark.parametrize(
+    "dtype", [float, int, g.np.int32, g.np.float16, g.np.float32, g.np.float64]
+)
+@g.pytest.mark.parametrize("at_center_mass", [True, False])
+def test_points_inertia_scalar_weight(dtype, at_center_mass):
+    points = [[0, 0, 0], [2, 0, 0]]
+    result = g.trimesh.inertia.points_inertia(
+        points, weights=dtype(2), at_center_mass=at_center_mass
+    )
+    expected = g.np.diag([0, 4, 4] if at_center_mass else [0, 8, 8])
+    g.np.testing.assert_allclose(result, expected)
+    assert result.shape == (3, 3)
+
+
 def test_points_inertia_sample():
     # check to see that randomly sampled volume of a box
     # moved somewhere in space is "about equal" with the

@@ -247,8 +247,8 @@ class Scene(Geometry3D):
 
         Parameters
         --------------
-        name : hashable
-          Name that references self.geometry
+        names : str | set | Sequence
+          One or more names that reference self.geometry
         """
         # make sure we have a set we can check
         if isinstance(names, str):
@@ -492,13 +492,20 @@ class Scene(Geometry3D):
         graph = self.graph
         instance = [graph[n] for n in graph.nodes_geometry]
 
+        # only instances whose geometry has mass properties can
+        # contribute to the center of mass: other geometry types
+        # (e.g. Path3D) have neither a center of mass nor a mass, and
+        # including them here either raised a KeyError or misaligned
+        # the transformed centers with their weights
+        instance = [(mat, g) for mat, g in instance if g in center_mass and g in mass]
+        if len(instance) == 0:
+            raise ValueError(
+                "Scene has no geometry with mass properties: center of mass is undefined"
+            )
+
         # get the transformed center of mass for each instance
         transformed = np.array(
-            [
-                np.dot(mat, np.append(center_mass[g], 1))[:3]
-                for mat, g in instance
-                if g in center_mass
-            ],
+            [np.dot(mat, np.append(center_mass[g], 1))[:3] for mat, g in instance],
             dtype=np.float64,
         )
         # weight the center of mass locations by volume
@@ -567,10 +574,13 @@ class Scene(Geometry3D):
           Summed area of every instanced geometry
         """
         # get the area of every geometry that has a volume attribute
-        volume = {n: g.volume for n, g in self.geometry.items() if hasattr(g, "area")}
-        # sum the area including instancing
-        return sum(
-            (volume.get(self.graph[n][1], 0.0) for n in self.graph.nodes_geometry), 0.0
+        volume = {n: g.volume for n, g in self.geometry.items() if hasattr(g, "volume")}
+        # sum the volume including instancing
+        return float64(
+            sum(
+                (volume.get(self.graph[n][1], 0.0) for n in self.graph.nodes_geometry),
+                0.0,
+            )
         )
 
     @caching.cache_decorator
@@ -700,8 +710,6 @@ class Scene(Geometry3D):
 
         Parameters
         ----------
-        scene
-        The scene to handle.
         cost_threshold
         The maximum value for `procrustes` cost which is "squared mean
         vertex distance between pair". If the fit is above this value
@@ -732,8 +740,6 @@ class Scene(Geometry3D):
           Distance from centroid
         center : (3,) float
           Point camera should be center on
-        camera : Camera object
-          Object that stores camera parameters
         """
 
         if fov is None:
@@ -1050,8 +1056,8 @@ class Scene(Geometry3D):
 
         Parameters
         ------------
-        node
-          Hashable key in `scene.graph`
+        node : Hashable
+          Key in `scene.graph`
 
         Returns
         -----------
@@ -1588,30 +1594,30 @@ def append_scenes(iterable, common=None, base_frame="world"):
     if common is None:
         common = [base_frame]
 
+    result = Scene(base_frame=base_frame)
     # save geometry in dict
     geometry = {}
     # save transforms as edge tuples
     edges = []
-    result = Scene(base_frame=base_frame)
 
     # nodes which shouldn't be remapped
     common = set(common)
     # nodes which are consumed and need to be remapped
     consumed = set()
 
-    def node_remap(node):
+    def node_remap(node: Hashable) -> Hashable:
         """
         Remap node to new name if necessary
 
         Parameters
         -------------
-        node : hashable
-           Node name in original scene
+        node : Hashable
+          Node name in original scene
 
         Returns
         -------------
-        name : hashable
-           Node name in concatenated scene
+        name : Hashable
+          Node name in concatenated scene
         """
 
         # if we've already remapped a node use it
@@ -1667,6 +1673,11 @@ def append_scenes(iterable, common=None, base_frame="world"):
                 attr["geometry"] = map_geom[attr["geometry"]]
             # save the new edge
             edges.append((a, b, attr))
+        # Geometry references are remapped by the edges above.
+        for node, attr in s.graph.transforms.node_data.items():
+            data = {k: v for k, v in attr.items() if k != "geometry"}
+            if data:
+                result.graph.transforms.node_data[node_remap(node)].update(deepcopy(data))
         # mark nodes from current scene as consumed
         consumed.update(current)
 
@@ -1675,6 +1686,7 @@ def append_scenes(iterable, common=None, base_frame="world"):
         # later metadata wins
         result.metadata.update(deepcopy(s.metadata))
 
+    # add geometry and transforms to the scene
     result.graph.from_edgelist(edges)
     result.geometry.update(geometry)
 

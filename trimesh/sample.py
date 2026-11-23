@@ -10,7 +10,7 @@ from logging import getLogger
 import numpy as np
 
 from . import transformations
-from .typed import ArrayLike, Integer, NDArray, Number, Seed, float64
+from .typed import ArrayLike, Integer, NDArray, NDArray2D, Number, Seed, float64
 from .util import random_generator, spherical_to_vector
 from .visual import uv_to_interpolated_color
 
@@ -250,7 +250,7 @@ def sample_surface_even(
     return points, index[mask]
 
 
-def sample_surface_sphere(count: int, seed: Seed = None) -> NDArray[float64]:
+def sample_surface_sphere(count: Integer, seed: Seed = None) -> NDArray2D[float64]:
     """
     Correctly pick random points on the surface of a unit sphere
 
@@ -259,7 +259,7 @@ def sample_surface_sphere(count: int, seed: Seed = None) -> NDArray[float64]:
 
     Parameters
     -----------
-    count : int
+    count : Integer
       Number of points to return
     seed : None or int
       Seed for deterministic results, otherwise OS entropy.

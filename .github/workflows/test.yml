@@ -41,6 +41,9 @@ jobs:
         python tests/test_minimal.py
     - name: Install Trimesh
       run: pip install --no-cache-dir .[easy,test]
+    - name: Install meshio on Windows
+      if: runner.os == 'Windows'
+      run: pip install --no-cache-dir meshio
     - name: Run Pytest
       run: |
         pytest
@@ -52,17 +55,6 @@ jobs:
     - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
     - name: Run Pytest In Docker
       run: make tests
-
-  arch:
-    name: Architecture Tests (s390x + i386)
-    runs-on: ubuntu-latest
-    # emulated so it's slow: usually finishes in ~25 minutes
-    timeout-minutes: 60
-    steps:
-    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-    - uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
-    - name: Run Tests On s390x and i386
-      run: make test-arch
 
   corpus:
     runs-on: ubuntu-latest

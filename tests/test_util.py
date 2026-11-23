@@ -65,6 +65,32 @@ def test_jsonify():
     assert data["thing"].b == trip["thing"]["b"]
 
 
+@g.pytest.mark.parametrize("encoding", ["binary", "base64", "dict64"])
+@g.pytest.mark.parametrize("dtype", [None, "float32", "int64", ">f8", "<f8"])
+@g.pytest.mark.parametrize("layout", ["C", "F", "sliced"])
+def test_array_encoding_dtype(encoding, dtype, layout):
+    array = np.array([[1.25, -2.5], [3.75, 4.5], [5.25, -6.5]])
+    if layout == "F":
+        array = np.asfortranarray(array)
+    elif layout == "sliced":
+        array = array[::2]
+    original = array.copy()
+    expected = array.astype(dtype) if dtype is not None else array
+    encoded = trimesh.util.array_to_encoded(array, dtype=dtype, encoding=encoding)
+    decoded = trimesh.util.encoded_to_array(encoded)
+    assert decoded.dtype == expected.dtype
+    assert decoded.shape == expected.shape
+    np.testing.assert_array_equal(decoded, expected)
+    np.testing.assert_array_equal(array, original)
+
+
+def test_decode_keys():
+    # decoding mutates the dict so it can't iterate a live keys view
+    store = {1020: "nah", b"hi": "stuff", b"a": 1, b"b": 2}
+    assert trimesh.util.decode_keys(store) is store
+    assert list(store.items()) == [(1020, "nah"), ("hi", "stuff"), ("a", 1), ("b", 2)]
+
+
 def test_align():
     log.info("Testing vector alignment")
     target = np.array([0, 0, 1])

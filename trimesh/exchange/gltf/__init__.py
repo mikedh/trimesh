@@ -103,7 +103,7 @@ def export_gltf(
       want to include non-unit normals for shading reasons.
     resolver : trimesh.resolvers.Resolver
       If passed will use to write each file.
-    tree_postprocesser : None or callable
+    tree_postprocessor : None or callable
       Run this on the header tree before exiting.
     embed_buffers : bool
       Embed the buffer into JSON file as a base64 string in the URI
@@ -1052,9 +1052,8 @@ def _append_mesh(
         if not key.startswith("_"):
             key = "_" + key
 
-        # GLTF has no floating point type larger than 32 bits so clip
-        # any float64 or larger to float32
-        if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
+        # cast anything GLTF has no component type for to float32
+        if attrib.dtype.str[1:] not in _dtypes_lookup:
             data = attrib.astype(float32)
         else:
             # force little-endian to match GLTF binary format
@@ -1298,9 +1297,8 @@ def _append_path(path, name, tree, buffer_items):
         if not key.startswith("_"):
             key = "_" + key
 
-        # GLTF has no floating point type larger than 32 bits so clip
-        # any float64 or larger to float32
-        if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
+        # cast anything GLTF has no component type for to float32
+        if attrib.dtype.str[1:] not in _dtypes_lookup:
             data = attrib.astype(float32)
         else:
             # force little-endian to match GLTF binary format
@@ -1711,7 +1709,13 @@ def _read_buffers(
                     vertices = access[attr["POSITION"]]
                     # join GL_LINES pairs into polylines where the end
                     # and color of one match the start of the next
-                    pairs = np.arange(len(vertices)).reshape((-1, 2))
+                    pairs = np.arange(len(vertices) // 2 * 2).reshape((-1, 2))
+                    if len(vertices) % 2 == 1:
+                        # an odd count isn't GL_LINES but a strip, as cascadio
+                        # writes polylines, which joins to one polyline
+                        pairs = np.column_stack(
+                            (np.arange(len(vertices) - 1), np.arange(1, len(vertices)))
+                        )
                     keys = vertices
                     if "COLOR_0" in attr:
                         colors = access[attr["COLOR_0"]]
@@ -1876,38 +1880,47 @@ def _read_buffers(
                 mesh_prim_replace[mesh_index] = names
                 continue
 
+            # only triangle primitives can be merged, any lines
+            # or points primitives are kept as separate geometry
+            tris = [n for n in names if "faces" in meshes[n]]
+            if len(tris) <= 1:
+                mesh_prim_replace[mesh_index] = names
+                continue
+
             # just take the shortest name option available
-            name = min(names)
+            name = min(tris)
             # remove the other meshes after we're done looping
             # since we're reusing the shortest one don't pop
             # that as we'll be overwriting it with the combined
-            mesh_pop.update(set(names).difference([name]))
+            mesh_pop.update(set(tris).difference([name]))
 
             # get all meshes for this group
-            current = [meshes[n] for n in names]
+            current = [meshes[n] for n in tris]
             v_seq = [p["vertices"] for p in current]
             f_seq = [p["faces"] for p in current]
             v, f = util.append_faces(v_seq, f_seq)
-            materials = [p["visual"].material for p in current]
-            face_materials = []
-            for i, p in enumerate(current):
-                face_materials += [i] * len(p["faces"])
-            visuals = visual.texture.TextureVisuals(
-                material=visual.material.MultiMaterial(materials=materials),
-                face_materials=face_materials,
-            )
-            if "metadata" in meshes[names[0]]:
-                metadata = meshes[names[0]]["metadata"]
+            if "metadata" in meshes[tris[0]]:
+                metadata = meshes[tris[0]]["metadata"]
             else:
                 metadata = {}
-            meshes[name] = {
+            merged = {
                 "vertices": v,
                 "faces": f,
-                "visual": visuals,
                 "metadata": metadata,
                 "process": False,
             }
-            mesh_prim_replace[mesh_index] = [name]
+            # primitives have no visual with `skip_materials`
+            if all("visual" in p for p in current):
+                materials = [p["visual"].material for p in current]
+                face_materials = []
+                for i, p in enumerate(current):
+                    face_materials += [i] * len(p["faces"])
+                merged["visual"] = visual.texture.TextureVisuals(
+                    material=visual.material.MultiMaterial(materials=materials),
+                    face_materials=face_materials,
+                )
+            meshes[name] = merged
+            mesh_prim_replace[mesh_index] = [name] + [n for n in names if n not in tris]
         # avoid altering inside loop
         mesh_prim = mesh_prim_replace
         # remove outdated meshes

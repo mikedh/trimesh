@@ -1718,7 +1718,7 @@ def random_rotation_matrix(
     >>> np.allclose(np.dot(R.T, R), np.identity(4))
     True
     >>> R = random_rotation_matrix(num=10)
-    >>> np.allclose(np.einsum('...ji,...jk->...ik', R, R), np.identity(4))
+    >>> np.allclose(np.matmul(np.swapaxes(R, -1, -2), R), np.identity(4))
     True
     >>> bool(np.allclose(random_rotation_matrix(seed=0, translate=10),
     ...                  random_rotation_matrix(seed=0, translate=10)))
@@ -2179,7 +2179,7 @@ def planar_matrix(offset=None, theta=None, point=None, scale=None):
     point :  (2, ) float
       Point to rotate around
     scale : (2,) float or None
-      Scale to apply
+      Scale to apply before the rotation and offset
 
     Returns
     ----------
@@ -2211,7 +2211,7 @@ def planar_matrix(offset=None, theta=None, point=None, scale=None):
     if scale is not None:
         S = np.eye(3)
         S[:2, :2] *= scale
-        T = np.dot(S, T)
+        T = np.dot(T, S)
 
     return T
 

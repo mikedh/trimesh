@@ -306,7 +306,7 @@ class PathSample:
         if include_original:
             # find the original positions that were not inserted
             # note that this checks *exact float equal*
-            uninserted = ~np.isin(np.append(self._cum_norm, 0.0), projection)
+            uninserted = ~np.isin(np.append(0.0, self._cum_norm), distances)
 
             if uninserted.any():
                 # find the index of the uninserted original points in the new sampling

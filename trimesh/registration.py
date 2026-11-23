@@ -8,7 +8,7 @@ Functions for registering (aligning) point clouds with meshes.
 import numpy as np
 
 from . import bounds, transformations, util
-from .geometry import weighted_vertex_normals
+from .geometry import index_sparse, weighted_vertex_normals
 from .points import PointCloud, plane_fit
 from .transformations import transform_points
 from .triangles import angles, cross, normals
@@ -225,7 +225,7 @@ def procrustes(
     square sum distances between Ta and b, also called the cost.
 
     Optionally filter the points in a and b via a binary weights array.
-    Non-uniform weights are also supported, but won't yield the optimal rotation.
+    Non-uniform weights are supported and determine the optimal rotation.
 
     Parameters
     ----------
@@ -237,9 +237,7 @@ def procrustes(
       List of floats representing how much weight is assigned to each point.
       Binary entries can be used to filter the arrays; normalization is not required.
       Translation and scaling are adjusted according to the weighting.
-      Note, however, that this method does not yield the optimal rotation for
-      non-uniform weighting,
-      as this would require an iterative, nonlinear optimization approach.
+      The rotation is also optimized according to the weighting.
     reflection : bool
       If the transformation is allowed reflections
     translation : bool
@@ -303,7 +301,10 @@ def procrustes(
     # Use SVD to find optimal orthogonal matrix R
     # constrained to det(R) = 1 if necessary.
 
-    target = np.dot(((b_nonzero - bcenter) / bscale).T, ((a_nonzero - acenter) / ascale))
+    # weight the covariance so the rotation is optimal for the weights
+    target = np.dot(
+        ((b_nonzero - bcenter) / bscale).T, ((a_nonzero - acenter) / ascale) * w_norm
+    )
 
     u, _s, vh = np.linalg.svd(target)
 
@@ -771,17 +772,19 @@ def _from_mesh(
     if return_normals:
         qres["normals"] = mesh.face_normals[qres["tids"]]
     if return_barycentric_coordinates or return_interpolated_normals:
+        nearest_faces = mesh.faces[qres["tids"]]
         qres["barycentric_coordinates"] = points_to_barycentric(
-            mesh.vertices[mesh.faces[qres["tids"]]], qres["nearest"]
+            mesh.vertices[nearest_faces], qres["nearest"]
         )
 
         if return_interpolated_normals:
-            # Interpolation from barycentric coordinates
-            qres["interpolated_normals"] = np.einsum(
-                "ij,ijk->ik",
-                qres["barycentric_coordinates"],
-                mesh.vertex_normals[mesh.faces[qres["tids"]]],
+            # weight the vertex normals of each nearest face by the barycentric coordinates
+            weights = index_sparse(
+                len(mesh.vertices),
+                nearest_faces,
+                data=qres["barycentric_coordinates"].ravel(),
             )
+            qres["interpolated_normals"] = weights.T.dot(mesh.vertex_normals)
     return qres
 
 

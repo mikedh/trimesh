@@ -480,6 +480,75 @@ class RegistrationTest(g.unittest.TestCase):
         assert "interpolated_normals" in qres
 
 
+@g.pytest.mark.parametrize("reflection", [False, True])
+@g.pytest.mark.parametrize("translation", [False, True])
+@g.pytest.mark.parametrize("scale", [False, True])
+@g.pytest.mark.parametrize("mirrored", [False, True])
+def test_procrustes_weighted_correspondence_repetition(
+    reflection, translation, scale, mirrored
+):
+    # Integer weights must give the same fit as repeating each correspondence.
+    # Noise is needed: exact rigid pairs fit even with an unweighted covariance.
+    a = g.np.array(
+        [[0, 0, 0], [2, 0, 0], [0, 1, 0], [0, 0, 3], [2, 1, 1], [7, 5, 2]],
+        dtype=g.np.float64,
+    )
+    b = a[:, [1, 2, 0]] + [0.5, -0.2, 0.1]
+    if mirrored:
+        b[:, 0] *= -1.0
+    b[4] += [1.0, -2.0, 0.5]
+    weights = g.np.array([5, 4, 3, 2, 1, 0])
+    options = {"reflection": reflection, "translation": translation, "scale": scale}
+    expected, _, expected_cost = g.trimesh.registration.procrustes(
+        g.np.repeat(a, weights, axis=0), g.np.repeat(b, weights, axis=0), **options
+    )
+    matrix, transformed, cost = g.trimesh.registration.procrustes(
+        a, b, weights=weights, **options
+    )
+    g.np.testing.assert_allclose(matrix, expected, rtol=1e-12, atol=1e-12)
+    g.np.testing.assert_allclose(
+        transformed, g.trimesh.transform_points(a, expected), rtol=1e-12, atol=1e-12
+    )
+    g.np.testing.assert_allclose(cost, expected_cost, rtol=1e-12, atol=1e-12)
+    assert g.np.isclose(
+        cost, (((b - transformed) ** 2).sum(axis=1) * weights).sum() / weights.sum()
+    )
+    # Weights need not be integers or normalized; the matrix-only path agrees.
+    matrix_only = g.trimesh.registration.procrustes(
+        a, b, weights=weights * 0.37, return_cost=False, **options
+    )
+    g.np.testing.assert_allclose(matrix_only, expected, rtol=1e-12, atol=1e-12)
+
+
+def test_interpolated_normals_ab():
+    # A/B the existing barycentric helper against the sparse weights `nearest` uses
+    mesh = g.trimesh.creation.icosphere(subdivisions=5)
+    # points just off the surface like registration queries: far points
+    # make every face a `closest_point` candidate and use a lot of memory
+    with g.RandomSeed() as random:
+        scale = 1.0 + 0.01 * random.random((len(mesh.faces), 1))
+    points = mesh.triangles_center * scale
+    query = g.trimesh.registration._from_mesh(
+        mesh, points, return_interpolated_normals=True
+    )
+    nearest_faces = mesh.faces[query["tids"]]
+    barycentric = query["barycentric_coordinates"]
+
+    tic = [g.time.time()]
+    a = g.trimesh.triangles.barycentric_to_points(
+        mesh.vertex_normals[nearest_faces], barycentric
+    )
+    tic.append(g.time.time())
+    b = g.trimesh.geometry.index_sparse(
+        len(mesh.vertices), nearest_faces, data=barycentric.ravel()
+    ).T.dot(mesh.vertex_normals)
+    tic.append(g.time.time())
+
+    assert g.np.allclose(a, b)
+    assert g.np.allclose(a, query["interpolated_normals"])
+    g.log.info("interpolated normals helper, sparse: %s seconds", g.np.diff(tic))
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

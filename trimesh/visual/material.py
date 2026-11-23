@@ -12,7 +12,7 @@ import numpy as np
 
 from .. import exceptions, util
 from ..constants import tol
-from ..typed import NDArray
+from ..typed import Integer, NDArray
 from . import color
 
 try:
@@ -750,22 +750,29 @@ class PBRMaterial(Material):
     def to_simple(self):
         """
         Get a copy of the current PBR material as
-        a simple material.
+        a simple material. Roughness is converted to a specular exponent
+        clamped to the usual MTL range of 0 to 1000.
 
         Returns
         ------------
         simple : SimpleMaterial
           Contains material information in a simple manner
         """
+        glossiness = None
+        if self.roughnessFactor is not None:
+            # invert `SimpleMaterial.to_pbr` clipped so `Ns` is in [0, 1000]
+            roughness = np.clip(self.roughnessFactor, (2.0 / 1002.0) ** 0.25, 1.0)
+            glossiness = 2.0 / roughness**4 - 2.0
         diffuse = self.baseColorFactor
         if diffuse is not None:
-            # diffuse is sRGB
+            # `baseColorFactor` is linear and `diffuse` is sRGB
             diffuse = color.to_float(diffuse)
             diffuse[:3] = color.linear_to_srgb(diffuse[:3])
         return SimpleMaterial(
             image=self.baseColorTexture,
             diffuse=diffuse,
             name=self.name,
+            glossiness=glossiness,
         )
 
     @property
@@ -843,7 +850,7 @@ def pack(
     materials,
     uvs,
     deduplicate=True,
-    padding: int = 2,
+    padding: Integer = 2,
     max_tex_size_individual=8192,
     max_tex_size_fused=8192,
 ):
@@ -862,7 +869,7 @@ def pack(
       List of multiple materials
     uvs : (n, m, 2) float
       Original UV coordinates
-    padding : int
+    padding : Integer
       Number of pixels to pad each image with.
     max_tex_size_individual : int
       Maximum size of each individual texture.

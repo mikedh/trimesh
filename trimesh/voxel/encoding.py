@@ -5,6 +5,7 @@ import abc
 import numpy as np
 
 from .. import caching
+from ..typed import Integer, ShapeLike
 from ..util import ABC
 from . import runlength
 
@@ -16,7 +17,7 @@ except BaseException as E:
     sp = ExceptionWrapper(E)
 
 
-def _empty_stripped(shape):
+def _empty_stripped(shape: tuple[Integer, ...]):
     num_dims = len(shape)
     encoding = DenseEncoding(np.zeros(shape=(0,) * num_dims, dtype=bool))
     padding = np.zeros(shape=(num_dims, 2), dtype=int)
@@ -141,8 +142,12 @@ class Encoding(ABC):
     def ndims(self):
         return len(self.shape)
 
-    def reshape(self, shape):
-        return self.flat if len(shape) == 1 else ShapedEncoding(self, shape)
+    def reshape(self, shape: ShapeLike):
+        # numpy accepts a bare integer as a 1D shape
+        shape = np.atleast_1d(shape)
+        if len(shape) == 1:
+            return self.flat
+        return ShapedEncoding(self, shape)
 
     @property
     def flat(self):
@@ -250,7 +255,7 @@ class DenseEncoding(Encoding):
     def get_value(self, index):
         return self._data[tuple(index)]
 
-    def reshape(self, shape):
+    def reshape(self, shape: ShapeLike):
         return DenseEncoding(self._data.reshape(shape))
 
     def _transpose(self, perm):
@@ -273,7 +278,7 @@ class SparseEncoding(Encoding):
     raveling/unraveling.
     """
 
-    def __init__(self, indices, values, shape=None):
+    def __init__(self, indices, values, shape: ShapeLike | None = None):
         """
         Parameters
         ------------
@@ -298,7 +303,7 @@ class SparseEncoding(Encoding):
         if shape is None:
             self._shape = tuple(data["indices"].max(axis=0) + 1)
         else:
-            self._shape = tuple(shape)
+            self._shape = tuple(np.atleast_1d(shape).tolist())
             if not np.all(indices < self._shape):
                 raise ValueError("all indices must be less than shape")
         if not np.all(indices >= 0):
@@ -408,7 +413,7 @@ class SparseEncoding(Encoding):
         return SparseEncoding(indices - pad_left, self.sparse_values), padding
 
 
-def SparseBinaryEncoding(indices, shape=None):
+def SparseBinaryEncoding(indices, shape: ShapeLike | None = None):
     """
     Convenient factory constructor for SparseEncodings with values all ones.
 
@@ -754,14 +759,14 @@ class ShapedEncoding(LazyIndexMap):
     Numpy equivalent is `np.reshape`
     """
 
-    def __init__(self, encoding, shape):
+    def __init__(self, encoding, shape: ShapeLike):
         if isinstance(encoding, Encoding):
             if encoding.ndims != 1:
                 encoding = encoding.flat
         else:
             raise ValueError("encoding must be an Encoding")
         super().__init__(data=encoding)
-        self._shape = tuple(shape)
+        self._shape = tuple(np.atleast_1d(shape).tolist())
         nn = self._shape.count(-1)
         size = np.prod(self._shape)
         if nn == 1:

@@ -224,6 +224,20 @@ class DXFTest(g.unittest.TestCase):
         assert g.np.isclose(a.area, 54075.0, atol=1)
         assert g.np.isclose(b.area, 54075.0, atol=1)
 
+    def test_insert_transform(self):
+        # a block with a unit line inserted at (10, 0)
+        # with a 90 degree rotation and a scale of 2
+        tags = ["0", "SECTION", "2", "BLOCKS", "0", "BLOCK", "2", "seg"]
+        tags += ["0", "LINE", "10", "0", "20", "0", "11", "1", "21", "0"]
+        tags += ["0", "ENDBLK", "0", "ENDSEC", "0", "SECTION", "2", "ENTITIES"]
+        tags += ["0", "INSERT", "2", "seg", "10", "10", "20", "0"]
+        tags += ["41", "2", "42", "2", "50", "90", "0", "ENDSEC", "0", "EOF"]
+        path = g.trimesh.load_path(
+            g.trimesh.util.wrap_as_stream("\n".join(tags)), file_type="dxf"
+        )
+        # DXF scales then rotates counterclockwise then translates
+        assert g.np.allclose(path.vertices, [[10, 0], [10, 2]])
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

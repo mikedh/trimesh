@@ -23,7 +23,7 @@ if int(pyglet.version.split(".")[0]) >= 2:
 from ... import util
 from ...scene.cameras import DEFAULT_Z_FAR
 from ...transformations import translation_matrix
-from ...typed import ArrayLike, Callable, Iterable, Number
+from ...typed import ArrayLike, Callable, Hashable, Iterable, Number
 from ...visual import to_rgba
 from ..trackball import Trackball
 from . import conversion
@@ -281,13 +281,13 @@ class SceneViewer(pyglet.window.Window):
             self._update_vertex_list()
             self._update_perspective(self.width, self.height)
 
-    def add_geometry(self, name, geometry, **kwargs):
+    def add_geometry(self, name: Hashable, geometry, **kwargs):
         """
         Add a geometry to the viewer.
 
         Parameters
         --------------
-        name : hashable
+        name : Hashable
           Name that references geometry
         geometry : Trimesh, Path2D, Path3D, PointCloud
           Geometry to display in the viewer window

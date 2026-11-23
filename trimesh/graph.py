@@ -19,6 +19,7 @@ from .geometry import faces_to_edges
 from .typed import (
     ArrayLike,
     GraphEngineType,
+    Hashable,
     Integer,
     NDArray,
     Number,
@@ -940,7 +941,7 @@ def graph_to_svg(graph):
     return svg
 
 
-def multigraph_paths(G, source, cutoff=None):
+def multigraph_paths(G, source: Hashable, cutoff: Integer | None = None):
     """
     For a networkx MultiDiGraph, find all paths from a source node
     to leaf nodes. This function returns edge instance numbers
@@ -950,9 +951,9 @@ def multigraph_paths(G, source, cutoff=None):
     ---------------
     G : networkx.MultiDiGraph
       Graph to evaluate
-    source : hashable
+    source : Hashable
       Node to start traversal at
-    cutoff : int
+    cutoff : Integer | None
       Number of nodes to visit
       If None will visit all nodes
 

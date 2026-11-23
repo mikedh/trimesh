@@ -16,6 +16,7 @@ import numpy as np
 
 from .. import util
 from ..base import Trimesh
+from ..typed import ShapeLike
 from ..util import comment_strip, decode_text
 
 # find the executable for binvox in PATH
@@ -31,7 +32,7 @@ def _parse_binvox_header(file_obj):
 
     Parameters
     ------------
-    fp: file-object
+    file_obj: file-object
       File like object with binvox file
 
     Returns
@@ -127,7 +128,7 @@ def parse_binvox(fp, writeable=False):
     return Binvox(rle_data, shape, translate, scale)
 
 
-def binvox_header(shape, translate, scale):
+def binvox_header(shape: ShapeLike, translate, scale):
     """
     Get a binvox header string.
 
@@ -141,7 +142,7 @@ def binvox_header(shape, translate, scale):
     --------
     string including "data\n" line.
     """
-    sx, sy, sz = (int(s) for s in shape)
+    sx, sy, sz = np.atleast_1d(shape).astype(np.int64).tolist()
     tx, ty, tz = translate
 
     return f"""#binvox 1
@@ -153,7 +154,7 @@ data
 """
 
 
-def binvox_bytes(rle_data, shape, translate=(0, 0, 0), scale=1):
+def binvox_bytes(rle_data, shape: ShapeLike, translate=(0, 0, 0), scale=1):
     """Get a binary representation of binvox data.
 
     Parameters
@@ -179,7 +180,9 @@ def binvox_bytes(rle_data, shape, translate=(0, 0, 0), scale=1):
     return header + rle_data.tobytes()
 
 
-def voxel_from_binvox(rle_data, shape, translate=None, scale=1.0, axis_order="xzy"):
+def voxel_from_binvox(
+    rle_data, shape: ShapeLike, translate=None, scale=1.0, axis_order="xzy"
+):
     """
     Factory for building from data associated with binvox files.
 
@@ -195,7 +198,7 @@ def voxel_from_binvox(rle_data, shape, translate=None, scale=1.0, axis_order="xz
       Translation of voxels
     scale : float
       Length of entire voxel grid.
-    encoded_axes : iterable
+    axis_order : iterable
       With values in ('x', 'y', 'z', 0, 1, 2),
       where x => 0, y => 1, z => 2
       denoting the order of axes in the encoded data. binvox by
@@ -212,6 +215,7 @@ def voxel_from_binvox(rle_data, shape, translate=None, scale=1.0, axis_order="xz
     from ..voxel import encoding as enc
     from ..voxel.base import VoxelGrid
 
+    shape = tuple(np.atleast_1d(shape).tolist())
     if isinstance(rle_data, enc.RunLengthEncoding):
         encoding = rle_data
     else:
@@ -224,17 +228,15 @@ def voxel_from_binvox(rle_data, shape, translate=None, scale=1.0, axis_order="xz
     )
 
     if axis_order == "xzy":
+        # the data is stored in `xzy` order but `shape` is in `xyz`
         perm = (0, 2, 1)
-        shape = tuple(shape[p] for p in perm)
-        encoding = encoding.reshape(shape).transpose(perm)
+        encoding = encoding.reshape(np.take(shape, perm)).transpose(perm)
     elif axis_order is None or axis_order == "xyz":
         encoding = encoding.reshape(shape)
     else:
         raise ValueError(
             "Invalid axis_order '%s': must be None, 'xyz' or 'xzy'", axis_order
         )
-
-    assert encoding.shape == shape
 
     return VoxelGrid(encoding, transform)
 
@@ -422,7 +424,7 @@ class Binvoxer:
         wireframe: also render the model in wireframe (helps with thin parts).
         fit: only write voxels in the voxel bounding box.
         block_id: when converting to schematic, use this as the block ID.
-        use_matrial_block_id: when converting from obj to schematic, parse
+        use_material_block_id: when converting from obj to schematic, parse
             block ID from material spec "usemtl blockid_<id>" (ids 1-255 only).
         use_offscreen_pbuffer: use offscreen pbuffer instead of onscreen
             window.

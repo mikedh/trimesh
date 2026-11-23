@@ -54,3 +54,19 @@ def test_resample_original_case():
 if __name__ == "__main__":
     test_resample_original()
     test_resample_original_case()
+
+
+def test_sample_include_original_keeps_length():
+    from trimesh.path.traversal import PathSample
+
+    # segments of length 1, 2 and 3 so the path is 6 long
+    path = np.array([[0, 0], [1, 0], [1, 2], [4, 2]], dtype=np.float64)
+    sampler = PathSample(path)
+    for distances in ([0.0, 2.0], [2.0], [1.0, 3.0, 6.0]):
+        result = sampler.sample(np.array(distances), include_original=True)
+        length = np.linalg.norm(np.diff(result, axis=0), axis=1).sum()
+        assert np.isclose(length, 6.0)
+
+    # every original vertex is kept and the new sample is in order
+    result = sampler.sample(np.array([0.0, 2.0]), include_original=True)
+    assert np.allclose(result, [[0, 0], [1, 0], [1, 1], [1, 2], [4, 2]])

@@ -7,7 +7,7 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..iteration import reduce_cascade
 from ..transformations import transform_points
-from ..typed import ArrayLike, Iterable, NDArray, Number, Seed, float64, int64
+from ..typed import ArrayLike, Floating, Iterable, NDArray, Number, Seed, float64, int64
 from ..util import random_generator
 from .simplify import fit_circle_check
 from .traversal import resample_path
@@ -198,7 +198,7 @@ def polygon_obb(polygon: Polygon | NDArray):
 
     Parameters
     -------------
-    polygons : shapely.geometry.Polygon
+    polygon : shapely.geometry.Polygon
       Input geometry
 
     Returns
@@ -325,7 +325,7 @@ def plot(polygon=None, show=True, axes=None, **kwargs):
     return axes
 
 
-def resample_boundaries(polygon: Polygon, resolution: float, clip=None):
+def resample_boundaries(polygon: Polygon, resolution: Floating, clip=None):
     """
     Return a version of a polygon with boundaries re-sampled
     to a specified resolution.
@@ -334,7 +334,7 @@ def resample_boundaries(polygon: Polygon, resolution: float, clip=None):
     -------------
     polygon : shapely.geometry.Polygon
       Source geometry
-    resolution : float
+    resolution : Floating
       Desired distance between points on boundary
     clip : (2,) int
       Upper and lower bounds to clip
@@ -747,7 +747,7 @@ def projected(
     apad=None,
     tol_dot=1e-10,
     precise: bool = False,
-    precise_eps: float = 1e-10,
+    precise_eps: Floating = 1e-10,
 ):
     """
     Project a mesh onto a plane and then extract the polygon
@@ -786,7 +786,7 @@ def projected(
       Tolerance for discarding on-edge triangles.
     precise : bool
       Use the precise projection computation using shapely.
-    precise_eps : float
+    precise_eps : Floating
       Tolerance for precise triangle checks.
 
     Returns

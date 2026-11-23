@@ -5,7 +5,7 @@ import subprocess
 from .. import util
 from ..constants import log
 from ..resources import get_string
-from ..typed import BooleanOperationType, Integer, Iterable
+from ..typed import BooleanOperationType, Floating, Integer, Iterable
 from .generic import HIDDEN_CONSOLE, MeshScript
 
 if platform.system() == "Windows":
@@ -119,7 +119,10 @@ def boolean(
 
 
 def unwrap(
-    mesh, angle_limit: float = 66.0, island_margin: float = 0.0, debug: bool = False
+    mesh,
+    angle_limit: Floating = 66.0,
+    island_margin: Floating = 0.0,
+    debug: bool = False,
 ):
     """
     Run an unwrap operation using blender.
