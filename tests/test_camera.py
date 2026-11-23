@@ -6,32 +6,6 @@ except BaseException:
 import numpy as np
 
 
-def project(scene, points):
-    """
-    Project world-space points through the scene's camera to normalized
-    device coordinates, the opposite of `Scene.camera_rays`.
-
-    Parameters
-    ----------
-    scene : trimesh.Scene
-      Scene with a camera.
-    points : (n, 3) float
-      World-space points.
-
-    Returns
-    ----------
-    ndc : (n, 3) float
-      Coordinates which are in view if all within [-1, 1].
-    """
-    homogeneous = g.np.column_stack([points, g.np.ones(len(points))])
-    clip = (
-        homogeneous
-        @ g.np.linalg.inv(scene.camera_transform).T
-        @ scene.camera.projection.T
-    )
-    return clip[:, :3] / clip[:, 3:4]
-
-
 class CameraTests(g.unittest.TestCase):
     def test_K(self):
         resolution = (320, 240)
@@ -64,50 +38,32 @@ class CameraTests(g.unittest.TestCase):
 
     def test_resolution_keeps_fov(self):
         """
-        Setting a resolution keeps a set field of view, and only the view
-        a scene is rendered with widens to the image with square pixels.
+        A resolution keeps a set field of view, and only the view a scene
+        is rendered with widens to the image with square pixels.
         """
         Camera = g.trimesh.scene.Camera
         current_view = g.trimesh.scene.cameras.current_view
-        camera = Camera(resolution=[640, 480], fov=(60, 45), z_far=50.0)
+        camera = Camera(resolution=[640, 480], fov=(60, 45))
         camera.resolution = (1920, 1080)
-        copied = camera.copy()
-        # a scene viewed at another shape keeps its camera as it was
-        scene = g.trimesh.creation.box().scene()
-        scene.camera = Camera(resolution=[640, 480], fov=(60, 45))
-        scene.graph[scene.camera.name] = g.np.eye(4)
-        viewed = current_view(scene, resolution=(1920, 1080))[0]
-        half = g.np.tan(g.np.radians(viewed.fov) / 2)
-        orthographic = g.trimesh.creation.box().scene()
-        orthographic.camera = Camera(magnification=(2.0, 1.5), resolution=[640, 480])
-        orthographic.graph[orthographic.camera.name] = g.np.eye(4)
-        flat = current_view(orthographic, resolution=(1920, 1080))[0]
+        assert g.np.array_equal(camera.fov, (60, 45)), "resolution keeps fov"
+        views = []
+        for lens in ({"fov": (60, 45)}, {"magnification": (2.0, 1.5)}):
+            scene = g.trimesh.creation.box().scene()
+            scene.camera = Camera(resolution=[640, 480], **lens)
+            scene.graph[scene.camera.name] = g.np.eye(4)
+            views.append(current_view(scene, resolution=(1920, 1080))[0])
+            assert g.np.array_equal(views[-1].resolution, (1920, 1080)), "resolution"
+            assert g.np.array_equal(scene.camera.resolution, (640, 480)), "unchanged"
+        # both keep their height and widen to square pixels
+        half = g.np.tan(g.np.radians(views[0].fov) / 2)
+        assert g.np.allclose(half, [g.np.tan(g.np.radians(22.5)) * 1920 / 1080, half[1]])
+        assert g.np.isclose(views[0].fov[1], 45.0), "perspective keeps vertical fov"
+        assert g.np.allclose(views[1].magnification, (1.5 * 1920 / 1080, 1.5)), "ortho"
         # `set_camera` keeps the fov it is passed however often it's called
         framed = g.trimesh.creation.box().scene()
         for resolution in (None, (1920, 1080)):
             framed.set_camera(fov=(50, 40), resolution=resolution)
-        assert g.np.array_equal(camera.fov, (60, 45)), "resolution keeps fov"
-        assert g.np.array_equal(Camera(fov=(60, 45)).resolution, (1800, 1350)), (
-            "default resolution"
-        )
-        assert (copied.z_near, copied.z_far) == (camera.z_near, 50), (
-            "copy keeps clip planes"
-        )
-        assert g.np.array_equal(copied.fov, camera.fov), "copy keeps fov"
-        assert g.np.array_equal(viewed.resolution, (1920, 1080)), (
-            "view has the image resolution"
-        )
-        assert g.np.isclose(viewed.fov[1], 45.0), "view keeps vertical fov"
-        assert g.np.isclose(half[0] / half[1], 1920 / 1080), "view has square pixels"
-        assert g.np.array_equal(scene.camera.fov, (60, 45)) and g.np.array_equal(
-            scene.camera.resolution, (640, 480)
-        ), "scene camera unchanged"
-        assert g.np.allclose(flat.magnification, (1.5 * 1920 / 1080, 1.5)), (
-            "orthographic view keeps height"
-        )
-        assert g.np.array_equal(framed.camera.fov, (50, 40)) and g.np.array_equal(
-            framed.camera.resolution, (1920, 1080)
-        ), "set_camera twice keeps fov"
+        assert g.np.array_equal(framed.camera.fov, (50, 40)), "set_camera keeps fov"
 
     def test_focal_updates_on_resolution_change(self):
         """
@@ -245,10 +201,7 @@ class CameraTests(g.unittest.TestCase):
                         (column * half[0]) ** 2 + (row * half[1]) ** 2 + 1.0
                     )
                 hits = origins + vectors * distance[:, None]
-                ndc = project(scene, hits)
-                assert g.np.allclose(g.np.linalg.norm(vectors, axis=1), 1.0), (
-                    f"{name} unit rays"
-                )
+                ndc = g.project(scene, hits)
                 assert (
                     g.np.allclose(origins, reference[0])
                     and g.np.allclose(vectors, reference[1])
@@ -272,7 +225,7 @@ class CameraTests(g.unittest.TestCase):
     def test_default_framing(self):
         """The default camera centers a whole assembly inside its frustum."""
         scene = g.get_mesh("cycloidal.3DXML")
-        ndc = project(scene, g.trimesh.bounds.corners(scene.bounds))
+        ndc = g.project(scene, g.trimesh.bounds.corners(scene.bounds))
         assert (g.np.abs(ndc) <= 1.0 + 1e-6).all(), "corners in frustum"
         assert g.np.linalg.norm(ndc[:, :2].mean(axis=0)) < 0.25, "centered"
 

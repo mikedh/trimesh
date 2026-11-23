@@ -14,6 +14,7 @@ import numpy as np
 from .. import util
 from ..base import Trimesh
 from ..path.path import Path
+from ..path.segments import from_path
 from ..points import PointCloud
 from ..scene.lighting import (
     EnvironmentLight,
@@ -32,20 +33,37 @@ from .opengl.shaders import (
     VERTEX,
 )
 
-# render settings, overridden by keywords and never stored in the scene
-RENDER_DEFAULTS = {
+
+@dataclass
+class RenderSettings:
+    """
+    How a scene is drawn, never stored in the scene.
+    """
+
+    # seconds, defaults to `scene.duration` or a turntable, and 0 is a still
+    duration: float | None = None
+    # frames per second of an animation
+    fps: float = 30.0
+    # "opengl" for the built in renderer or "blender"
+    engine: str = "opengl"
+    # OpenGL shadows, ambient occlusion and bloom
+    quality: bool = True
+    # behind the scene, defaults to white
+    background: ArrayLike | None = None
+    # Blender samples per pixel
+    samples: int = 64
     # an invisible floor which only shows shadows
-    "ground_shadow": True,
+    ground_shadow: bool = True
     # draw the environment as the background
-    "show_environment": False,
+    show_environment: bool = False
     # pixels across lines and points
-    "line_width": 2.0,
-    "point_size": 6.0,
+    line_width: float = 2.0
+    point_size: float = 6.0
     # multiplies light before tone mapping, but not lines, points or unlit
-    "exposure": 1.0,
+    exposure: float = 1.0
     # glare around bright pixels, drawn by the OpenGL viewer with quality
-    "bloom": 1.0,
-}
+    bloom: float = 1.0
+
 
 # ambient occlusion radius as a fraction of `scene.scale`
 OCCLUSION_RADIUS = 0.1
@@ -98,10 +116,10 @@ def geometry_to_arrays(geometry) -> GeometryArrays | None:
             start = end = util.stack_3D(geometry.vertices)
         elif isinstance(geometry, Path):
             kind, colors = "lines", geometry.colors
+            segments, entity = from_path(geometry)
             if colors is not None:
-                colors = colors[geometry.segments_entity]
+                colors = colors[entity]
             # 2D paths are padded to Z=0
-            segments = geometry.segments
             vertices = util.stack_3D(segments.reshape((-1, segments.shape[2])))
             start, end = vertices[0::2], vertices[1::2]
         else:

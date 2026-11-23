@@ -119,22 +119,25 @@ def test_cam_gltf():
         assert r.camera.z_near == cam.z_near
         assert r.camera.z_far == cam.z_far
 
-    from trimesh.exchange.gltf import _cam_from_gltf, _convert_camera
-    from trimesh.scene.cameras import Camera
-
-    # `aspectRatio` is width over height, which is the ratio of the
-    # tangents of the half angles: a 16:9 file is 62.7 degrees wide
+    # `aspectRatio` is width over height, the ratio of the tangents of the
+    # half angles, so a 16:9 file is wide and `yfov` is vertical
     perspective = {"aspectRatio": 16 / 9, "yfov": 0.66, "znear": 0.1}
-    wide = _cam_from_gltf({"perspective": perspective})
-    half = np.tan(np.radians(wide.fov) / 2.0)
+    trees = []
+    scene.export(file_type="glb", tree_postprocessor=trees.append)
+    stored = trees[0]["cameras"][0]["perspective"]
+    assert np.isclose(stored["aspectRatio"], np.divide(*np.tan(np.radians([30, 45]))))
+
+    def wide(tree):
+        tree["cameras"][0]["perspective"] = perspective
+
+    loaded = g.roundtrip(scene.export(file_type="glb", tree_postprocessor=wide), "glb")
+    half = np.tan(np.radians(loaded.camera.fov) / 2.0)
+    assert np.allclose(half, [16 / 9 * np.tan(0.33), np.tan(0.33)]), "16:9 is wide"
     # orthographic cameras round trip too
-    scene.camera = Camera(name="cam1", magnification=(2.0, 1.5), z_near=0.5, z_far=20.0)
+    scene.camera = g.trimesh.scene.cameras.Camera(
+        name="cam1", magnification=(2.0, 1.5), z_near=0.5, z_far=20.0
+    )
     ortho = g.roundtrip(scene.export(file_type="glb"), "glb")
-    assert np.isclose(half[0], 16 / 9 * np.tan(0.33)), "16:9 is wide"
-    assert np.isclose(wide.fov[1], np.degrees(0.66)), "yfov is vertical"
-    assert _convert_camera(cam)["perspective"]["aspectRatio"] == np.divide(
-        *np.tan(np.radians([30, 45]))
-    ), "aspectRatio exported"
     assert np.allclose(ortho.camera.magnification, (2.0, 1.5)), "ortho magnification"
     assert (ortho.camera.z_near, ortho.camera.z_far) == (0.5, 20.0), "ortho clip planes"
     assert np.allclose(ortho.camera_transform, scene.camera_transform), "ortho transform"
@@ -498,27 +501,21 @@ def test_append_scenes():
 
     assert scene_sum.graph.base_frame == "not_world"
 
-    # lights are nodes, so when two scenes both have a light called
-    # `lamp` one gets renamed and both still light what they lit
+    # two lights named `lamp` stay themselves on their own nodes, the first
+    # scene's camera is kept, later metadata wins and the originals are untouched
     scenes = [g.trimesh.creation.box().scene() for _ in range(2)]
     for x, scene in zip([-2.0, 2.0], scenes):
-        lamp = g.trimesh.scene.lighting.PointLight(name="lamp", intensity=x + 5, radius=4)
-        scene.lights = [lamp]
+        scene.lights = [g.trimesh.scene.lighting.PointLight(name="lamp", intensity=x + 5)]
         scene.graph["lamp"] = g.trimesh.transformations.translation_matrix([x, 0, 1])
         scene.metadata["ambient_light"] = [x, x, x]
-    # only the first scene has a camera, which the result keeps
     camera, transform = scenes[0].camera, scenes[0].camera_transform
     summed = g.trimesh.scene.scene.append_scenes(scenes)
     names = [light.name for light in summed.lights]
-    assert len(names) == 2, "every light kept"
     assert len(set(names)) == 2, "names unique"
-    assert all(name in summed.graph.nodes for name in names), "every light has a node"
     assert [summed.graph[name][0][0, 3] for name in names] == [-2, 2], "lights stay put"
-    assert [light.intensity for light in summed.lights] == [3, 7], (
-        "lights stay themselves"
-    )
+    assert [light.intensity for light in summed.lights] == [3, 7], "lights kept"
     assert summed.metadata["ambient_light"] == [2.0, 2.0, 2.0], "later metadata wins"
-    assert summed.has_camera and summed.camera.name == camera.name, "the camera survives"
+    assert summed.camera.name == camera.name, "the camera survives"
     assert g.np.allclose(summed.camera_transform, transform), "camera transform"
     assert [s.lights[0].name for s in scenes] == ["lamp", "lamp"], "originals untouched"
 

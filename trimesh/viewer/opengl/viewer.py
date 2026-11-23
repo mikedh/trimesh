@@ -29,13 +29,12 @@ from ...scene.lighting import (
     prefilter,
     spherical_harmonics,
 )
-from ...transformations import adjugate
 from ...typed import ArrayLike, Integer, Iterable, NDArray, Sequence
 from ...visual import to_rgba
 from ..conversion import (
     OCCLUSION_RADIUS,
-    RENDER_DEFAULTS,
     GeometryArrays,
+    RenderSettings,
     geometry_to_arrays,
     render_lights,
 )
@@ -122,6 +121,8 @@ GENERATORS = {
 SWITCHES = (gl.glDisable, gl.glEnable)
 
 IDENTITY = np.eye(4)
+# buffer keys of the axis, grid and ground, drawn after the scene's geometry
+DECORATIONS = (("axis",), ("grid",), ("ground",))
 
 # (input, action) for `print_help`
 MOUSE_BINDINGS = (
@@ -619,7 +620,7 @@ class SceneViewer:
         flags : dict or None
           Starting values for `ViewerState`.
         settings : dict
-          `RENDER_DEFAULTS` or `ViewerState` values, i.e. `exposure=2.0`.
+          `RenderSettings` or `ViewerState` values, i.e. `exposure=2.0`.
         """
         legacy = [key for key in LEGACY_KEYWORDS if key in settings]
         if len(legacy) > 0:
@@ -634,9 +635,11 @@ class SceneViewer:
         self.scene, self.callback = scene, callback
         self.closed = False
         # never stored in the scene, and unknown names raise
-        self.render_settings = {
-            key: settings.pop(key, value) for key, value in RENDER_DEFAULTS.items()
-        }
+        # `quality` is a toggle and `background` a keyword of the viewer
+        names = RenderSettings.__dataclass_fields__.keys() - {"quality", "background"}
+        self.render_settings = RenderSettings(
+            **{key: settings.pop(key) for key in names & settings.keys()}
+        )
         # a window draws fast until `o`, a render with shadows and occlusion
         defaults = ViewerState(quality=not visible)
         self.state = replace(defaults, **{**(flags or {}), **settings})
@@ -720,10 +723,10 @@ class SceneViewer:
         received = (HARMONICS * [1, 1, 0, 0, 0, 0, -1, 0, -1]) @ irradiance * tint
         received += (np.clip(facing, 0.0, None) * directional * intensity) @ colors
         frame["ground_light"][0, 0] = received @ shaders.LUMINANCE / np.pi
-        frame["exposure"][0, 0] = self.render_settings["exposure"]
+        frame["exposure"][0, 0] = self.render_settings.exposure
         frame["line_widths"][0, :2] = (
-            self.render_settings["line_width"],
-            self.render_settings["point_size"],
+            self.render_settings.line_width,
+            self.render_settings.point_size,
         )
         self.frame_constants = frame
         self.lights, self.light_transforms = placed, transforms[: len(placed)]
@@ -731,7 +734,7 @@ class SceneViewer:
         # shadow catcher floor level with the environment, eight times as
         # wide as the scene, counterclockwise from above
         self.ground, bounds = np.zeros((0, 3)), scene.bounds
-        if self.render_settings["ground_shadow"] and bounds is not None:
+        if self.render_settings.ground_shadow and bounds is not None:
             right, up, back = util.unitize(self.environment_transform[:3, :3].T)
             center = bounds.mean(axis=0)
             # just below the scene so they never touch
@@ -739,7 +742,8 @@ class SceneViewer:
             base = center + (height - np.dot(center, up)) * up
             square = np.array([[-1, -1], [-1, 1], [1, 1], [1, -1]], dtype=np.float64)
             self.ground = base + 4.0 * scene.scale * square @ np.vstack((right, back))
-        self.names = {}
+        # GL names by size, and of the joints and environment made once
+        self.names, self.lasting, self.textures = {}, {}, {}
         self.allocate(resolution)
         self.reset_view()
 
@@ -822,6 +826,7 @@ class SceneViewer:
         for buffers in self.geometry_buffers.values():
             delete(buffers.names)
         delete(self.names)
+        delete(self.lasting)
         # the hidden window is shared and stays open
         if self.context is not _HIDDEN_CONTEXT.get("context"):
             delete(self.context.names)
@@ -838,14 +843,14 @@ class SceneViewer:
         """
         self.window.switch_to()
         delete(self.names)
-        self.names, self.framebuffers, self.textures, self.sizes = {}, {}, {}, {}
+        self.names, self.framebuffers, self.sizes = {}, {}, {}
         # pixels are square, keeping the camera's vertical field of view
         self.camera.fit_resolution(size)
         width, height = int(size[0]), int(size[1])
         # blur bloom over the largest `2**level` squares keeping `BLOOM_TEXELS`
         spread = BLOOM_SPREAD * height
         level = int(max(np.floor(np.log2(spread / BLOOM_TEXELS)), 1))
-        bloom = self.render_settings["bloom"]
+        bloom = self.render_settings.bloom
         self.frame_constants["bloom"][0, :3] = (bloom, spread / 2**level, level)
         self.frame_constants["viewport_size"][0, :2] = (width, height)
         sizes = {
@@ -912,14 +917,18 @@ class SceneViewer:
             gl.glTexParameteri(gl.GL_TEXTURE_2D_ARRAY, parameter, value)
         white = (gl.GLfloat * 4)(1, 1, 1, 1)
         gl.glTexParameterfv(gl.GL_TEXTURE_2D_ARRAY, gl.GL_TEXTURE_BORDER_COLOR, white)
+        # upload joints and draw shadows again
+        self.placed = None
+        if len(self.lasting) > 0:
+            return
         # every skin's joint matrices, one row per texel
-        self.joint_buffer = generate(self.names, "buffers")
+        self.joint_buffer = generate(self.lasting, "buffers")
         upload(gl.GL_TEXTURE_BUFFER, self.joint_buffer, np.eye(4, dtype=np.float32))
-        self.textures["joint_matrices"] = generate(self.names, "textures")
+        self.textures["joint_matrices"] = generate(self.lasting, "textures")
         gl.glBindTexture(gl.GL_TEXTURE_BUFFER, self.textures["joint_matrices"])
         gl.glTexBuffer(gl.GL_TEXTURE_BUFFER, gl.GL_RGBA32F, self.joint_buffer)
         # environment cube map with mip levels prefiltered per roughness
-        self.textures["environment"] = generate(self.names, "textures")
+        self.textures["environment"] = generate(self.lasting, "textures")
         gl.glBindTexture(gl.GL_TEXTURE_CUBE_MAP, self.textures["environment"])
         levels = prefilter(self.environment.cubemap)
         for level, faces in enumerate(levels):
@@ -935,8 +944,6 @@ class SceneViewer:
             (gl.GL_TEXTURE_MAX_LEVEL, len(levels) - 1),
         ):
             gl.glTexParameteri(gl.GL_TEXTURE_CUBE_MAP, parameter, value)
-        # upload joints and draw shadows again
-        self.placed = None
 
     def place_camera(self, camera_transform: ArrayLike) -> None:
         """
@@ -1041,8 +1048,7 @@ class SceneViewer:
             if colors is not None:
                 colors = hash(np.asarray(colors).tobytes())
             keys[name] = (hash(geometry), hash(getattr(geometry, "visual", None)), colors)
-        shown = {("axis",): state.axis, ("grid",): state.grid}
-        shown[("ground",)] = len(self.ground) > 0
+        shown = dict(zip(DECORATIONS, (state.axis, state.grid, len(self.ground) > 0)))
         keys.update((name, name) for name, show in shown.items() if show)
         changed = keys != self.geometry_keys
         for name, key in keys.items():
@@ -1102,7 +1108,7 @@ class SceneViewer:
         nodes = [node for node in drawn if node not in state.hidden]
         nodes = [node for node in nodes if drawn[node] in self.geometry_buffers]
         names = [drawn[node] for node in nodes]
-        names.extend(name for name in self.geometry_buffers if isinstance(name, tuple))
+        names.extend(name for name in self.geometry_buffers if name in DECORATIONS)
         table.buffers = buffers = [self.geometry_buffers[name] for name in names]
         table.count = count = len(nodes)
         # rows sharing buffers, or material and textures
@@ -1403,7 +1409,7 @@ class SceneViewer:
         if mode == "index":
             # depth zero and node -1, which a clamped `glClearColor` may not write
             gl.glClearBufferfv(gl.GL_COLOR, 0, (gl.GLfloat * 4)(0.0, -1.0, 0.0, 0.0))
-        elif self.render_settings["show_environment"]:
+        elif self.render_settings.show_environment:
             self.fullscreen("background")
         gl.glEnable(gl.GL_DEPTH_TEST)
         SWITCHES[mode == "color"](gl.GL_BLEND)
@@ -1422,7 +1428,7 @@ class SceneViewer:
         gl.glBindFramebuffer(gl.GL_DRAW_FRAMEBUFFER, self.framebuffers["resolved"])
         area = (0, 0, *self.sizes["resolved"])
         gl.glBlitFramebuffer(*area, *area, gl.GL_COLOR_BUFFER_BIT, gl.GL_NEAREST)
-        if state.quality and self.render_settings["bloom"] > 0.0:
+        if state.quality and self.render_settings.bloom > 0.0:
             for name in ("bloom_across", "bloom_down", "bloom_add"):
                 self.fullscreen(name)
 
@@ -1451,12 +1457,8 @@ class SceneViewer:
         primary = np.where(blend, depth, geometry_index[rows])
         secondary = np.where(blend, 0, table.material_index[rows])
         order = rows[np.lexsort((primary, secondary, blend))]
-        # signed adjugate: the inverse transpose up to scale, defined at zero scale
-        linear = model_view[order, :3, :3]
         instances = np.zeros(len(order), dtype=shaders.INSTANCE)
         instances["model_view"] = model_view[order].transpose((0, 2, 1))
-        mirror = np.sign(np.linalg.det(linear))[:, None, None]
-        instances["normal_matrix"] = adjugate(linear) * mirror
         instances["node_index"] = table.node_index[order]
         instances["joint_offset"] = table.joint_offset[order]
         # a draw call per geometry, translucent mesh and line

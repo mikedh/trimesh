@@ -2644,9 +2644,10 @@ class Trimesh(Geometry3D):
             )[0]
 
         if has_rotation:
+            linear = matrix[:3, :3]
             # the adjugate `det(M) * inv(M)` maps `cross(a, b)` to
             # `cross(M @ a, M @ b)` exactly, even for singular `M`
-            adjugate = transformations.adjugate(matrix[:3, :3])
+            adjugate = np.cross(linear.T[[1, 2, 0]], linear.T[[2, 0, 1]])
             if flip:
                 # faces are reversed below so their normals reverse too
                 adjugate = -adjugate

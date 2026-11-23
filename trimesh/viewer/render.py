@@ -11,7 +11,6 @@ trimesh.load_scene("model.glb").render("model.mp4")
 Videos play `scene.animations`, or orbit the camera if there are none.
 """
 
-import contextlib
 import glob
 import os
 import shutil
@@ -21,14 +20,14 @@ import warnings
 import numpy as np
 
 from .. import util
-from ..interfaces.ffmpeg import VIDEO_TYPES, VideoWriter
+from ..interfaces.ffmpeg import VIDEO_TYPES, write_video
 from ..scene.animation import Animation
 from ..scene.cameras import current_view
 from ..scene.scene import Scene
 from ..transformations import rotation_matrix
-from ..typed import ArrayLike, Integer, NDArray, Number, Sequence, Stream
+from ..typed import Integer, Iterable, NDArray, Number, Sequence, Stream
 from ..visual.color import to_rgba
-from .conversion import render_lights
+from .conversion import RenderSettings, render_lights
 
 # file types `render_scene` writes: Pillow formats then ffmpeg videos
 RENDER_TYPES = ("png", "gif", "webp", "avif", *VIDEO_TYPES)
@@ -43,12 +42,6 @@ def render_scene(
     resolution: Sequence[Integer] | NDArray | None = None,
     file_obj: str | os.PathLike | Stream | None = None,
     file_type: str | None = None,
-    duration: Number | None = None,
-    fps: Number = 30.0,
-    engine: str = "opengl",
-    quality: bool = True,
-    background: ArrayLike | None = None,
-    samples: Integer = 64,
     **kwargs,
 ) -> bytes | None:
     """
@@ -64,20 +57,8 @@ def render_scene(
       Where to write the render, or None to return it.
     file_type : str or None
       One of `RENDER_TYPES`, defaults to the extension or "png".
-    duration : float or None
-      Seconds, defaults to `scene.duration` or `TURNTABLE_DURATION`.
-    fps : float
-      Frames per second of an animation.
-    engine : str
-      "opengl" for the built in renderer or "blender".
-    quality : bool
-      OpenGL shadows, ambient occlusion and bloom.
-    background : None or color
-      Behind the scene, defaults to white.
-    samples : int
-      Blender samples per pixel.
     kwargs : dict
-      `conversion.RENDER_DEFAULTS` overrides.
+      `conversion.RenderSettings` fields, the rest passed to `SceneViewer`.
 
     Returns
     ------------
@@ -92,71 +73,41 @@ def render_scene(
     file_type = (file_type or "png").strip().lower().lstrip(".")
     if file_type not in RENDER_TYPES:
         raise ValueError(f"`{file_type}` is not one of {RENDER_TYPES}")
-    if engine not in ("opengl", "blender"):
-        raise ValueError(f"engine `{engine}` is not `opengl` or `blender`")
     ignored = [key for key in WINDOW_KEYWORDS if key in kwargs]
     if len(ignored) > 0:
         message = f"`render_scene` ignores {ignored}, which will raise after April 2028"
         warnings.warn(message, category=DeprecationWarning, stacklevel=2)
-    kwargs = {key: value for key, value in kwargs.items() if key not in WINDOW_KEYWORDS}
-    still = file_type == "png"
-    scene, count = stage(scene, resolution, duration=duration, fps=fps, still=still)
-    # frames stream to ffmpeg or are collected for Pillow
-    target, images = file_obj or util.BytesIO(), []
+    names = RenderSettings.__dataclass_fields__.keys()
+    settings = RenderSettings(**{key: kwargs.pop(key) for key in names & kwargs.keys()})
+    viewer = {key: v for key, v in kwargs.items() if key not in WINDOW_KEYWORDS}
+    if settings.engine not in ("opengl", "blender"):
+        raise ValueError(f"engine `{settings.engine}` is not `opengl` or `blender`")
+    # an explicit zero duration is a still in any format
+    still = file_type == "png" or settings.duration == 0
+    scene, count = stage(scene, resolution, settings.duration, settings.fps, still)
+    target = file_obj or util.BytesIO()
     with tempfile.TemporaryDirectory() as directory:
-        # ffmpeg needs a seekable file on disk
-        path = file_obj
-        if not isinstance(file_obj, str):
-            path = os.path.join(directory, f"render.{file_type}")
-        with contextlib.ExitStack() as stack:
-            add = images.append
-            if file_type in VIDEO_TYPES:
-                add = stack.enter_context(VideoWriter(path, fps=fps)).write
-            if engine == "opengl":
-                from .opengl.viewer import SceneViewer
-
-                # look through the scene camera, which may be animated
-                viewer = SceneViewer(
-                    scene,
-                    visible=False,
-                    start_loop=False,
-                    background=background,
-                    flags={"quality": quality, "follow_camera": True},
-                    **kwargs,
-                )
-                stack.callback(viewer.close)
-                for index in range(count):
-                    if not still:
-                        # loops shorter animations without posing the scene
-                        viewer.animation_time = index / fps
-                    viewer.draw(changed=index == 0)
-                    add(viewer.read_pixels("resolved"))
-            else:
-                from ..interfaces import blender
-
-                # Blender writes transparent PNG frames to put on the background
-                blender.build(scene, directory, count, fps, samples, **kwargs)
-                color = (255,) * 4
-                if background is not None:
-                    color = tuple(to_rgba(background).tolist())
-                backdrop = Image.new("RGBA", tuple(scene.camera.resolution), color)
-                for name in sorted(glob.glob(os.path.join(directory, "frame_*.png"))):
-                    with Image.open(name) as image:
-                        frame = Image.alpha_composite(backdrop, image.convert("RGBA"))
-                    add(np.asarray(frame))
+        frames = render_frames(scene, count, settings, directory, still, **viewer)
         if file_type in VIDEO_TYPES:
+            # ffmpeg needs a seekable file on disk
+            path = file_obj
+            if not isinstance(file_obj, str):
+                path = os.path.join(directory, f"render.{file_type}")
+            write_video(frames, path, fps=settings.fps)
             if path != file_obj:
                 with open(path, "rb") as written:
                     shutil.copyfileobj(written, target)
         else:
-            images = [Image.fromarray(frame) for frame in images]
+            images = [Image.fromarray(frame) for frame in frames]
             # round frame ends to the tick: 30 fps GIF is 30, 40, 30 ms
             # rather than 30 ms, which plays 11% fast
             animation = {}
             if len(images) > 1:
                 # GIF counts hundredths of a second, the rest milliseconds
                 tick = {"gif": 10}.get(file_type, 1)
-                ends = np.round(np.arange(len(images) + 1) * 1000.0 / (fps * tick))
+                ends = np.round(
+                    np.arange(len(images) + 1) * 1000.0 / (settings.fps * tick)
+                )
                 animation = {
                     "save_all": True,
                     "append_images": images[1:],
@@ -166,6 +117,75 @@ def render_scene(
             images[0].save(target, format=file_type, **animation)
     if file_obj is None:
         return target.getvalue()
+
+
+def render_frames(
+    scene: Scene,
+    count: Integer,
+    settings: RenderSettings,
+    directory: str,
+    still: bool = False,
+    **kwargs,
+) -> Iterable[NDArray]:
+    """
+    Every frame of a staged scene.
+
+    Parameters
+    ------------
+    scene : trimesh.Scene
+      From `stage`.
+    count : int
+      Frames to render.
+    settings : RenderSettings
+      How to draw the scene.
+    directory : str
+      Temporary directory for Blender.
+    still : bool
+      Render one frame as posed.
+    kwargs : dict
+      Passed to `SceneViewer`.
+
+    Yields
+    ------------
+    frame : (height, width, 3 or 4) uint8
+      Pixels with the first row at the top.
+    """
+    from PIL import Image
+
+    if settings.engine == "blender":
+        from ..interfaces import blender
+
+        # Blender writes transparent PNG frames to put on the background
+        blender.build(scene, directory, count, settings, **kwargs)
+        color = (255,) * 4
+        if settings.background is not None:
+            color = tuple(to_rgba(settings.background).tolist())
+        backdrop = Image.new("RGBA", tuple(scene.camera.resolution), color)
+        for name in sorted(glob.glob(os.path.join(directory, "frame_*.png"))):
+            with Image.open(name) as image:
+                yield np.asarray(Image.alpha_composite(backdrop, image.convert("RGBA")))
+        return
+
+    from .opengl.viewer import SceneViewer
+
+    # look through the scene camera, which may be animated
+    viewer = SceneViewer(
+        scene,
+        visible=False,
+        start_loop=False,
+        flags={"follow_camera": True},
+        **vars(settings),
+        **kwargs,
+    )
+    try:
+        for index in range(count):
+            if not still:
+                # loops shorter animations without posing the scene
+                viewer.animation_time = index / settings.fps
+            viewer.draw(changed=index == 0)
+            yield viewer.read_pixels("resolved")
+    finally:
+        viewer.close()
 
 
 def stage(

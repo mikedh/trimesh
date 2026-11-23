@@ -19,20 +19,19 @@ void main() {
     // skinned vertices are put in world space by their joints, and their
     // node's transform is the identity
     mat4 skin = mat4(1.0);
-    mat3 skin_normal = mat3(1.0);
     if (joint_offset >= 0.0) {
         skin = transpose(
             weights.x * joint_rows(joints.x) + weights.y * joint_rows(joints.y)
             + weights.z * joint_rows(joints.z) + weights.w * joint_rows(joints.w));
-        // normals move by the cofactor of the blend, like `normal_matrix`
-        mat3 linear = mat3(skin);
-        skin_normal = mat3(
-            cross(linear[1], linear[2]), cross(linear[2], linear[0]), cross(linear[0], linear[1]))
-            * sign(determinant(linear));
     }
+    // normals move by the signed cofactor, the inverse transpose up to
+    // scale which is defined at zero scale and keeps mirrored normals out
+    mat3 linear = mat3(model_view * skin);
+    mat3 cofactor = mat3(
+        cross(linear[1], linear[2]), cross(linear[2], linear[0]), cross(linear[0], linear[1]));
     vec4 camera_position = model_view * skin * vec4(position, 1.0);
     view_position = camera_position.xyz;
-    view_normal = normal_matrix * skin_normal * normal;
+    view_normal = cofactor * sign(determinant(linear)) * normal;
     texture_uv = uv;
     vertex_color = color;
     fragment_node_index = node_index;

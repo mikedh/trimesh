@@ -262,7 +262,7 @@ class EnvironmentLight(Light):
     intensity : float
         Scale of the radiance.
     cubemap : (6, n, n, 3) float
-        Linear RGB radiance, or an (h, 2h, 3) equirectangular image.
+        Linear RGB radiance.
     """
 
     def __init__(
@@ -274,28 +274,7 @@ class EnvironmentLight(Light):
         super().__init__(name=name, color=[255, 255, 255, 255], intensity=intensity)
         if cubemap is None:
             cubemap = np.zeros((6, 1, 1, 3))
-        cubemap = np.asarray(cubemap, dtype=np.float64)
-        if cubemap.ndim == 3:
-            # equirectangular with +Y up, as the Khronos Sample Viewer reads
-            # it, resampled to power of two faces no coarser than its equator
-            height, width = cubemap.shape[:2]
-            size = 2 ** int(np.ceil(np.log2(max(2.0 * height / np.pi, 1.0))))
-            x, y, z = cubemap_directions(size)[0].reshape((-1, 3)).T
-            # pad columns so longitude wraps
-            wrapped = np.concatenate((cubemap[:, -1:], cubemap, cubemap[:, :1]), axis=1)
-            # bilinear blend of the four nearest pixels
-            limit = np.array(wrapped.shape[:2]) - 1
-            row = np.arccos(np.clip(y, -1.0, 1.0)) / np.pi * height - 0.5
-            column = (0.5 + np.arctan2(z, x) / (2.0 * np.pi)) * width + 0.5
-            coordinates = np.column_stack((row, column)).clip(0, limit)
-            low = np.floor(coordinates).astype(np.int64)
-            fraction = (coordinates - low)[:, None]
-            corners = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
-            index = np.minimum(low[:, None] + corners, limit)
-            weights = np.prod(np.where(corners, fraction, 1.0 - fraction), axis=2)
-            samples = wrapped[index[..., 0], index[..., 1]] * weights[..., None]
-            cubemap = samples.sum(axis=1).reshape((6, size, size, -1))
-        self.cubemap = cubemap
+        self.cubemap = np.asarray(cubemap, dtype=np.float64)
 
 
 def cubemap_directions(size: Integer) -> tuple[NDArray[float64], NDArray[float64]]:
@@ -364,9 +343,11 @@ def prefilter(cubemap: ArrayLike) -> list[NDArray]:
             directions, solid_angle = cubemap_directions(width)
             directions = directions.reshape((-1, 3)).astype(np.float32)
             # BLAS is much faster with a contiguous transpose
-            cosine = directions @ np.ascontiguousarray(directions.T)
-            # in place to stay float32
-            weights = np.exp(sharpness * (cosine - 1.0))
+            weights = directions @ np.ascontiguousarray(directions.T)
+            # in place to stay float32 and hold one texel-by-texel matrix
+            weights -= 1.0
+            weights *= sharpness
+            np.exp(weights, out=weights)
             weights *= solid_angle.reshape(-1)
             blurred = (weights @ blurred.reshape((-1, 3))) / weights.sum(axis=1)[:, None]
         levels.append(blurred.reshape((6, width, width, 3)))

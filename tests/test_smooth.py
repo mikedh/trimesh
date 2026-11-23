@@ -79,13 +79,6 @@ def test_smooth():
         "box normals are face normals"
     )
     assert len(g.trimesh.Trimesh().smooth_shaded.faces) == 0, "empty mesh"
-    # `facet_minarea` no longer does anything so passing it warns
-    with g.pytest.warns(DeprecationWarning, match="facet_minarea"):
-        minarea = g.trimesh.graph.smooth_shade(cylinder, facet_minarea=10.0)
-    assert g.np.array_equal(minarea.vertices, smooth.vertices) and g.np.array_equal(
-        minarea.faces, smooth.faces
-    ), "facet_minarea changes nothing"
-
     # vertex colors, and a PBR material with per-vertex colors, i.e. glTF `COLOR_0`
     colored = g.trimesh.creation.icosphere()
     colored.visual.vertex_colors = g.random((len(colored.vertices), 4)) * 255

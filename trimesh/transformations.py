@@ -1635,44 +1635,25 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     quaternion : (4,) or (n, 4) float
       Interpolated quaternions.
     """
-    if np.ndim(quat0) > 1 or np.ndim(quat1) > 1 or np.ndim(fraction) > 0:
-        q0 = unit_vector(np.reshape(quat0, (-1, 4)), axis=1)
-        q1 = unit_vector(np.reshape(quat1, (-1, 4)), axis=1)
-        fraction = np.reshape(fraction, (-1, 1))
-        d = (q0 * q1).sum(axis=1, keepdims=True)
-        # `q` and `-q` are the same rotation
-        flip = np.where(shortestpath & (d < 0.0), -1.0, 1.0)
-        angle = np.arccos(np.clip(d * flip, -1.0, 1.0)) + spin * np.pi
-        # parallel quaternions hold at the start
-        degenerate = (np.abs(np.abs(d) - 1.0) < _EPS) | (np.abs(angle) < _EPS)
-        isin = 1.0 / np.sin(np.where(degenerate, 1.0, angle))
-        result = q0 * np.sin((1.0 - fraction) * angle) * isin
-        result += flip * q1 * np.sin(fraction * angle) * isin
-        # return endpoints unflipped
-        result = np.where(degenerate | (fraction == 0.0), q0, result)
-        return np.where(fraction == 1.0, q1, result)
-
-    q0 = unit_vector(quat0[:4])
-    q1 = unit_vector(quat1[:4])
-    if fraction == 0.0:
-        return q0
-    elif fraction == 1.0:
-        return q1
-    d = np.dot(q0, q1)
-    if abs(abs(d) - 1.0) < _EPS:
-        return q0
-    if shortestpath and d < 0.0:
-        # invert rotation
-        d = -d
-        np.negative(q1, q1)
-    angle = np.arccos(d) + spin * np.pi
-    if abs(angle) < _EPS:
-        return q0
-    isin = 1.0 / np.sin(angle)
-    q0 *= np.sin((1.0 - fraction) * angle) * isin
-    q1 *= np.sin(fraction * angle) * isin
-    q0 += q1
-    return q0
+    q0 = unit_vector(np.reshape(quat0, (-1, 4)), axis=1)
+    q1 = unit_vector(np.reshape(quat1, (-1, 4)), axis=1)
+    single = np.ndim(quat0) == 1 and np.ndim(quat1) == 1 and np.ndim(fraction) == 0
+    fraction = np.reshape(fraction, (-1, 1))
+    d = (q0 * q1).sum(axis=1, keepdims=True)
+    # `q` and `-q` are the same rotation
+    flip = np.where(shortestpath & (d < 0.0), -1.0, 1.0)
+    angle = np.arccos(np.clip(d * flip, -1.0, 1.0)) + spin * np.pi
+    # parallel quaternions hold at the start
+    degenerate = (np.abs(np.abs(d) - 1.0) < _EPS) | (np.abs(angle) < _EPS)
+    isin = 1.0 / np.sin(np.where(degenerate, 1.0, angle))
+    result = q0 * np.sin((1.0 - fraction) * angle) * isin
+    result += flip * q1 * np.sin(fraction * angle) * isin
+    # return endpoints unflipped
+    result = np.where(degenerate | (fraction == 0.0), q0, result)
+    result = np.where(fraction == 1.0, q1, result)
+    if single:
+        return result[0]
+    return result
 
 
 def random_quaternion(rand=None, num=1, seed: Seed = None):
@@ -2442,22 +2423,3 @@ def flips_winding(matrix):
         raise ValueError(f"matrix must be (3, 3) or (4, 4), not {matrix.shape!s}")
     # a transform flips winding exactly when its determinant is negative
     return bool(np.linalg.det(matrix[:3, :3]) < 0.0)
-
-
-def adjugate(matrices: ArrayLike) -> NDArray[np.float64]:
-    """
-    Adjugate `det(M) * inv(M)` of 3x3 matrices, defined when singular.
-
-    Parameters
-    -------------
-    matrices : (3, 3) or (n, 3, 3) float
-      Linear transforms.
-
-    Returns
-    --------------
-    adjugate : (3, 3) or (n, 3, 3) float
-      Adjugate, so normals transform as `normals @ adjugate(M)`.
-    """
-    # rows are cross products of the columns
-    columns = np.swapaxes(np.asanyarray(matrices, dtype=np.float64), -1, -2)
-    return np.cross(columns[..., [1, 2, 0], :], columns[..., [2, 0, 1], :])

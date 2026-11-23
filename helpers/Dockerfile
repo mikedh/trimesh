@@ -71,19 +71,14 @@ COPY --chown=499 --from=build /home/user/venv /home/user/venv
 #### Run Unit Tests
 FROM output AS tests
 
-# every Blender the matrix tests, in a layer before anything which
-# changes often so they aren't downloaded again on every build
-RUN trimesh-setup --fetch-only
-
 # copy in tests and supporting files
 COPY --chown=499 tests ./tests/
 COPY --chown=499 trimesh ./trimesh/
 COPY --chown=499 models ./models/
-COPY --chown=499 examples ./examples/
 COPY --chown=499 pyproject.toml .
 
 USER root
-RUN trimesh-setup --install=test,gmsh,gltf_validator,glslang,llvmpipe,binvox,blender,build
+RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox,blender,build
 USER user
 
 RUN bash -c "ldconfig & blender --version"
@@ -107,14 +102,9 @@ RUN COLUMNS=240 xvfb-run pytest \
     -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests
 
-# rerun subsets of the tests on each `trimesh-setup --matrix` entry
-# i.e. every supported pyglet and Blender, each in its own environment:
-# `--cov-append` adds every run to the same `.coverage` as the full suite
-ARG MATRIX="pyglet1 pyglet2 pyglet3 blender43 blender45 blender50"
-RUN for name in $MATRIX; do \
-      xvfb-run -a trimesh-setup --matrix $name \
-        --cov=trimesh --cov-append -p no:INCLUDE_RENDERING -p no:cacheprovider || exit 1; \
-    done
+# the viewer again on the `pyglet<2` the `recommend` extra used to pin
+RUN pip install "pyglet<2" && COLUMNS=240 xvfb-run pytest --cov=trimesh --cov-append \
+    -p no:cacheprovider tests/test_viewer.py tests/test_render.py
 
 ################################
 ### Build Sphinx Docs

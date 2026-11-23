@@ -269,22 +269,6 @@ class Camera:
             # fov overrides focal
             self._focal = None
 
-    @property
-    def projection(self) -> NDArray[np.float64]:
-        """
-        Projection matrix, orthographic with `magnification`.
-
-        Returns
-        --------------
-        projection_matrix : (4, 4) float
-          Projection matrix for the camera
-        """
-        orthographic = self.magnification is not None
-        scale = 1.0 / np.tan(np.radians(self.fov) / 2.0)
-        if orthographic:
-            scale = 1.0 / np.asarray(self.magnification, dtype=np.float64)
-        return projection_matrices(scale, self.z_near, self.z_far, orthographic)[0]
-
     def to_rays(self):
         """
         Calculate ray direction vectors.

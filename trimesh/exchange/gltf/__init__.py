@@ -990,7 +990,12 @@ def _append_mesh(
     ):
         # store vertex normals if requested
         if unitize_normals:
-            normals = util.unitize(mesh.vertex_normals)
+            normals = mesh.vertex_normals.copy()
+            # rows already unit to float32 spacing are left alone, as
+            # dividing them again walks their last bit on every export
+            norm = np.linalg.norm(normals, axis=1)
+            off = np.abs(norm - 1.0) > np.finfo(float32).eps
+            normals[off] = util.unitize(normals[off])
         else:
             # we don't have to copy them since
             # they aren't being altered
@@ -1229,7 +1234,9 @@ def _append_path(path, name, tree, buffer_items):
       Will have buffer appended with path data
     """
 
-    segments = path.segments
+    from ...path.segments import from_path
+
+    segments, entity = from_path(path)
     if len(segments) == 0:
         return
 
@@ -1268,7 +1275,7 @@ def _append_path(path, name, tree, buffer_items):
         log.debug("failed to serialize metadata, dropping!", exc_info=True)
 
     if path.colors is not None:
-        per_vertex = np.repeat(path.colors[path.segments_entity], 2, axis=0)
+        per_vertex = np.repeat(path.colors[entity], 2, axis=0)
         acc_color = _data_append(
             acc=tree["accessors"],
             buff=buffer_items,
@@ -1935,7 +1942,7 @@ def _read_buffers(
     names[DEFAULT_BASE_FRAME] = DEFAULT_BASE_FRAME
 
     # every parent-to-node transform
-    matrices = animation.node_matrices(nodes)
+    matrices = animation.node_matrices(nodes)[0]
 
     # visited, kwargs for scene.graph.update
     graph = deque()
@@ -2056,9 +2063,8 @@ def _read_buffers(
     if lights.ENVIRONMENT in header.get("extensions", {}):
         images = _parse_textures(header, views, resolver)
     scene_lights = lights.parse_lights(header, names, scene_index, images, graph)
-    animations, skins = animation.parse_animations(
-        header=header, access=access, names=names, skinned=skinned, matrices=matrices
-    )
+    animations = animation.parse_animations(header, access, names)
+    skins = animation.parse_skins(header, access, names, skinned)
     # kwargs for load_kwargs
     result = {
         "class": "Scene",
@@ -2308,8 +2314,8 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
         img = getattr(as_pbr, key)
         if img is None:
             continue
-        # store each image once
-        content = None
+        # store each image once, by content or else by identity
+        content = id(img)
         if hasattr(img, "tobytes"):
             content = (img.mode, img.size, hash_fast(img.tobytes()))
         if content in mat_hashes:

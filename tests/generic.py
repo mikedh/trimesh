@@ -7,7 +7,6 @@ might need, to reduce the amount of boilerplate.
 import os
 import sys
 import io
-import re
 import json
 import types
 import copy
@@ -133,27 +132,6 @@ except BaseException as E:
 has_binvox = trimesh.exchange.binvox.binvox_encoder is not None
 if all_dependencies and not has_binvox:
     raise ValueError("missing binvox")
-
-# `trimesh-setup --matrix` sets i.e. `pyglet==2.1.19` or `blender==4.5.15`
-# so a matrix entry can't quietly test a different version than it installed
-expect = os.environ.get("TRIMESH_EXPECT")
-if expect is not None:
-    expect_name, expect_version = expect.split("==")
-    if expect_name == "pyglet":
-        import pyglet
-
-        installed = pyglet.version
-    elif expect_name == "blender":
-        # the version of the Blender trimesh will run, i.e. `4.5.15`
-        output = subprocess.run(
-            [trimesh.interfaces.blender._blender_executable, "--version"],
-            capture_output=True,
-            text=True,
-        ).stdout
-        installed = re.search(r"Blender (\d+\.\d+\.\d+)", output).group(1)
-    else:
-        raise ValueError(f"unknown `TRIMESH_EXPECT={expect}`")
-    assert installed == expect_version, f"`TRIMESH_EXPECT={expect}` but `{installed}`"
 
 # Python version as a tuple, i.e. [3, 6]
 PY_VER = (sys.version_info.major, sys.version_info.minor)
@@ -775,20 +753,13 @@ def render(scene, include_depth=False, include_segmentation=False, **kwargs):
 
 
 def render_frames(scene, resolution, fps, duration=None):
-    """Every raw frame `Scene.render` encodes, drawn the way it draws them."""
-    from trimesh.viewer.opengl.viewer import SceneViewer
-    from trimesh.viewer.render import stage
+    """Every raw frame `Scene.render` encodes."""
+    from trimesh.viewer.conversion import RenderSettings
+    from trimesh.viewer.render import render_frames, stage
 
     staged, count = stage(scene, resolution, duration=duration, fps=fps)
-    viewer = SceneViewer(staged, visible=False, start_loop=False, follow_camera=True)
-    try:
-        frames = []
-        for index in range(count):
-            viewer.animation_time = index / fps
-            frames.append(viewer.to_array().color)
-        return frames
-    finally:
-        viewer.close()
+    settings = RenderSettings(fps=fps, duration=duration)
+    return list(render_frames(staged, count, settings, directory=""))
 
 
 def png(data):
@@ -820,23 +791,20 @@ def camera_hits(scene, meshes=None, corner=(0.0, 0.0)):
     combined = trimesh.util.concatenate(meshes)
     origins, vectors, pixels = scene.camera_rays()
     if any(corner):
-        # the same rays through another point of each pixel
-        camera = scene.camera
-        coordinates = trimesh.scene.cameras.ray_pixel_coords(camera)[0]
-        step = np.ptp(coordinates, axis=0) / (np.array(camera.resolution) - 1)
-        coordinates = coordinates + np.array(corner) * step
-        to_world = scene.camera_transform
-        if camera.magnification is None:
-            directions = np.column_stack((coordinates, -np.ones(len(coordinates))))
-        else:
-            directions = np.tile([0.0, 0.0, -1.0], (len(coordinates), 1))
-            origins = trimesh.transformations.transform_points(
-                np.column_stack((coordinates, np.zeros(len(coordinates)))), to_world
-            )
+        # the same rays through another point of each pixel, with
+        # perspective from the origin and orthographic from the plane
+        camera, to_world = scene.camera, scene.camera_transform
+        xy = trimesh.scene.cameras.ray_pixel_coords(camera)[0]
+        xy = xy + np.multiply(
+            corner, np.ptp(xy, axis=0) / np.subtract(camera.resolution, 1)
+        )
+        local = np.column_stack((xy, -np.ones(len(xy))))
+        start = np.zeros_like(local)
+        if camera.magnification is not None:
+            local[:, :2], start[:, :2] = 0.0, xy
+        origins = trimesh.transformations.transform_points(start, to_world)
         vectors = trimesh.util.unitize(
-            trimesh.transformations.transform_points(
-                directions, to_world, translate=False
-            )
+            trimesh.transformations.transform_points(local, to_world, translate=False)
         )
     points, ray, face = combined.ray.intersects_location(
         origins, vectors, multiple_hits=False
@@ -895,22 +863,8 @@ def ray_reference(scene):
 
 def assert_images(a, b, name, atol=1):
     """
-    Assert two renders agree to within `atol` levels at every pixel.
-
-    GPUs aren't bit reproducible: identical uploads redraw one pixel a
-    level apart on an RTX 5070, measured, so renders compare within 1.
-    Bloom spreads that level onto its neighbors, so bloomed ones within 2.
-
-    Parameters
-    ------------
-    a : (h, w, c) int or float
-      An image.
-    b : (h, w, c) int or float
-      The image it should equal.
-    name : str
-      Label of the assert.
-    atol : float
-      Largest difference allowed at any pixel.
+    Assert two renders agree within `atol` levels at every pixel: GPUs
+    redraw identical uploads a level apart, and bloom spreads that to 2.
     """
     a, b = np.asarray(a, dtype=np.float64), np.asarray(b, dtype=np.float64)
     assert a.shape == b.shape, f"{name}: shape {a.shape} is not {b.shape}"
@@ -926,18 +880,8 @@ def assert_images(a, b, name, atol=1):
 
 def assert_rays(scene, arrays, prefix: str = "", depth: bool = True):
     """
-    Assert a render is what its camera rays hit, away from node edges.
-
-    Parameters
-    ------------
-    scene : trimesh.Scene
-      Scene that was rendered.
-    arrays : RenderArrays
-      With `depth` and `segmentation`.
-    prefix : str
-      Label of the asserts.
-    depth : bool
-      Also assert depth is each ray's distance along the view axis.
+    Assert a render's `segmentation`, and `depth` along the view axis,
+    are what its camera rays hit away from node edges.
     """
     from scipy import ndimage
 
@@ -968,18 +912,6 @@ def assert_rays(scene, arrays, prefix: str = "", depth: bool = True):
         assert close[deep].all(), f"{prefix}depth is rays"
 
 
-def glb_chunks(export):
-    """Split a GLB into its parsed JSON header and its binary chunk."""
-    chunks = {}
-    start = 12
-    while start < len(export):
-        length, kind = np.frombuffer(export[start : start + 8], dtype="<u4")
-        chunks[int(kind)] = export[start + 8 : start + 8 + int(length)]
-        start += 8 + int(length)
-    # 0x4E4F534A is "JSON" and 0x004E4942 is "BIN"
-    return json.loads(chunks[0x4E4F534A]), chunks.get(0x004E4942, b"")
-
-
 def dolly_scene(node, duration=1.0):
     """
     A red box seen by a camera on a dolly, with `node`, which is "box"
@@ -1004,15 +936,164 @@ def dolly_scene(node, duration=1.0):
     return scene
 
 
-def same_animations(scene, other):
-    """If two scenes have exactly the same animations."""
-    return [
-        (a.name, a.nodes, a.interpolation, a.times.tobytes(), a.matrices.tobytes())
-        for a in scene.animations
-    ] == [
-        (a.name, a.nodes, a.interpolation, a.times.tobytes(), a.matrices.tobytes())
-        for a in other.animations
-    ]
+# `PBRMaterial` keys of render case meshes which don't set them
+CASE_MATERIAL = {
+    "baseColorFactor": [200, 120, 60, 255],
+    "metallicFactor": 0.0,
+    "roughnessFactor": 0.5,
+}
+
+
+def case_geometry(item):
+    """One `geometry` entry of a render case: `material` is `PBRMaterial`
+    keywords where every `*Texture` is the RGB color of a 4x4 image."""
+    from PIL import Image
+
+    kind, uv = item["kind"], None
+    if kind == "path":
+        return trimesh.load_path(item["vertices"])
+    if kind == "points":
+        return trimesh.PointCloud(item["vertices"])
+    if kind == "file":
+        mesh = get_mesh(item["file"]).apply_scale(item.get("scale", 1.0))
+        return mesh.apply_translation(item.get("translation", [0.0] * 3))
+    if kind == "sphere":
+        mesh = trimesh.creation.icosphere(
+            subdivisions=item.get("subdivisions", 4), radius=item.get("radius", 1.0)
+        )
+    elif kind == "plane":
+        mesh = trimesh.creation.box(extents=[10.0, 10.0, 0.1])
+        mesh.apply_translation([0, 0, -0.05])
+        if item.get("top_only", False):
+            # nothing under the top to block light from below
+            mesh.update_faces(mesh.face_normals[:, 2] > 0.5)
+            mesh.remove_unreferenced_vertices()
+    elif kind == "square":
+        vertices = np.array([[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]], float)
+        mesh = trimesh.Trimesh(vertices, [[0, 1, 2], [0, 2, 3]], process=False)
+        uv = (vertices[:, :2] + 1.0) / 2.0
+        if item.get("mirror", False):
+            # mirrored textures flip the tangent
+            uv[:, 0] = 1.0 - uv[:, 0]
+    else:
+        mesh = trimesh.creation.box(extents=item.get("extents", [1.0] * 3))
+    mesh.apply_transform(
+        trimesh.transformations.euler_matrix(*item.get("euler", [0] * 3))
+    )
+    mesh.apply_translation(item.get("translation", [0.0] * 3))
+    if uv is None:
+        uv = np.zeros((len(mesh.vertices), 2))
+    material = {**CASE_MATERIAL, **item.get("material", {})}
+    material.update(
+        {
+            key: Image.fromarray(np.full((4, 4, 3), value, dtype=np.uint8))
+            for key, value in material.items()
+            if key.endswith("Texture")
+        }
+    )
+    mesh.visual = trimesh.visual.TextureVisuals(
+        uv=uv, material=trimesh.visual.material.PBRMaterial(**material)
+    )
+    if "vertex_color" in item:
+        mesh.visual.vertex_attributes["color"] = np.tile(
+            item["vertex_color"], (len(mesh.vertices), 1)
+        )
+    if "visual" in item:
+        # trimesh's own colors rather than a material
+        mesh.visual = trimesh.visual.ColorVisuals(mesh)
+        setattr(mesh.visual, f"{item['visual']}_colors", material["baseColorFactor"])
+    return mesh
+
+
+def case_scene(case):
+    """The scene of a row of `tests/data/render_cases.json`."""
+    from trimesh.scene import lighting
+
+    tf = trimesh.transformations
+    scene = trimesh.Scene()
+    items = case.get("geometry", [{"kind": "sphere"}])
+    for index, item in enumerate(items):
+        name = f"geometry_{index}"
+        mesh = case_geometry(item)
+        if "instances" not in item:
+            scene.add_geometry(mesh, geom_name=name, node_name=name)
+            continue
+        # one geometry drawn by several nodes, optionally under a parent
+        scene.geometry[name] = mesh
+        parent = scene.graph.base_frame
+        if "parent" in item:
+            parent = f"parent_{index}"
+            pose = tf.euler_matrix(*item["parent"]["euler"])
+            scene.graph[parent] = pose @ tf.scale_matrix(item["parent"]["scale"])
+        node_scale = np.diag([item.get("node_scale", 1.0)] * 3 + [1.0])
+        for number, offset in enumerate(item["instances"]):
+            scene.graph.update(
+                frame_from=parent,
+                frame_to=f"{name}_{number}",
+                geometry=name,
+                matrix=tf.translation_matrix(offset) @ node_scale,
+            )
+
+    view = case.get("camera", "fixed")
+    if isinstance(view, dict):
+        scene.camera = trimesh.scene.Camera(
+            resolution=view["resolution"], fov=view["fov"]
+        )
+        scene.camera_transform = tf.euler_matrix(
+            *view.get("euler", [0] * 3)
+        ) @ tf.translation_matrix(view["translation"])
+    elif view == "default":
+        scene.camera.fit_resolution((200, 150))
+    elif view == "square":
+        scene.camera.fit_resolution((160, 120))
+        scene.camera_transform = scene.camera.look_at(
+            mesh.vertices, rotation=tf.euler_matrix(0.3, 0.2, 0.0)
+        )
+    else:
+        # square pixels, keeping the vertical view when wider
+        scene.camera = trimesh.scene.Camera(resolution=[150, 150], fov=(40, 40))
+        scene.camera.fit_resolution((200, 150))
+        look = {"points": mesh.bounds, "distance": 4.0}
+        if items[0]["kind"] == "plane":
+            look = {
+                "points": [[-5, -5, 0], [5, 5, 0]],
+                "rotation": tf.euler_matrix(0.5, 0, 0.2),
+            }
+        scene.camera_transform = scene.camera.look_at(**look)
+    if case.get("studio", False):
+        return scene
+
+    lights = []
+    for index, item in enumerate(case.get("lights", [])):
+        # keys other than the class and pose are keywords of the light
+        options = {
+            k: v for k, v in item.items() if k not in ("type", "translation", "euler")
+        }
+        light = getattr(lighting, item["type"])(f"light_{index}", [255] * 4, **options)
+        pose = tf.translation_matrix(item.get("translation", [0, 0, 0]))
+        scene.graph[light.name] = pose @ tf.euler_matrix(*item.get("euler", [0] * 3))
+        lights.append(light)
+    scene.lights = lights
+    # a constant environment, which is an ambient light
+    cubemap = np.tile(case.get("environment", [0.0] * 3), (6, 1, 1, 1))
+    environment = lighting.EnvironmentLight("environment", cubemap=cubemap)
+    # the environment's +Y is up, which is where the ground goes
+    pose = tf.euler_matrix(*case.get("environment_euler", [0] * 3))
+    return set_environment(scene, environment, pose=pose)
+
+
+def project(scene, points):
+    """World points through the scene camera to normalized device coordinates."""
+    camera = scene.camera
+    camera_scale = 1.0 / np.tan(np.radians(camera.fov) / 2.0)
+    if camera.magnification is not None:
+        camera_scale = 1.0 / np.asarray(camera.magnification)
+    projection = trimesh.scene.cameras.projection_matrices(
+        camera_scale, camera.z_near, camera.z_far, camera.magnification is not None
+    )[0]
+    world = np.column_stack((points, np.ones(len(points))))
+    clip = world @ (projection @ np.linalg.inv(scene.camera_transform)).T
+    return clip[:, :3] / clip[:, 3:]
 
 
 def assert_glb_roundtrip(source, name):
@@ -1025,11 +1106,9 @@ def assert_glb_roundtrip(source, name):
     loaded = roundtrip(first, "glb")
     once = loaded.export(file_type="glb")
     validate_glb(first, name)
-    validate_glb(once, name)
-    twice = roundtrip(once, "glb")
-    assert same_animations(twice, roundtrip(twice.export(file_type="glb"), "glb")), (
-        f"{name} fixed point"
-    )
+    # loading then exporting an export changes no byte
+    again = roundtrip(once, "glb").export(file_type="glb")
+    assert once == again, f"{name} fixed point"
     nodes = sorted(set(source.graph.nodes) - {source.graph.base_frame})
     assert set(nodes) <= set(loaded.graph.nodes), f"{name} keeps every node"
     assert [(c.name, c.fov[1]) for c in source.cameras] == [

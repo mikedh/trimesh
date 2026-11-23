@@ -710,40 +710,6 @@ class Path(parent.Geometry):
             for path in self.paths
         ]
 
-    @cache_decorator
-    def segments(self) -> NDArray[float64]:
-        """
-        Every entity discretized into line segments.
-
-        Returns
-        ---------
-        segments : (n, 2, dimension) float
-          The two endpoints of every line segment.
-        """
-        scale = self.scale
-        vertices = self.vertices
-        # entities are polymorphic
-        stacked = [
-            util.stack_lines(entity.discrete(vertices, scale=scale))
-            for entity in self.entities
-        ]
-        counts = [len(item) // 2 for item in stacked]
-        self._cache["segments_entity"] = np.repeat(np.arange(len(counts)), counts)
-        return util.vstack_empty(stacked).reshape((-1, 2, vertices.shape[1]))
-
-    @cache_decorator
-    def segments_entity(self) -> NDArray[np.int64]:
-        """
-        Entity index of every segment.
-
-        Returns
-        ---------
-        segments_entity : (len(self.segments),) int
-          Index of `self.entities` for every segment.
-        """
-        populate = self.segments  # NOQA
-        return self._cache["segments_entity"]
-
     def export(self, file_obj=None, file_type=None, **kwargs):
         """
         Export the path to a file object or return data.

@@ -6,7 +6,3 @@ docs/_static/examples/
 docs/trimesh*.rst
 docs/examples.*.rst
 docs/README.rst
-
-# renders written by the examples
-examples/*.mp4
-examples/*.glb

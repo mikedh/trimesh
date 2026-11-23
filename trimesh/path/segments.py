@@ -533,3 +533,31 @@ def to_svg(
     # create one large format string then apply points
     result = (base * len(segments)).format(*segments.ravel())
     return result
+
+
+def from_path(path) -> tuple[NDArray[float64], NDArray[np.int64]]:
+    """
+    Discretize every entity of a path into line segments.
+
+    Parameters
+    ------------
+    path : trimesh.path.Path2D or Path3D
+      Path with entities to discretize.
+
+    Returns
+    ------------
+    segments : (n, 2, dimension) float
+      Endpoints of every segment.
+    entity : (n,) int
+      Index of `path.entities` for every segment.
+    """
+    # entities are polymorphic
+    discrete = [e.discrete(path.vertices, scale=path.scale) for e in path.entities]
+    lengths = np.array([len(d) for d in discrete], dtype=np.int64)
+    points = util.vstack_empty(discrete).reshape((-1, path.vertices.shape[1]))
+    # every point except the last of each entity starts a segment
+    start = np.ones(len(points), dtype=bool)
+    start[np.cumsum(lengths)[lengths > 0] - 1] = False
+    start = np.flatnonzero(start)
+    entity = np.repeat(np.arange(len(lengths)), np.maximum(lengths - 1, 0))
+    return np.stack((points[start], points[start + 1]), axis=1), entity

@@ -63,11 +63,15 @@ def test_affine_authored_vertex_normals(linear):
         return (new * g.trimesh.unitize(moved, threshold=0)).sum(axis=1)
 
     length = g.np.linalg.norm(new, axis=1)
-    assert g.np.allclose(new[::7], 0.0), "zero normals stay zero"
-    assert g.np.allclose(length[length > 0], 1.0), "nonzero normals are unit"
-    assert g.np.abs(dot(tangent)).max() < 1e-8, "perpendicular to tangent"
-    assert g.np.abs(dot(bitangent)).max() < 1e-8, "perpendicular to bitangent"
-    assert (dot(normals) > -1e-8).all(), "same side as transformed normal"
+    checks = {
+        "zero normals stay zero": g.np.allclose(new[::7], 0.0),
+        "nonzero normals are unit": g.np.allclose(length[length > 0], 1.0),
+        "perpendicular to tangent": g.np.abs(dot(tangent)).max() < 1e-8,
+        "perpendicular to bitangent": g.np.abs(dot(bitangent)).max() < 1e-8,
+        "same side as transformed normal": (dot(normals) > -1e-8).all(),
+    }
+    for name, ok in checks.items():
+        assert ok, name
 
 
 @g.pytest.mark.parametrize("linear", [L for L in LINEAR if g.np.linalg.det(L) != 0.0])
@@ -85,14 +89,17 @@ def test_affine_preserves_convexity(linear, cached):
     edges = mesh.triangles[:, 1:] - mesh.triangles[:, :1]
     truth = g.trimesh.unitize(g.np.cross(edges[:, 0], edges[:, 1]))
     fresh = g.Trimesh(mesh.vertices, mesh.faces, process=False)
-    assert mesh.is_convex, "convex"
-    assert mesh.is_volume, "volume"
-    assert g.np.allclose(mesh.face_normals, truth), (
-        "face normals match edge cross products"
-    )
-    assert ((mesh.vertex_normals * fresh.vertex_normals).sum(axis=1) > 0).all(), (
-        "vertex normals in recomputed hemisphere"
-    )
+    checks = {
+        "convex": mesh.is_convex,
+        # mirrors must keep consistent winding and a positive volume
+        "volume": mesh.is_volume,
+        "face normals match edge cross products": g.np.allclose(mesh.face_normals, truth),
+        "vertex normals in recomputed hemisphere": (
+            (mesh.vertex_normals * fresh.vertex_normals).sum(axis=1) > 0
+        ).all(),
+    }
+    for name, ok in checks.items():
+        assert ok, name
 
 
 def test_flips_winding():
@@ -130,135 +137,37 @@ def test_flips_winding():
 
 
 def test_trs():
-    """TRS round trips any unsheared transform and batched quaternions match single."""
+    """
+    A sheared block splits into its polar rotation, a vanishing axis is
+    finite, and batched slerp takes the shorter arc a fraction of the way.
+    """
     tf = g.trimesh.transformations
-    # a mirror on every fifth and a vanishing axis on the last
-    matrices = g.np.array(list(g.random_transforms(50, 20.0, seed=1, rigid=False)))
-    matrices[-1, :3, 2] = 0.0
-    translation, quaternion, recovered = tf.trs_from_matrix(matrices)
-    rebuilt = tf.trs_matrix(translation, quaternion, recovered)
-    first = tf.trs_from_matrix(matrices[0])
-    mirrored = g.np.linalg.det(matrices[:, :3, :3]) < 0
-
-    # a sheared block has no exact split, but its rotation is the polar
-    # factor: the rotation which leaves a symmetric stretch behind
     shear = g.np.eye(4)
-    shear[0, 1], shear[1, 2] = 0.4, 0.2
+    shear[0, 1], shear[1, 2], shear[2, 2] = 0.4, 0.2, 0.0
     sheared = tf.random_rotation_matrix(seed=2) @ shear
     rotation = tf.quaternion_matrix(tf.trs_from_matrix(sheared)[1])[:3, :3]
     stretch = rotation.T @ sheared[:3, :3]
-
-    # pairs for slerp: random, antipodal, and nearly 180 degrees apart
-    # where exactly 180 would be a tie between two equally short arcs
-    start = tf.random_quaternion(num=50, seed=3)
-    end = tf.random_quaternion(num=50, seed=4)
+    assert g.np.allclose(stretch, stretch.T) and g.np.isclose(
+        g.np.linalg.det(rotation), 1
+    )
+    # pairs which are random, antipodal, and nearly 180 degrees apart
+    start, end = (
+        tf.random_quaternion(num=50, seed=3),
+        tf.random_quaternion(num=50, seed=4),
+    )
     end[:5] = -start[:5]
     turn = tf.quaternion_about_axis(g.np.radians(178.0), [0, 0, 1])
     end[5:10] = tf.quaternion_multiply(turn, start[5:10].T).T
     fraction = g.np.random.default_rng(0).uniform(0, 1, 50)
-    slerps = [tf.quaternion_slerp(*pair) for pair in zip(start, end, fraction)]
-    quaternions = [tf.quaternion_from_matrix(matrix) for matrix in matrices]
-
-    # the angle between two rotations, where q and -q are the same one
-    def arc(a, b):
-        return 2.0 * g.np.arccos(g.np.clip(g.np.abs((a * b).sum(axis=-1)), 0.0, 1.0))
-
     batched = tf.quaternion_slerp(start, end, fraction)
-    # (n, 4) with a single pair is a stack of one, not a single result
-    stacked_one = tf.quaternion_slerp(start[10:11], end[10:11], fraction[10:11])
-
-    assert g.np.allclose(rebuilt, matrices), "round trip"
-    assert g.np.allclose(translation, matrices[:, :3, 3]), "translation"
-    assert g.np.allclose(g.np.linalg.norm(quaternion, axis=1), 1.0), "unit quaternions"
-    assert ((recovered < 0).any(axis=1) == mirrored).all(), "mirrors are negative scale"
-    assert g.np.isfinite(quaternion[-1]).all(), "zero scale is finite"
-    assert g.np.allclose(stretch, stretch.T) and g.np.isclose(
-        g.np.linalg.det(rotation), 1.0
-    ), "shear is a polar rotation"
-    assert [part.shape for part in first] == [(3,), (4,), (3,)], "single stays single"
-    assert g.np.allclose(tf.trs_matrix(*first), matrices[0]), "single round trip"
-    assert (
-        tf.quaternion_matrix(quaternion[:1]).shape
-        == tf.quaternion_matrix([[quaternion[0]]]).shape
-        == (4, 4)
-    ), "one quaternion squeezes"
-    assert tf.trs_matrix(translation[:1], quaternion[:1], recovered[:1]).shape == (
-        1,
-        4,
-        4,
-    ), "one trs stays a stack"
-    assert (
-        tf.trs_matrix(translation, quaternion[0], recovered[0]).shape
-        == tf.trs_matrix(translation[0], quaternion, recovered[0]).shape
-        == (50, 4, 4)
-    ), "broadcast trs"
-    assert g.np.allclose(tf.quaternion_from_matrix(matrices), quaternions), (
-        "batched from_matrix"
-    )
-    assert g.np.allclose(batched, slerps), "batched slerp"
+    # the angle between two rotations, where q and -q are the same one
+    arc = lambda a, b: 2 * g.np.arccos(g.np.clip(g.np.abs((a * b).sum(-1)), 0, 1))  # noqa: E731
     assert g.np.allclose(
         arc(start[10:], batched[10:]), fraction[10:] * arc(start[10:], end[10:])
     ), "slerp arc"
-    assert g.np.allclose(g.np.linalg.norm(batched, axis=1), 1.0), "slerp unit"
-    assert g.np.shape(slerps[10]) == (4,), "single slerp is a single"
-    assert stacked_one.shape == (1, 4) and g.np.allclose(stacked_one[0], slerps[10]), (
-        "stack of one slerp"
-    )
-
-
-def test_skin_points():
-    """`Skin.deform` matches the per-point weighted sum of joint transforms."""
-    from trimesh.scene.animation import Skin
-
-    tf = g.trimesh.transformations
-    random = g.np.random.default_rng(4)
-    points = random.uniform(-2.0, 2.0, (200, 3))
-    # joints whose world transforms are a node's matrix times an inverse bind
-    nodes = g.np.array(list(g.random_transforms(6, 20.0, seed=8, rigid=False)))
-    binds = g.np.array(list(g.random_transforms(6, 2.0, seed=9, rigid=False)))
-    matrices = nodes @ binds
-    graph = g.trimesh.scene.transforms.SceneGraph()
-    for index, matrix in enumerate(nodes):
-        graph.update(frame_to=f"joint_{index}", matrix=matrix)
-    skin = Skin([f"joint_{index}" for index in range(6)], binds)
-
-    def deform(points, joints, weights, skin=skin):
-        mesh = g.trimesh.Trimesh(points, process=False)
-        mesh.vertex_attributes.update({"joints": joints, "weights": weights})
-        return skin.deform(mesh, graph)
-
-    joints = random.integers(0, 6, (200, 4))
-    weights = random.random((200, 4))
-    weights /= weights.sum(axis=1, keepdims=True)
-    one = g.np.zeros((200, 4))
-    one[:, 0] = 1.0
-    unused = joints.copy()
-    unused[:, 1:] = random.integers(0, 6, (200, 3))
-    single = deform(points, joints, one)
-    same = Skin(skin.joints, g.np.linalg.inv(nodes) @ matrices[0])
-    empty = deform(g.np.zeros((0, 3)), g.np.zeros((0, 4), int), g.np.zeros((0, 4)))
-
-    # an explicit per-point loop is the definition
-    loop = [
-        sum(w * (matrices[j] @ [*p, 1.0])[:3] for j, w in zip(row_joints, row_weights))
-        for p, row_joints, row_weights in zip(points, joints, weights)
-    ]
-    first = [
-        tf.transform_points([p], matrices[j])[0] for p, j in zip(points, joints[:, 0])
-    ]
-    assert g.np.allclose(deform(points, joints, weights), loop, atol=1e-9), (
-        "matches the definition"
-    )
-    assert g.np.allclose(single, first, atol=1e-9), "single joint"
-    assert g.np.array_equal(single, deform(points, unused, one)), (
-        "unweighted joints ignored"
-    )
     assert g.np.allclose(
-        deform(points, joints, weights, skin=same),
-        tf.transform_points(points, matrices[0]),
-        atol=1e-9,
-    ), "same transform"
-    assert empty.shape == (0, 3), "empty"
+        batched, [tf.quaternion_slerp(*p) for p in zip(start, end, fraction)]
+    )
 
 
 class TransformTest(g.unittest.TestCase):

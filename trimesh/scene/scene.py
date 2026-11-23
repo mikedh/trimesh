@@ -19,7 +19,6 @@ from ..typed import (
     Integer,
     Iterable,
     NDArray,
-    Number,
     Sequence,
     ViewerType,
     float64,
@@ -84,8 +83,9 @@ class Scene(Geometry3D):
         self.skins: dict[Hashable, Skin] = {}
         # cameras on nodes of the same name, the first is active
         self.cameras: list[Camera] = []
-        # None until set or generated
-        self._lights = None
+        # None until set, and default lights the getter makes, which
+        # `has_lights` and exports don't count as the scene's
+        self._lights, self._default_lights = None, None
 
         # create our cache
         self._cache = caching.Cache(id_function=self.__hash__)
@@ -898,22 +898,22 @@ class Scene(Geometry3D):
     def lights(self) -> list[lighting.Light]:
         """
         Get a list of the lights in the scene. If nothing is
-        set it will generate some automatically.
+        set it will generate default lights once, with nodes.
 
         Returns
         -------------
         lights : [trimesh.scene.lighting.Light]
           Lights in the scene.
         """
-        if self._lights is None:
-            # do some automatic lighting
+        if self._lights is not None:
+            return self._lights
+        if self._default_lights is None:
             lights, transforms = lighting.autolight(self)
-            # assign the transforms to the scene graph
+            # nodes so `graph[light.name]` works as it always has
             for L, T in zip(lights, transforms):
                 self.graph[L.name] = T
-            # set the lights
-            self._lights = lights
-        return self._lights
+            self._default_lights = lights
+        return self._default_lights
 
     @lights.setter
     def lights(self, lights: Sequence[lighting.Light]):
@@ -1130,25 +1130,7 @@ class Scene(Geometry3D):
         """
         return self.render(file_type="png", resolution=resolution, **kwargs)
 
-    def render(
-        self,
-        file_obj=None,
-        file_type: str | None = None,
-        resolution=None,
-        duration: Number | None = None,
-        fps: Number = 30.0,
-        engine: str = "opengl",
-        quality: bool = True,
-        exposure: Number = 1.0,
-        bloom: Number = 1.0,
-        ground_shadow: bool = True,
-        show_environment: bool = False,
-        background=None,
-        line_width: Number = 2.0,
-        point_size: Number = 6.0,
-        samples: Integer = 64,
-        **kwargs,
-    ) -> bytes | None:
+    def render(self, file_obj=None, **kwargs) -> bytes | None:
         """
         Render the scene to an image, animation or video.
 
@@ -1156,36 +1138,9 @@ class Scene(Geometry3D):
         -----------
         file_obj : str, pathlib.Path, file-like, or None
           Destination, such as "animated.mp4".
-        file_type : str or None
-          "png", "gif", "webp", "avif", "mp4", "mkv" or "mov".
-        resolution : (2,) int or None
-          Pixels, default `scene.camera.resolution`.
-        duration : float or None
-          Seconds, default `scene.duration` or a turntable.
-        fps : float
-          Frames per second.
-        engine : str
-          "opengl" or "blender".
-        quality : bool
-          OpenGL shadows, ambient occlusion and bloom.
-        exposure : float
-          Multiplies light before tone mapping.
-        bloom : float
-          Strength of the OpenGL glare around overexposed pixels.
-        ground_shadow : bool
-          Shadows on an invisible floor under the scene.
-        show_environment : bool
-          Draw the environment light as the background.
-        background : None or color
-          Behind the scene, defaults to white.
-        line_width : float
-          Pixels across paths.
-        point_size : float
-          Pixels across points.
-        samples : int
-          Blender samples per pixel.
         **kwargs
-          Passed to `SceneViewer`.
+          `file_type`, `resolution`, and the fields of
+          `trimesh.viewer.conversion.RenderSettings` like `exposure=2.0`.
 
         Returns
         -----------
@@ -1194,25 +1149,7 @@ class Scene(Geometry3D):
         """
         from ..viewer.render import render_scene
 
-        return render_scene(
-            self,
-            resolution,
-            file_obj,
-            file_type,
-            duration,
-            fps,
-            engine,
-            quality=quality,
-            background=background,
-            samples=samples,
-            exposure=exposure,
-            bloom=bloom,
-            ground_shadow=ground_shadow,
-            show_environment=show_environment,
-            line_width=line_width,
-            point_size=point_size,
-            **kwargs,
-        )
+        return render_scene(self, file_obj=file_obj, **kwargs)
 
     @property
     def units(self) -> str | None:
@@ -1593,8 +1530,11 @@ def copy_attachments(
     root : hashable
       Base frame of `target`.
     """
+    nodes = set(nodes)
+    # the base frame of `target` doesn't move
+    animated = nodes - {root}
     for animation in source.animations:
-        kept = [i for i, n in enumerate(animation.nodes) if n in nodes and n != root]
+        kept = [i for i, n in enumerate(animation.nodes) if n in animated]
         if len(kept) > 0:
             target.animations.append(
                 Animation(
@@ -1609,7 +1549,7 @@ def copy_attachments(
             )
     # a skin needs its node and every joint
     for node, skin in source.skins.items():
-        if node in nodes and all(joint in nodes for joint in skin.joints):
+        if node in nodes and nodes.issuperset(skin.joints):
             joints = [rename.get(joint, joint) for joint in skin.joints]
             target.skins[rename.get(node, node)] = Skin(
                 joints, skin.inverse_bind_matrices

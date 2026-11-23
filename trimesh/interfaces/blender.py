@@ -5,7 +5,7 @@ import subprocess
 from .. import util
 from ..constants import log
 from ..resources import get_string
-from ..typed import BooleanOperationType, Integer, Iterable, Number
+from ..typed import BooleanOperationType, Integer, Iterable
 from .generic import HIDDEN_CONSOLE, MeshScript
 
 if platform.system() == "Windows":
@@ -143,14 +143,7 @@ def unwrap(
     return result
 
 
-def build(
-    scene,
-    directory: str,
-    count: Integer,
-    fps: Number,
-    samples: Integer,
-    **settings,
-) -> None:
+def build(scene, directory: str, count: Integer, settings, **kwargs) -> None:
     """
     Render a scene to `frame_*.png` files with Blender.
 
@@ -160,18 +153,15 @@ def build(
       From `trimesh.viewer.render.stage`.
     directory : str
       Directory for the GLB and frames.
-    count, fps : int, float
-      Frame count and frames per second.
-    samples : int
-      Samples per pixel.
-    settings : dict
-      Overrides of `trimesh.viewer.conversion.RENDER_DEFAULTS`.
+    count : int
+      Frames to render.
+    settings : trimesh.viewer.conversion.RenderSettings
+      How to draw the scene.
+    kwargs : dict
+      Viewer options, which Blender doesn't have.
     """
-    from ..viewer.conversion import RENDER_DEFAULTS
-
-    unknown = sorted(set(settings).difference(RENDER_DEFAULTS))
-    if len(unknown) > 0:
-        raise TypeError(f"unknown render settings {unknown}")
+    if len(kwargs) > 0:
+        raise TypeError(f"unknown render settings {sorted(kwargs)}")
     if not exists:
         raise ValueError("No blender available!")
 
@@ -179,15 +169,12 @@ def build(
     scene.export(path, include_normals=True)
     # settings glTF can't hold, and `pixel` in world units
     arguments = {
-        **RENDER_DEFAULTS,
-        **settings,
+        **vars(settings),
         "input": path,
         "output": os.path.join(directory, "frame_"),
         "camera": scene.camera.name,
-        "fps": fps,
         "count": count,
         "resolution": scene.camera.resolution,
-        "samples": samples,
         "pixel": scene.scale / scene.camera.resolution[1],
     }
     # without `--python-exit-code` an error in the script still exits zero

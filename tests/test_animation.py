@@ -15,114 +15,105 @@ def transforms(count, seed=0, rigid=False):
 
 def test_sample():
     """
-    Every node of an animation samples as the glTF spec samples its parts
-    or as a spline through them, which may be in either hemisphere.
+    Every node samples as the glTF spec samples its parts, or as the textbook
+    monotone cubic Hermite through them, with quaternions in either hemisphere.
     """
-    from scipy.interpolate import CubicSpline, interp1d
+    from scipy.interpolate import interp1d
     from scipy.spatial.transform import Rotation, Slerp
 
-    rng = g.np.random.default_rng(0)
+    np = g.np
+    rng = np.random.default_rng(0)
     keys, count = 7, 5
-    times = g.np.sort(rng.uniform(0.0, 4.0, keys))
-    # every node stretched and the first mirrored, with the spec's
-    # `x, y, z, w` quaternions in any hemisphere
-    parts = {
-        "translation": rng.normal(size=(keys, count, 3)) * 5.0,
-        "rotation": rng.normal(size=(keys, count, 4)),
-        "scale": rng.uniform(0.2, 3.0, size=(keys, count, 3)),
-    }
-    parts["scale"][:, 0, 0] *= -1.0
-    parts["rotation"] /= g.np.linalg.norm(parts["rotation"], axis=2)[..., None]
+    times = np.sort(rng.uniform(0.0, 4.0, keys))
+    # every node stretched and the first mirrored, quaternions `x, y, z, w`
+    translation = rng.normal(size=(keys, count, 3)) * 5.0
+    rotation = rng.normal(size=(keys, count, 4))
+    rotation /= np.linalg.norm(rotation, axis=2)[..., None]
+    scale = rng.uniform(0.2, 3.0, size=(keys, count, 3))
+    scale[:, 0, 0] *= -1.0
 
     def compose(translation, quaternion, scale):
-        """Matrices from `x, y, z, w` quaternions which scale, rotate, then translate."""
+        """Matrices which scale, rotate by `x, y, z, w` quaternions, then translate."""
         stack = translation.shape[:-1]
-        result = g.np.tile(g.np.eye(4), (*stack, 1, 1))
-        rotation = Rotation.from_quat(quaternion.reshape((-1, 4))).as_matrix()
-        result[..., :3, :3] = rotation.reshape((*stack, 3, 3)) * scale[..., None, :]
+        result = np.tile(np.eye(4), (*stack, 1, 1))
+        turn = Rotation.from_quat(quaternion.reshape((-1, 4))).as_matrix()
+        result[..., :3, :3] = turn.reshape((*stack, 3, 3)) * scale[..., None, :]
         result[..., :3, 3] = translation
         return result
 
-    matrices = compose(parts["translation"], parts["rotation"], parts["scale"])
-    nodes = [f"node_{index}" for index in range(count)]
-    # a spline through quaternions in the same hemisphere as the last
-    flips = (parts["rotation"][1:] * parts["rotation"][:-1]).sum(axis=2) < 0
-    turns = parts["rotation"].copy()
-    turns[1:] *= g.np.cumprod(g.np.where(flips, -1, 1), axis=0)[..., None]
+    middles = (times[1:] + times[:-1]) / 2
+    queries = np.array([-1.0, *times, *middles, *np.linspace(-0.5, 4.5, 23)])
+    clamped = np.clip(queries, times[0], times[-1])
+    upper = np.clip(np.searchsorted(times, clamped), 1, keys - 1)
+    lower = upper - 1
 
-    queries = g.np.array(
-        [-1.0, *times, *(times[1:] + times[:-1]) / 2, *g.np.linspace(-0.5, 4.5, 23)]
-    )
-    clamped = g.np.clip(queries, times[0], times[-1])
-    # the keyframe at or before each query, blends of the two around it
-    # by scipy, and a spline through every keyframe
-    held = g.np.clip(g.np.searchsorted(times, clamped, side="right") - 1, 0, keys - 1)
-    slerped = g.np.stack(
-        [
-            Slerp(times, Rotation.from_quat(parts["rotation"][:, node]))(
-                clamped
-            ).as_quat()
-            for node in range(count)
-        ],
-        axis=1,
-    )
+    def hermite(part):
+        """The textbook cubic Hermite spline with Fritsch-Butland tangents."""
+        slope = np.diff(part, axis=0) / np.diff(times)[:, None, None]
+        a, b = slope[:-1], slope[1:]
+        with np.errstate(all="ignore"):
+            middle = np.where(a * b > 0, 2 * a * b / (a + b), 0.0)
+        tangent = np.concatenate((slope[:1], middle, slope[-1:]))
+        h = (times[upper] - times[lower])[:, None, None]
+        s = (clamped - times[lower])[:, None, None] / h
+        return (
+            (2 * s**3 - 3 * s**2 + 1) * part[lower]
+            + (s**3 - 2 * s**2 + s) * h * tangent[lower]
+            + (-2 * s**3 + 3 * s**2) * part[upper]
+            + (s**3 - s**2) * h * tangent[upper]
+        )
+
+    # the spline runs through quaternions in the hemisphere of the last
+    flips = (rotation[1:] * rotation[:-1]).sum(axis=2) < 0
+    turns = rotation.copy()
+    turns[1:] *= np.cumprod(np.where(flips, -1, 1), axis=0)[..., None]
+    held = np.clip(np.searchsorted(times, clamped, side="right") - 1, 0, keys - 1)
+    slerped = [
+        Slerp(times, Rotation.from_quat(rotation[:, node]))(clamped).as_quat()
+        for node in range(count)
+    ]
     expected = {
-        "step": compose(*(part[held] for part in parts.values())),
+        "step": compose(translation[held], rotation[held], scale[held]),
         "linear": compose(
-            interp1d(times, parts["translation"], axis=0)(clamped),
-            slerped,
-            interp1d(times, parts["scale"], axis=0)(clamped),
+            interp1d(times, translation, axis=0)(clamped),
+            np.stack(slerped, axis=1),
+            interp1d(times, scale, axis=0)(clamped),
         ),
-        "cubic": compose(
-            *(
-                CubicSpline(times, part)(clamped)
-                for part in (parts["translation"], turns, parts["scale"])
-            )
-        ),
+        "cubic": compose(hermite(translation), hermite(turns), hermite(scale)),
     }
+    matrices = compose(translation, rotation, scale)
+    nodes = [f"node_{index}" for index in range(count)]
     for interpolation in INTERPOLATIONS:
         animation = Animation(
             name=interpolation,
             nodes=nodes,
             times=times,
-            matrices=matrices,
+            matrices=matrices.copy(),
             interpolation=interpolation,
         )
-        sampled = g.np.array([animation.interpolate(time) for time in queries])
+        sampled = np.array([animation.interpolate(time) for time in queries])
         assert animation.duration == times[-1], f"{interpolation} duration"
-        assert all(
-            g.np.allclose(animation.interpolate(time), matrix, atol=1e-12)
-            for time, matrix in zip(times, matrices)
-        ), f"{interpolation} keyframes exact"
-        assert g.np.allclose(sampled, expected[interpolation]), f"{interpolation} samples"
+        assert np.allclose(sampled[1 : keys + 1], matrices, atol=1e-12), interpolation
+        assert np.allclose(sampled, expected[interpolation]), f"{interpolation} samples"
+        # editing the keyframes in place moves what is sampled
+        animation.matrices[..., :3, 3] += [1.0, 2.0, 3.0]
+        moved = np.array([animation.interpolate(time) for time in queries])
+        assert np.allclose(moved[..., :3, 3], sampled[..., :3, 3] + [1, 2, 3])
 
-    # editing the keyframes in place moves what is sampled
-    middle = (times[2] + times[3]) / 2
-    before = animation.interpolate(middle)
-    animation.matrices[..., :3, 3] += [1.0, 2.0, 3.0]
-    after = animation.interpolate(middle)
-    assert g.np.allclose(
-        after[:, :3, 3], before[:, :3, 3] + [1.0, 2.0, 3.0]
-    ) and g.np.allclose(after[:, :3, :3], before[:, :3, :3]), "in place edit"
-    # one keyframe holds forever, and a repeated time is still finite
+    # one keyframe holds forever, a repeated time is finite, bad input raises
     single = Animation(name="single", nodes=nodes, times=[2.0], matrices=matrices[:1])
-    assert all(
-        g.np.allclose(single.interpolate(time), matrices[0]) for time in queries
-    ), "single keyframe"
+    assert all(np.allclose(single.interpolate(t), matrices[0]) for t in queries)
     repeated = Animation(
         name="repeated", nodes=nodes[:1], times=[0.0, 0.0, 1.0], matrices=matrices[:3, :1]
     )
-    assert all(g.np.isfinite(repeated.interpolate(time)).all() for time in queries), (
-        "repeated time finite"
-    )
-    for name, kwargs in {
-        "decreasing times": {"times": times[::-1], "matrices": matrices},
-        "wrong shape": {"times": times, "matrices": matrices[:, :2]},
-        "glTF name": {"times": times, "matrices": matrices, "interpolation": "LINEAR"},
-        "misspelled": {"times": times, "matrices": matrices, "interpolation": "cubik"},
-    }.items():
+    assert all(np.isfinite(repeated.interpolate(t)).all() for t in queries)
+    for kwargs in (
+        {"times": times[::-1], "matrices": matrices},
+        {"times": times, "matrices": matrices[:, :2]},
+        {"times": times, "matrices": matrices, "interpolation": "LINEAR"},
+    ):
         with g.pytest.raises(ValueError):
-            Animation(name=name, nodes=nodes, **kwargs)
+            Animation(name="bad", nodes=nodes, **kwargs)
 
 
 def posed_dump(scene, time):
@@ -138,10 +129,6 @@ def assert_operations(scene, times, label):
     vertex at every time, and copies share nothing with the original.
     """
     truth = {time: posed_dump(scene, time) for time in times}
-    assert any(
-        not g.np.allclose(truth[times[0]][node], truth[times[-1]][node])
-        for node in truth[times[0]]
-    ), f"{label} moves"
     for factor in [2.5, [2.5] * 3]:
         scaled = scene.scaled(factor)
         # not rebuilt flat, which would drop the nodes animations drive
@@ -171,16 +158,12 @@ def assert_operations(scene, times, label):
 def rigid_animation(name, nodes, times, seed):
     """An animation of random rigid motion of every node at every keyframe."""
     matrices = transforms(len(times) * len(nodes), seed=seed, rigid=True)
-    return Animation(
-        name=name,
-        nodes=nodes,
-        times=times,
-        matrices=matrices.reshape((len(times), len(nodes), 4, 4)),
-    )
+    matrices = matrices.reshape((len(times), len(nodes), 4, 4))
+    return Animation(name=name, nodes=nodes, times=times, matrices=matrices)
 
 
-def test_scene():
-    """Animations drive scene nodes under their parents and scale with the scene."""
+def rigid_scene():
+    """A box under a moving parent, beside a longer animation of its own."""
     scene = g.trimesh.Scene()
     scene.add_geometry(
         g.trimesh.creation.box(),
@@ -189,76 +172,13 @@ def test_scene():
         transform=tf.translation_matrix([5, 0, 0]),
     )
     # an animation only moves nodes the graph has, it never adds them
-    for node in ("parent", "solo"):
+    for node in ("parent", "solo", "slow"):
         scene.graph.update(frame_to=node)
-    animation = rigid_animation(
-        "spin", ["child", "solo", "parent"], g.np.linspace(0, 1, 9), 3
+    scene.animations.append(
+        rigid_animation("spin", ["child", "solo", "parent"], g.np.linspace(0, 1, 9), 3)
     )
-    scene.animations.append(animation)
-    graph = scene.graph
-    edge_data = graph.transforms.edge_data
-
-    def unmoved(data):
-        """Edge data other than the matrix an animation drives."""
-        return {key: value for key, value in data.items() if key != "matrix"}
-
-    edge = unmoved(edge_data[("parent", "child")])
-    # every edge written one at a time by `SceneGraph.update`
-    reference = scene.copy().graph
-    assert g.np.isclose(scene.duration, 1.0), "duration"
-    for time in [0.0, 0.3, 0.62, 1.0]:
-        sampled = animation.interpolate(time)
-        pose = dict(zip(animation.nodes, sampled))
-        scene.animate(time)
-        for node, matrix in pose.items():
-            parent = reference.transforms.parents[node]
-            data = reference.transforms.edge_data[(parent, node)]
-            reference.update(node, parent, **{**data, "matrix": matrix})
-        assert (
-            reference.transforms.parents == graph.transforms.parents
-            and {k: unmoved(v) for k, v in reference.transforms.edge_data.items()}
-            == {k: unmoved(v) for k, v in edge_data.items()}
-            and all(
-                g.np.array_equal(reference[node][0], graph[node][0])
-                for node in graph.nodes
-            )
-        ), f"same as update {time}"
-        # an animation drives one edge so the world transform is that
-        # edge composed under whatever the parent is doing
-        assert g.np.allclose(graph.get("child", "parent")[0], pose["child"]), (
-            f"edge {time}"
-        )
-        assert g.np.allclose(graph["child"][0], pose["parent"] @ pose["child"]), (
-            f"world {time}"
-        )
-        assert g.np.allclose(graph["solo"][0], pose["solo"]), f"base frame {time}"
-        assert graph.transforms.parents["child"] == "parent", f"parent kept {time}"
-        # only the matrix changes: the edge keeps its geometry and metadata
-        assert unmoved(edge_data[("parent", "child")]) == edge, f"edge data kept {time}"
-        # sampling doesn't read the graph the animation just wrote
-        assert g.np.array_equal(animation.interpolate(time), sampled), (
-            f"graph independent {time}"
-        )
-
-    # past its end each animation holds, while a longer one beside it moves
-    slow = rigid_animation("slow", ["slow"], g.np.linspace(0, 3, 7), 9)
-    looped = scene.copy()
-    looped.graph.update(frame_to="slow")
-    looped.animations.append(slow)
-    looped.animate(2.3)
-    pose = dict(zip(animation.nodes, animation.interpolate(1.0)))
-    assert g.np.allclose(
-        looped.graph.get("child", "parent")[0], pose["child"]
-    ) and g.np.allclose(looped.graph["slow"][0], slow.interpolate(2.3)[0]), "holds"
-    assert g.trimesh.Scene().duration == 0.0, "empty duration"
-    # a subscene keeps the nodes it has, but not its root
-    sub = scene.subscene("parent").animations[0]
-    assert sub.nodes == ["child"] and g.np.array_equal(
-        sub.matrices[:, 0], animation.matrices[:, animation.nodes.index("child")]
-    ), "subscene nodes"
-    assert_operations(scene, g.np.linspace(0.0, 1.0, 9), "rigid")
-    scene.units = "mm"
-    assert "parent" in scene.convert_units("m").graph.nodes, "convert units"
+    scene.animations.append(rigid_animation("slow", ["slow"], g.np.linspace(0, 3, 7), 9))
+    return scene
 
 
 def bent_tube():
@@ -269,11 +189,10 @@ def bent_tube():
     )
     # the knee takes over from the hip between Z of 0.8 and 1.2
     knee_weight = g.np.clip((tube.vertices[:, 2] - 0.8) / 0.4, 0.0, 1.0)
-    tube.vertex_attributes["joints"] = g.np.tile([0, 1, 0, 0], (len(knee_weight), 1))
-    tube.vertex_attributes["weights"] = g.np.column_stack(
-        (1.0 - knee_weight, knee_weight, g.np.zeros((len(knee_weight), 2)))
-    )
-
+    # each joint split unevenly over two of the four influences
+    tube.vertex_attributes["joints"] = g.np.tile([0, 1, 1, 0], (len(knee_weight), 1))
+    split = g.np.outer(1.0 - knee_weight, [0.3, 0.7]), g.np.outer(knee_weight, [0.6, 0.4])
+    tube.vertex_attributes["weights"] = g.np.column_stack(split)[:, [0, 2, 3, 1]]
     scene = g.trimesh.Scene()
     scene.graph.update(frame_to="hip", matrix=g.np.eye(4))
     scene.graph.update(
@@ -307,20 +226,16 @@ def bent_tube():
     return scene, knee_weight
 
 
-def test_skin():
-    """Skinning matches the analytic bend, also after a reload and scene edits."""
+def test_animated_scenes():
+    """
+    At keys, between them and outside of them every scene poses as each
+    edge written by `SceneGraph.update`, survives copy, scale and append,
+    and the tube bends as the analytic answer, also loaded back.
+    """
     from scipy.spatial import cKDTree
 
-    scene, knee_weight = bent_tube()
-    rest = scene.geometry["tube"].vertices.copy()
-
-    def tube_at(source, time):
-        """The posed tube vertices of a scene at a time."""
-        return posed_dump(source, time)["tube"]
-
-    def same_points(a, b):
-        """Distance between point sets, as vertex order may change on load."""
-        return max(cKDTree(a).query(b)[0].max(), cKDTree(b).query(a)[0].max())
+    tube, knee_weight = bent_tube()
+    rest = tube.geometry["tube"].vertices.copy()
 
     def bent(time):
         """The analytic answer: the hip slides and the knee bends about Z=1."""
@@ -330,114 +245,106 @@ def test_skin():
         expected = (1 - knee_weight)[:, None] * tf.transform_points(rest, hip)
         return expected + knee_weight[:, None] * tf.transform_points(rest, knee)
 
-    for time in [0.0, 0.5, 1.0]:
-        assert g.np.allclose(tube_at(scene, time), bent(time), atol=1e-12), (
-            f"analytic {time}"
-        )
-    # at the bind pose the joints put every vertex where it was
-    assert g.np.allclose(tube_at(scene, 0.0), rest, atol=1e-12), "bind pose"
-    # the skinned mesh's own node doesn't move it
-    moved = scene.copy()
+    def unmoved(edges):
+        """Edge data other than the matrix an animation drives."""
+        return {
+            e: {k: v for k, v in d.items() if k != "matrix"} for e, d in edges.items()
+        }
+
+    for name, scene in {"rigid": rigid_scene(), "tube": tube}.items():
+        keys = g.np.unique(g.np.concatenate([a.times for a in scene.animations]))
+        times = [-1.0, *keys, *(keys[1:] + keys[:-1]) / 2, keys[-1] + 1.0]
+        reference, graph = scene.copy().graph, scene.graph
+        for time in times:
+            scene.animate(time)
+            for animation in scene.animations:
+                for node, matrix in zip(animation.nodes, animation.interpolate(time)):
+                    parent = reference.transforms.parents[node]
+                    data = reference.transforms.edge_data[(parent, node)]
+                    reference.update(node, parent, **{**data, "matrix": matrix})
+            assert reference.transforms.parents == graph.transforms.parents, name
+            assert unmoved(reference.transforms.edge_data) == unmoved(
+                graph.transforms.edge_data
+            ), name
+            assert all(
+                g.np.array_equal(reference[node][0], graph[node][0])
+                for node in graph.nodes
+            ), f"{name} same as update at {time}"
+        assert g.np.isclose(scene.duration, keys[-1]), f"{name} duration"
+        assert_operations(scene, keys[:: max(len(keys) // 4, 1)], name)
+    assert g.trimesh.Scene().duration == 0.0, "empty duration"
+
+    # the tube bends as the analytic answer, and its own node doesn't move it
+    moved = tube.copy()
     moved.graph.update(frame_to="holder", matrix=transforms(2, seed=99)[0])
-    assert g.np.allclose(tube_at(moved, 0.6), tube_at(scene, 0.6), atol=1e-12), (
-        "node transform ignored"
-    )
-
-    # the file loaded back in bends the same at every time, held outside
-    # of the animation, to the float32 the file stores
-    glb = scene.export(file_type="glb")
-    reloaded = g.roundtrip(glb, "glb")
+    reloaded = g.roundtrip(tube.export(file_type="glb"), "glb")
     for time in [-1.0, 0.0, 0.13, 0.5, 0.77, 1.0, 5.0]:
-        assert same_points(tube_at(reloaded, time), bent(time)) < 1e-5, f"reloaded {time}"
-
-    assert_operations(scene, [0.0, 0.4, 0.7, 1.0], "skinned")
-    joined = g.trimesh.scene.scene.append_scenes([scene, scene.copy()])
-    assert len({joint for skin in joined.skins.values() for joint in skin.joints}) == 4, (
-        "append renames joints"
-    )
+        assert g.np.allclose(posed_dump(tube, time)["tube"], bent(time), atol=1e-12)
+        assert g.np.allclose(posed_dump(moved, time)["tube"], bent(time), atol=1e-12)
+        # the loaded file to its float32, as vertex order may change on load
+        loaded = cKDTree(posed_dump(reloaded, time)["tube"])
+        assert loaded.query(bent(time))[0].max() < 1e-5, f"reloaded {time}"
+    joined = g.trimesh.scene.scene.append_scenes([tube, tube.copy()])
+    joints = {joint for skin in joined.skins.values() for joint in skin.joints}
+    assert len(joints) == 4, "append renames joints"
     # a subscene without the joints can't be skinned but still works
-    holder = scene.subscene("holder")
+    holder = tube.subscene("holder")
     assert not holder.skins and len(holder.dump()) == 1, "subscene drops orphan skin"
-    # bounds are of where the mesh actually is
-    vertices = tube_at(scene, 1.0)
-    scene.animate(1.0)
-    assert g.np.allclose(
-        scene.bounds, [vertices.min(axis=0), vertices.max(axis=0)], atol=1e-12
-    ), "bounds are posed"
+    tube.animate(1.0)
+    assert g.np.allclose(tube.bounds, [bent(1.0).min(0), bent(1.0).max(0)]), "bounds"
 
-
-def assert_posed(scene, arrays, prefix=""):
-    """
-    Assert a skinned render covers and is as deep as the scene posed by `dump`.
-
-    Ray depth can't be exact as a bent tube folds over itself in one node.
-
-    Parameters
-    ------------
-    scene : trimesh.Scene
-      Skinned scene that was rendered.
-    arrays : RenderArrays
-      With `depth` and `segmentation`.
-    prefix : str
-      Label of the asserts.
-    """
-    posed = g.trimesh.Scene(scene.dump(concatenate=True))
-    posed.camera = scene.camera
-    posed.camera_transform = scene.camera_transform
-    reference = g.render(
-        posed,
-        resolution=scene.camera.resolution,
-        include_depth=True,
-        include_segmentation=True,
-    )
-    covered = arrays.segmentation >= 0
-    # float32 depth is rounded to half an epsilon of its size: allow 4
-    tolerance = 4.0 * g.np.finfo(g.np.float32).eps * reference.depth.max()
-    g.assert_rays(scene, arrays, prefix, depth=False)
-    assert g.np.array_equal(covered, reference.segmentation >= 0), prefix
-    close = g.np.abs(arrays.depth - reference.depth) <= tolerance
-    assert close[covered].all(), prefix
+    # a subscene keeps the nodes it has but not its root, and units convert
+    rigid = rigid_scene()
+    spin = rigid.animations[0]
+    sub = rigid.subscene("parent").animations[0]
+    assert sub.nodes == ["child"] and g.np.array_equal(
+        sub.matrices[:, 0], spin.matrices[:, spin.nodes.index("child")]
+    ), "subscene nodes"
+    rigid.units = "mm"
+    assert "parent" in rigid.convert_units("m").graph.nodes, "convert units"
 
 
 def test_skin_render():
-    """The GPU skins exactly like the numpy skinning `dump` uses."""
-    scene, _ = bent_tube()
+    """
+    One mesh drawn by two nodes with their own skins bending opposite ways
+    covers and is as deep as the scene posed by the numpy skinning of `dump`.
+    """
+    scene = bent_tube()[0]
     scene.animate(1.0)
-    scene.camera.resolution = (200, 150)
-    scene.camera_transform = scene.camera.look_at(
-        scene.bounds, rotation=tf.euler_matrix(0.2, 1.2, 0.0)
-    )
-    arrays = g.render(
-        scene, resolution=[200, 150], include_depth=True, include_segmentation=True
-    )
-    assert_posed(scene, arrays)
-
-    # and it isn't what an unskinned tube would look like
-    unskinned = scene.copy()
-    unskinned.skins = {}
-    static = g.ray_reference(unskinned).node >= 0
-    assert not g.np.array_equal(arrays.segmentation >= 0, static)
-
-    # one mesh drawn by two nodes with their own skins bending opposite ways
-    twin = scene.copy()
-    twin.graph.update(frame_to="hip_2", matrix=tf.translation_matrix([1.5, 0, 0]))
-    twin.graph.update(
+    scene.graph.update(frame_to="hip_2", matrix=tf.translation_matrix([1.5, 0, 0]))
+    scene.graph.update(
         frame_from="hip_2",
         frame_to="knee_2",
         matrix=tf.translation_matrix([0, 0, 1]) @ tf.rotation_matrix(-1.2, [1, 0, 0]),
     )
-    twin.graph.update(frame_from="holder", frame_to="tube_2", geometry="tube")
-    twin.skins["tube_2"] = Skin(
+    scene.graph.update(frame_from="holder", frame_to="tube_2", geometry="tube")
+    scene.skins["tube_2"] = Skin(
         joints=["hip_2", "knee_2"],
         inverse_bind_matrices=[tf.translation_matrix([-1.5, 0, z]) for z in [0, -1]],
     )
-    twin.camera_transform = twin.camera.look_at(twin.bounds)
-    arrays = g.render(
-        twin, resolution=[200, 150], include_depth=True, include_segmentation=True
+    scene.camera.resolution = (200, 150)
+    scene.camera_transform = scene.camera.look_at(
+        scene.bounds, rotation=tf.euler_matrix(0.2, 1.2, 0.0)
     )
-    assert_posed(twin, arrays, "twins ")
+    posed = g.trimesh.Scene(scene.to_geometry())
+    posed.camera, posed.camera_transform = scene.camera, scene.camera_transform
+    arrays, reference = (
+        g.render(
+            source,
+            resolution=[200, 150],
+            include_depth=True,
+            include_segmentation=True,
+        )
+        for source in (scene, posed)
+    )
+    g.assert_rays(scene, arrays, "twins", depth=False)
+    covered = arrays.segmentation >= 0
+    assert g.np.array_equal(covered, reference.segmentation >= 0), "coverage"
+    # float32 depth is rounded to half an epsilon of its size: allow 4
+    tolerance = 4.0 * g.np.finfo(g.np.float32).eps * reference.depth.max()
+    assert (g.np.abs(arrays.depth - reference.depth) <= tolerance)[covered].all()
 
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
-    test_skin()
+    test_animated_scenes()

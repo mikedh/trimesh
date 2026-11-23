@@ -115,19 +115,17 @@ class SceneGraph:
         # matrices change in place so clear the hash
         self.transforms._hash = None
         edge_data = self.transforms.edge_data
-        for (frame_from, frame_to), matrix in zip(
-            edges, np.asarray(matrices, dtype=float)
-        ):
-            # falsy frames like `0` are valid
-            if frame_from is None:
-                frame_from = self.base_frame
-            if (frame_from, frame_to) in edge_data:
-                edge_data[(frame_from, frame_to)]["matrix"] = matrix
-                continue
-            message = f"can't set the matrix of `{frame_from} -> {frame_to}`"
+        # falsy frames like `0` are valid, only `None` is the base frame
+        keys = [({None: self.base_frame}.get(a, a), b) for a, b in edges]
+        missing = set(keys).difference(edge_data)
+        if len(missing) > 0:
+            message = f"can't set the matrices of missing edges {missing}"
             if tol.strict:
                 raise ValueError(message)
             log.warning(message)
+        for key, matrix in zip(keys, np.asarray(matrices, dtype=float)):
+            # a missing edge sets a throwaway dict, as `get` doesn't insert
+            edge_data.get(key, {})["matrix"] = matrix
 
     def get(
         self, frame_to: Hashable, frame_from: Hashable | None = None

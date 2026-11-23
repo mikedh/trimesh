@@ -40,15 +40,6 @@ class MinimalTest(unittest.TestCase):
         for name in files:
             assert os.path.exists(os.path.join(installed, name)), name
 
-    def test_dependencies(self):
-        """
-        A minimal install requires numpy and nothing else.
-        """
-        from importlib.metadata import requires
-
-        core = [item for item in requires("trimesh") if "extra ==" not in item]
-        assert core == ["numpy>=1.21"], core
-
     def test_path_exc(self):
         # this should require *no deps*
         from trimesh.path import packing

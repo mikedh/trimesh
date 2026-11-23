@@ -79,7 +79,6 @@ INSTANCE = np.dtype(
     [
         # transposed as OpenGL reads matrix inputs by column
         ("model_view", "<f4", (4, 4)),
-        ("normal_matrix", "<f4", (3, 3)),
         # index into `scene.graph.nodes_geometry`
         ("node_index", "<f4"),
         # first row in `joint_matrices`, or -1 if unskinned

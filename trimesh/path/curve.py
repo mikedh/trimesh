@@ -2,7 +2,7 @@ import numpy as np
 
 from ..constants import res_path as res
 from ..constants import tol_path as tol
-from ..typed import Integer
+from ..typed import ArrayLike, Integer, NDArray, float64
 
 
 def discretize_bezier(points, count=None, scale=1.0):
@@ -35,17 +35,7 @@ def discretize_bezier(points, count=None, scale=1.0):
     count = int(count)
 
     # parameterize incrementing 0.0 - 1.0
-    t = np.linspace(0.0, 1.0, count)
-    # decrementing 1.0-0.0
-    t_d = 1.0 - t
-    n = len(points) - 1
-    # binomial coefficients, i, and each point
-    iterable = zip(binomial(n), np.arange(len(points)), points)
-    # run the actual interpolation
-    stacked = [
-        ((t**i) * (t_d ** (n - i))).reshape((-1, 1)) * p * c for c, i, p in iterable
-    ]
-    result = np.sum(stacked, axis=0)
+    result = evaluate_bezier(points, np.linspace(0.0, 1.0, count))
 
     # a bezier curve always starts and ends on control points
     if tol.strict:
@@ -58,6 +48,30 @@ def discretize_bezier(points, count=None, scale=1.0):
     result[[0, -1]] = points[[0, -1]]
 
     return result
+
+
+def evaluate_bezier(points: ArrayLike, t: ArrayLike) -> NDArray[float64]:
+    """
+    Evaluate Bezier curves in Bernstein form.
+
+    Parameters
+    ----------
+    points : (..., order, dimension) float
+      Control points of each curve.
+    t : (...) float
+      Parameter from 0.0 to 1.0, broadcast against the curves.
+
+    Returns
+    ----------
+    evaluated : (..., dimension) float
+      Points on the curves.
+    """
+    points = np.asanyarray(points, dtype=np.float64)
+    t = np.asanyarray(t, dtype=np.float64)[..., None, None]
+    n = points.shape[-2] - 1
+    i = np.arange(n + 1)[:, None]
+    basis = np.reshape(binomial(n), (-1, 1)) * t**i * (1.0 - t) ** (n - i)
+    return (basis * points).sum(axis=-2)
 
 
 def discretize_bspline(control, knots, count=None, scale=1.0):

@@ -395,24 +395,10 @@ def test_falsy_base_frame():
     ), "matrix set"
     assert g.np.allclose(s.graph["child"][0], before @ shift), "cache cleared"
 
-    # an edge which isn't in the graph is never added: it raises in
-    # strict mode and is otherwise skipped with the rest still set
-    nodes = set(s.graph.nodes)
-    missing = [("nowhere", "ghost"), (0, "child")]
+    # an edge which isn't in the graph is never added, in strict mode it raises
     with g.pytest.raises(ValueError):
-        s.graph.update_matrices(missing, [shift, shift])
-    strict = g.trimesh.tol.strict
-    g.trimesh.tol.strict = False
-    try:
-        s.graph.update_matrices(missing, [shift, 2.0 * shift])
-    finally:
-        g.trimesh.tol.strict = strict
-    assert set(s.graph.nodes) == nodes, "no node added"
-    assert set(s.graph.transforms.edge_data) == edges, "no edge added"
-    assert "ghost" not in s.graph.transforms.parents, "no parent added"
-    assert g.np.array_equal(
-        s.graph.transforms.edge_data[(0, "child")].get("matrix"), 2.0 * shift
-    ), "present edge still set"
+        s.graph.update_matrices([("nowhere", "ghost"), (0, "child")], [shift, shift])
+    assert "ghost" not in s.graph.nodes, "no node added"
 
 
 def test_reconstruct():

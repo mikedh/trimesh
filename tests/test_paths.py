@@ -164,33 +164,25 @@ def test_path_to_gltf_with_line():
     # a GLB round trip has exactly the same segments in the same colors
     path.colors = [[255, 0, 0, 255], [0, 0, 255, 255]]
     loaded = next(iter(g.from_glb_bytes(g.to_glb_bytes(path)).geometry.values()))
+    from trimesh.path.segments import from_path
+
     colored = []
     for item in [loaded, path]:
         # every segment as its sorted endpoints followed by its color
-        segments = g.np.sort(item.segments.reshape((-1, 6)), axis=1)
-        colors = item.colors[item.segments_entity]
-        colored.append(g.np.unique(g.np.column_stack((segments, colors)), axis=0))
+        segments, entity = from_path(item)
+        segments = g.np.sort(segments.reshape((-1, 6)), axis=1)
+        colored.append(
+            g.np.unique(g.np.column_stack((segments, item.colors[entity])), axis=0)
+        )
     assert g.np.allclose(*colored), "segments and colors"
     assert len(loaded.entities) == len(path.entities), "polylines stay joined"
-    # each segment is labeled with the entity which discretizes to it, in
-    # either order of asking for the two cached values
-    reference = g.trimesh.util.vstack_empty(
-        [
-            g.trimesh.util.stack_lines(e.discrete(path.vertices, scale=path.scale))
-            for e in path.entities
-        ]
-    ).reshape((-1, 2, path.vertices.shape[1]))
-    for order, fresh in enumerate([path.copy(), path.copy()]):
-        if order == 0:
-            labels = fresh.segments_entity
-        else:
-            _ = fresh.segments
-            labels = fresh.segments_entity
-        assert (
-            len(labels) == len(fresh.segments)
-            and g.np.array_equal(fresh.segments, reference)
-            and (g.np.diff(labels) >= 0).all()
-        ), f"order {order} entity per segment"
+    # each segment matches the polyline of the entity it is labeled with
+    segments, entity = from_path(path)
+    for index, item in enumerate(path.entities):
+        discrete = item.discrete(path.vertices, scale=path.scale)
+        assert g.np.array_equal(
+            segments[entity == index], g.np.stack((discrete[:-1], discrete[1:]), axis=1)
+        )
 
 
 def test_path_to_gltf_with_arc():

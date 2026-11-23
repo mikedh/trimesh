@@ -8,11 +8,11 @@ Keyframed animation of scene graph nodes and mesh skins.
 import numpy as np
 
 from .. import caching
-from ..constants import log
+from ..constants import tol
+from ..path.curve import evaluate_bezier
 from ..transformations import quaternion_slerp, trs_from_matrix, trs_matrix
 from ..typed import (
     ArrayLike,
-    Callable,
     Floating,
     Iterable,
     NDArray,
@@ -163,23 +163,36 @@ class Animation:
         return trs
 
     @caching.cache_decorator
-    def spline(self) -> Callable | None:
+    def tangents(self) -> NDArray3D[float64]:
         """
-        Cubic spline through `trs`.
+        Monotone cubic derivatives of `trs` with respect to time.
 
         Returns
         ------------
-        spline : None or scipy.interpolate.CubicSpline
-          None with one keyframe or without scipy.
+        tangents : (k, n, 10) float
+          Harmonic mean of the slopes on either side of each keyframe and
+          zero at extrema (Fritsch-Butland 1984), so a held or linear part
+          stays held or linear and nothing overshoots.
         """
-        if len(self.times) < 2:
-            return None
-        try:
-            from scipy.interpolate import CubicSpline
-        except ImportError:
-            log.warning(f"`{self.name}` is sampled linearly without scipy")
-            return None
-        return CubicSpline(np.asarray(self.times), self.trs)
+        times = self.times
+        width = np.diff(times)[:, None, None]
+        # a segment no wider than float32 time resolution is a jump, such as
+        # a held glTF STEP, whose keys take the slope on their other side
+        jump = width <= np.spacing(np.float32(times[1:]))[:, None, None]
+        with np.errstate(divide="ignore", invalid="ignore"):
+            slope = np.where(jump, np.nan, np.diff(self.trs, axis=0) / width)
+        if len(slope) == 0:
+            return np.zeros_like(self.trs)
+        before = np.where(np.isnan(slope[:-1]), slope[1:], slope[:-1])
+        after = np.where(np.isnan(slope[1:]), slope[:-1], slope[1:])
+        middle = np.divide(
+            2.0 * before * after,
+            before + after,
+            out=np.zeros_like(before),
+            where=before * after > 0.0,
+        )
+        slope = np.nan_to_num(slope)
+        return np.concatenate((slope[:1], middle, slope[-1:]))
 
     @property
     def duration(self) -> float:
@@ -208,8 +221,15 @@ class Animation:
           Parent-to-node transforms in `nodes` order.
         """
         times = np.asarray(self.times)
-        if self.interpolation == "cubic" and self.spline is not None:
-            sampled = self.spline(np.clip(time, times[0], times[-1]))
+        if self.interpolation == "cubic" and len(times) > 1:
+            # the cubic Hermite segment around `time` as a Bezier curve
+            upper = np.clip(np.searchsorted(times, time), 1, len(times) - 1)
+            width = times[upper] - times[upper - 1]
+            fraction = np.clip((time - times[upper - 1]) / max(width, tol.zero), 0, 1)
+            trs, tangents = self.trs[upper - 1 : upper + 1], self.tangents
+            reach = tangents[upper - 1 : upper + 1] * width / 3.0
+            controls = np.stack((trs[0], trs[0] + reach[0], trs[1] - reach[1], trs[1]))
+            sampled = evaluate_bezier(controls.transpose((1, 0, 2)), fraction)
         else:
             step = self.interpolation == "step"
             sampled = interpolate_keyframes(times, self.trs, time, step)
