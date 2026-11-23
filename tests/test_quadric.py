@@ -24,5 +24,23 @@ def test_quadric_simplification():
     assert len(a.faces) > 0
 
 
+def test_scene_skips_small_meshes():
+    if not g.trimesh.util.has_module("fast_simplification"):
+        return
+
+    big = g.trimesh.creation.icosphere(subdivisions=4)
+    small = g.trimesh.creation.icosphere(subdivisions=2)
+    scene = g.trimesh.Scene({"big": big, "small": small})
+
+    # the small mesh is already under the target so it should be left alone
+    scene.simplify_quadric_decimation(face_count=1000)
+    assert len(scene.geometry["big"].faces) == 1000
+    assert len(scene.geometry["small"].faces) == len(small.faces)
+
+    # a mesh with exactly the target face count is also left alone
+    scene.simplify_quadric_decimation(face_count=1000)
+    assert len(scene.geometry["big"].faces) == 1000
+
+
 if __name__ == "__main__":
     test_quadric_simplification()
