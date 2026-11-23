@@ -274,21 +274,35 @@ class Scene(Geometry3D):
         Parameters
         -----------
         percent
-          A number between 0.0 and 1.0 for how much
+          Fraction of faces to remove from each mesh, between 0.0 and 1.0.
         face_count
-          Target number of faces desired in the resulting mesh.
+          Target number of faces per mesh. Meshes at or below this count
+          are left unchanged.
         aggression
           An integer between `0` and `10`, the scale being roughly
           `0` is "slow and good" and `10` being "fast and bad."
 
         """
+        from ..base import Trimesh
+
         # save the updates for after the loop
         updates = {}
         for k, v in self.geometry.items():
-            if hasattr(v, "simplify_quadric_decimation"):
-                updates[k] = v.simplify_quadric_decimation(
-                    percent=percent, face_count=face_count, aggression=aggression
-                )
+            if not hasattr(v, "simplify_quadric_decimation"):
+                continue
+            simplify = v.simplify_quadric_decimation
+            # Leave custom simplifiers responsible for their argument handling.
+            if (
+                face_count is not None
+                and percent is None
+                and getattr(simplify, "__func__", None)
+                is Trimesh.simplify_quadric_decimation
+                and len(v.faces) <= face_count
+            ):
+                continue
+            updates[k] = simplify(
+                percent=percent, face_count=face_count, aggression=aggression
+            )
         self.geometry.update(updates)
 
     def __hash__(self) -> int:
