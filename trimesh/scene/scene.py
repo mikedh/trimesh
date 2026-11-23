@@ -276,7 +276,8 @@ class Scene(Geometry3D):
         percent
           A number between 0.0 and 1.0 for how much
         face_count
-          Target number of faces desired in the resulting mesh.
+          Target number of faces for each mesh, meshes
+          that already have fewer faces are left unchanged.
         aggression
           An integer between `0` and `10`, the scale being roughly
           `0` is "slow and good" and `10` being "fast and bad."
@@ -286,6 +287,8 @@ class Scene(Geometry3D):
         updates = {}
         for k, v in self.geometry.items():
             if hasattr(v, "simplify_quadric_decimation"):
+                if face_count is not None and len(v.faces) < face_count:
+                    continue
                 updates[k] = v.simplify_quadric_decimation(
                     percent=percent, face_count=face_count, aggression=aggression
                 )

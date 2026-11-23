@@ -181,6 +181,20 @@ def test_simplify():
     assert len(scene.to_mesh().vertices) < len(original.vertices)
 
 
+def test_simplify_face_count():
+    if not g.trimesh.util.has_module("fast_simplification"):
+        return
+
+    box = g.trimesh.creation.box()
+    sphere = g.trimesh.creation.icosphere(subdivisions=1)
+    scene = g.trimesh.Scene({"box": box, "sphere": sphere})
+
+    # the 12-face box is below the target and should be left alone
+    scene.simplify_quadric_decimation(face_count=20)
+    assert scene.geometry["box"] is box
+    assert len(scene.geometry["sphere"].faces) == 20
+
+
 def test_reverse():
     tf = g.trimesh.transformations
 
