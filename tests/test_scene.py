@@ -144,14 +144,6 @@ def test_cam_gltf():
     loaded = g.roundtrip(scene.export(file_type="glb", tree_postprocessor=wide), "glb")
     half = np.tan(np.radians(loaded.camera.fov) / 2.0)
     assert np.allclose(half, [16 / 9 * np.tan(0.33), np.tan(0.33)]), "16:9 is wide"
-    # orthographic cameras round trip too
-    scene.camera = g.trimesh.scene.cameras.Camera(
-        name="cam1", magnification=(2.0, 1.5), z_near=0.5, z_far=20.0
-    )
-    ortho = g.roundtrip(scene.export(file_type="glb"), "glb")
-    assert np.allclose(ortho.camera.magnification, (2.0, 1.5)), "ortho magnification"
-    assert (ortho.camera.z_near, ortho.camera.z_far) == (0.5, 20.0), "ortho clip planes"
-    assert np.allclose(ortho.camera_transform, scene.camera_transform), "ortho transform"
 
 
 def test_scaling():

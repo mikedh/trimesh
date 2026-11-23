@@ -1030,13 +1030,18 @@ def _append_mesh(
                 raise ValueError("joints and weights must be one VEC4 per vertex")
             log.warning("skipping joints and weights which aren't a VEC4 per vertex")
             skinning = {}
-        for key, (data, dtype, component) in skinning.items():
-            current["primitives"][0]["attributes"][key] = _data_append(
-                acc=tree["accessors"],
-                buff=buffer_items,
-                blob={"componentType": component, "type": "VEC4", "byteOffset": 0},
-                data=np.asarray(data, dtype=dtype),
-            )
+        current["primitives"][0]["attributes"].update(
+            {
+                key: _data_append(
+                    acc=tree["accessors"],
+                    buff=buffer_items,
+                    blob={"componentType": component, "type": "VEC4", "byteOffset": 0},
+                    data=np.asarray(data, dtype=dtype),
+                    claimed=claimed,
+                )
+                for key, (data, dtype, component) in skinning.items()
+            }
+        )
 
     # for each attribute with a leading underscore, assign them to trimesh
     # vertex_attributes
@@ -1422,6 +1427,8 @@ def _parse_textures(header, views, resolver=None):
             try:
                 # load the buffer into a PIL image
                 images[i] = PIL.Image.open(util.wrap_as_stream(blob))
+                # the bytes so exports needn't encode it again
+                images[i].info["source_bytes"] = bytes(blob)
             except Exception:
                 if tol.strict:
                     raise
@@ -1707,28 +1714,23 @@ def _read_buffers(
                     from ...path.entities import Line
 
                     vertices = access[attr["POSITION"]]
-                    # join GL_LINES pairs into polylines where the end
-                    # and color of one match the start of the next
-                    pairs = np.arange(len(vertices) // 2 * 2).reshape((-1, 2))
-                    if len(vertices) % 2 == 1:
-                        # an odd count isn't GL_LINES but a strip, as cascadio
-                        # writes polylines, which joins to one polyline
-                        pairs = np.column_stack(
-                            (np.arange(len(vertices) - 1), np.arange(1, len(vertices)))
-                        )
-                    keys = vertices
-                    if "COLOR_0" in attr:
-                        colors = access[attr["COLOR_0"]]
-                        keys = np.column_stack((vertices, colors))
+                    # GL_LINES pairs, or a strip for an odd count as cascadio
+                    # writes polylines, joined where the end and color of one
+                    # match the start of the next
+                    first = np.arange(0, len(vertices) - 1, 2 - len(vertices) % 2)
+                    pairs = np.column_stack((first, first + 1))
+                    keys = np.column_stack(
+                        [access[attr[k]] for k in ("POSITION", "COLOR_0") if k in attr]
+                    )
                     joined = (keys[pairs[1:, 0]] == keys[pairs[:-1, 1]]).all(axis=1)
-                    starts = np.concatenate(([0], np.flatnonzero(~joined) + 1))
+                    starts = np.flatnonzero(np.append(True, ~joined))[: len(pairs)]
                     kwargs["entities"] = [
                         Line(points=np.concatenate(([pairs[start, 0]], ends)))
                         for start, ends in zip(starts, np.split(pairs[:, 1], starts[1:]))
                     ]
                     kwargs["vertices"] = vertices
                     if "COLOR_0" in attr:
-                        kwargs["colors"] = colors[pairs[starts, 0]]
+                        kwargs["colors"] = access[attr["COLOR_0"]][pairs[starts, 0]]
 
                     # custom attributes starting with a `_`
                     custom = {
@@ -2027,14 +2029,11 @@ def _read_buffers(
             kwargs["metadata"] = child["extras"]
 
         # put node extensions except lights in the metadata
-        if "extensions" in child:
-            extensions = {
-                key: value
-                for key, value in child["extensions"].items()
-                if key != lights.NAME
-            }
-            if len(extensions) > 0:
-                kwargs.setdefault("metadata", {})["gltf_extensions"] = extensions
+        extensions = {
+            k: v for k, v in child.get("extensions", {}).items() if k != lights.NAME
+        }
+        if len(extensions) > 0:
+            kwargs.setdefault("metadata", {})["gltf_extensions"] = extensions
 
         if "mesh" in child:
             geometries = mesh_prim[child["mesh"]]
@@ -2072,10 +2071,11 @@ def _read_buffers(
     # only nodes of the loaded scene
     loaded = {edge["frame_to"] for edge in graph}
     names = {index: name for index, name in names.items() if name in loaded}
-    images = None
-    if lights.ENVIRONMENT in header.get("extensions", {}):
-        images = _parse_textures(header, views, resolver)
-    scene_lights = lights.parse_lights(header, names, scene_index, images, graph)
+    environment, edges = lights.parse_environment(
+        header, names, scene_index, partial(_parse_textures, header, views, resolver)
+    )
+    graph.extend(edges)
+    scene_lights = lights.parse_lights(header, names) + environment
     animations = animation.parse_animations(header, access, names)
     skins = animation.parse_skins(header, access, names, skinned)
     # kwargs for load_kwargs
@@ -2205,6 +2205,7 @@ def _append_image(img, tree, buffer_items, extension_webp):
     # probably not a PIL image so exit
     if not hasattr(img, "format"):
         return None
+    import PIL.Image
 
     if extension_webp:
         # support WebP if extension is specified
@@ -2216,12 +2217,19 @@ def _append_image(img, tree, buffer_items, extension_webp):
         # for everything else just use PNG
         save_as = "png"
 
-    # get the image data into a bytes object, dropping color profiles
-    # which glTF viewers ignore and the validator flags
-    with util.BytesIO() as f:
-        img.save(f, format=save_as, icc_profile=None)
-        f.seek(0)
-        data = f.read()
+    # a JPEG loses detail each time it is encoded, so keep the bytes it
+    # was loaded from unless its pixels or color profile would change
+    data = img.info.get("source_bytes")
+    if not (
+        save_as == "JPEG"
+        and data is not None
+        and "icc_profile" not in img.info
+        and PIL.Image.open(util.wrap_as_stream(data)).tobytes() == img.tobytes()
+    ):
+        # dropping color profiles which glTF viewers ignore and the validator flags
+        with util.BytesIO() as f:
+            img.save(f, format=save_as, icc_profile=None)
+            data = f.getvalue()
 
     index = _buffer_append(buffer_items, data)
     # append buffer index and the GLTF-acceptable mimetype
@@ -2306,9 +2314,10 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
     # extension fields, moved into `extensions` below
     fields = [key for keys in MATERIAL_EXTENSIONS.values() for key in keys]
     textures = [key for key in fields if key.endswith("Texture")]
-    for key in fields:
-        if key not in textures and getattr(as_pbr, key) is not None:
-            result[key] = np.asarray(getattr(as_pbr, key)).tolist()
+    factors = {key: getattr(as_pbr, key) for key in fields if key not in textures}
+    result.update(
+        {k: np.asarray(v).tolist() for k, v in factors.items() if v is not None}
+    )
 
     # if scalars are defined correctly export
     if isinstance(as_pbr.metallicFactor, float):
@@ -2328,7 +2337,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
         if img is None:
             continue
         # store each image once, by content or else by identity
-        content = id(img)
+        content = ("id", id(img))
         if hasattr(img, "tobytes"):
             content = (img.mode, img.size, hash_fast(img.tobytes()))
         if content in mat_hashes:

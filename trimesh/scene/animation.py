@@ -33,6 +33,7 @@ def interpolate_keyframes(
     query: Floating | ArrayLike,
     step: bool = False,
     rotation: bool = False,
+    tangents: ArrayLike | None = None,
 ) -> NDArray:
     """
     Sample keyframed values, clamped outside the keyframe range.
@@ -41,7 +42,7 @@ def interpolate_keyframes(
     ------------
     times : (k,) float
       Increasing keyframe times in seconds.
-    values : (k, ...) float
+    values : (k, ..., d) float
       Value at each keyframe, `wxyz` quaternions if `rotation`.
     query : float or (m,) float
       Times to sample at.
@@ -49,10 +50,12 @@ def interpolate_keyframes(
       Hold each keyframe instead of blending.
     rotation : bool
       Slerp quaternions.
+    tangents : None or (k, 2, ..., d) float
+      In and out derivatives at each keyframe to blend as cubic Hermite.
 
     Returns
     ------------
-    sampled : (...) or (m, ...) float
+    sampled : (..., d) or (m, ..., d) float
       Value at each query time.
     """
     times = np.asarray(times, dtype=np.float64)
@@ -67,21 +70,75 @@ def interpolate_keyframes(
         0.0,
         1.0,
     )
+    # broadcast against the values of one keyframe
+    stretch = (1,) * (values.ndim - 1)
+    if tangents is not None:
+        # a cubic Hermite segment is the Bezier curve of its values and a
+        # third of each tangent across it
+        tangents = np.asarray(tangents, dtype=np.float64)
+        reach = (width / 3.0).reshape(width.shape + stretch)
+        controls = (
+            values[lower],
+            values[lower] + reach * tangents[lower, 1],
+            values[upper] - reach * tangents[upper, 0],
+            values[upper],
+        )
+        return evaluate_bezier(
+            np.stack(controls, axis=-2), fraction.reshape(width.shape + stretch[1:])
+        )
     if step:
         return values[np.where(fraction >= 1.0, upper, lower)]
+    fraction = fraction.reshape(fraction.shape + stretch)
     if rotation:
-        return quaternion_slerp(
+        blended = quaternion_slerp(
             values[lower].reshape((-1, 4)),
             values[upper].reshape((-1, 4)),
             np.repeat(fraction, values[0].size // 4),
         ).reshape(values[lower].shape)
-    fraction = fraction.reshape(fraction.shape + (1,) * (values.ndim - 1))
+        return blended
     return values[lower] + (values[upper] - values[lower]) * fraction
+
+
+def monotone_tangents(times: ArrayLike, values: ArrayLike) -> NDArray:
+    """
+    Monotone cubic derivatives of keyframed values with respect to time.
+
+    Parameters
+    ------------
+    times : (k,) float
+      Increasing keyframe times in seconds.
+    values : (k, ..., d) float
+      Value at each keyframe.
+
+    Returns
+    ------------
+    tangents : (k, 2, ..., d) float
+      In and out derivatives, the harmonic mean of the slopes on either
+      side and zero at extrema (Fritsch-Butland 1984), so a held or linear
+      part stays held or linear and nothing overshoots.
+    """
+    values = np.asarray(values, dtype=np.float64)
+    if len(values) < 2:
+        return np.zeros((len(values), 2, *values.shape[1:]))
+    change = np.diff(values, axis=0)
+    width = np.diff(times).reshape((-1,) + (1,) * (values.ndim - 1))
+    # repeated keyframes have no slope
+    slope = np.divide(change, width, out=np.zeros_like(change), where=width > 0)
+    before, after = slope[:-1], slope[1:]
+    middle = np.divide(
+        2.0 * before * after,
+        before + after,
+        out=np.zeros_like(before),
+        where=before * after > 0.0,
+    )
+    tangents = np.concatenate((slope[:1], middle, slope[-1:]))
+    return np.stack((tangents, tangents), axis=1)
 
 
 class Animation:
     """
-    Keyframed transforms of scene graph nodes on one timeline.
+    Keyframed translation, rotation and scale of scene graph nodes on one
+    timeline.
     """
 
     def __init__(
@@ -89,8 +146,10 @@ class Animation:
         name: str,
         nodes: Iterable,
         times: ArrayLike,
-        matrices: ArrayLike,
+        matrices: ArrayLike | None = None,
         interpolation: str = "linear",
+        trs: ArrayLike | None = None,
+        tangents: ArrayLike | None = None,
     ):
         """
         Create an animation of scene graph nodes.
@@ -103,10 +162,16 @@ class Animation:
           Scene graph nodes to animate.
         times : (k,) float
           Increasing keyframe times in seconds.
-        matrices : (k, n, 4, 4) float
-          Parent-to-node transforms, or (k, 4, 4) for one node.
+        matrices : None or (k, n, 4, 4) float
+          Parent-to-node transforms, or (k, 4, 4) for one node, stored as
+          `trs` with neighboring quaternions in one hemisphere.
         interpolation : str
           One of `INTERPOLATIONS`.
+        trs : None or (k, n, 10) float
+          Translation, `wxyz` quaternion and scale instead of `matrices`.
+        tangents : None or (k, 2, n, 10) float
+          In and out derivatives of `trs` for cubic interpolation, or
+          `monotone_tangents` of it.
         """
         if interpolation not in INTERPOLATIONS:
             raise ValueError(f"interpolation must be one of {INTERPOLATIONS}!")
@@ -116,11 +181,27 @@ class Animation:
             raise ValueError("times must be increasing and not empty!")
         self.name = name
         self.nodes = list(nodes)
+        shape = (len(times), len(self.nodes))
+        if trs is None:
+            matrices = np.asarray(matrices, dtype=np.float64).reshape((*shape, 4, 4))
+            trs = np.concatenate(trs_from_matrix(matrices), axis=2)
+            # flip quaternions so neighbors blend the short way around
+            flips = (trs[1:, :, 3:7] * trs[:-1, :, 3:7]).sum(axis=2) < 0.0
+            trs[1:, :, 3:7] *= np.cumprod(np.where(flips, -1.0, 1.0), axis=0)[..., None]
+            if tol.strict and not np.allclose(
+                trs_matrix(*np.split(trs, [3, 7], 2)), matrices
+            ):
+                raise ValueError("matrices must be translation, rotation and scale!")
+        trs = np.asarray(trs, dtype=np.float64).reshape((*shape, 10))
+        if tangents is None:
+            tangents = monotone_tangents(times, trs)
         self._data = caching.DataStore()
         self._cache = caching.Cache(id_function=self._data.__hash__)
         self._data["times"] = times
-        shape = (len(times), len(self.nodes), 4, 4)
-        self._data["matrices"] = np.asarray(matrices, dtype=np.float64).reshape(shape)
+        self._data["trs"] = trs
+        self._data["tangents"] = np.asarray(tangents, dtype=np.float64).reshape(
+            (shape[0], 2, *shape[1:], 10)
+        )
 
     @property
     def times(self) -> NDArray1D[float64]:
@@ -135,6 +216,30 @@ class Animation:
         return self._data["times"]
 
     @property
+    def trs(self) -> NDArray3D[float64]:
+        """
+        Every node at every keyframe.
+
+        Returns
+        ------------
+        trs : (k, n, 10) float
+          Translation, `wxyz` quaternion and scale.
+        """
+        return self._data["trs"]
+
+    @property
+    def tangents(self) -> NDArray4D[float64]:
+        """
+        Derivatives of `trs` with respect to time for cubic interpolation.
+
+        Returns
+        ------------
+        tangents : (k, 2, n, 10) float
+          In and out derivative of every node at every keyframe.
+        """
+        return self._data["tangents"]
+
+    @caching.cache_decorator
     def matrices(self) -> NDArray4D[float64]:
         """
         Transform of every node at every keyframe.
@@ -142,57 +247,11 @@ class Animation:
         Returns
         ------------
         matrices : (k, n, 4, 4) float
-          Parent-to-node transforms.
+          Parent-to-node transforms, edited through `trs`.
         """
-        return self._data["matrices"]
-
-    @caching.cache_decorator
-    def trs(self) -> NDArray3D[float64]:
-        """
-        Matrices decomposed into translation, rotation and scale.
-
-        Returns
-        ------------
-        trs : (k, n, 10) float
-          Translation, `wxyz` quaternion and scale, hemisphere-aligned.
-        """
-        trs = np.concatenate(trs_from_matrix(self.matrices), axis=2)
-        # flip quaternions so neighbors blend the short way around
-        flips = (trs[1:, :, 3:7] * trs[:-1, :, 3:7]).sum(axis=2) < 0.0
-        trs[1:, :, 3:7] *= np.cumprod(np.where(flips, -1.0, 1.0), axis=0)[..., None]
-        return trs
-
-    @caching.cache_decorator
-    def tangents(self) -> NDArray3D[float64]:
-        """
-        Monotone cubic derivatives of `trs` with respect to time.
-
-        Returns
-        ------------
-        tangents : (k, n, 10) float
-          Harmonic mean of the slopes on either side of each keyframe and
-          zero at extrema (Fritsch-Butland 1984), so a held or linear part
-          stays held or linear and nothing overshoots.
-        """
-        times = self.times
-        width = np.diff(times)[:, None, None]
-        # a segment no wider than float32 time resolution is a jump, such as
-        # a held glTF STEP, whose keys take the slope on their other side
-        jump = width <= np.spacing(np.float32(times[1:]))[:, None, None]
-        with np.errstate(divide="ignore", invalid="ignore"):
-            slope = np.where(jump, np.nan, np.diff(self.trs, axis=0) / width)
-        if len(slope) == 0:
-            return np.zeros_like(self.trs)
-        before = np.where(np.isnan(slope[:-1]), slope[1:], slope[:-1])
-        after = np.where(np.isnan(slope[1:]), slope[:-1], slope[1:])
-        middle = np.divide(
-            2.0 * before * after,
-            before + after,
-            out=np.zeros_like(before),
-            where=before * after > 0.0,
-        )
-        slope = np.nan_to_num(slope)
-        return np.concatenate((slope[:1], middle, slope[-1:]))
+        matrices = trs_matrix(*np.split(self.trs, [3, 7], axis=2))
+        matrices.flags.writeable = False
+        return matrices
 
     @property
     def duration(self) -> float:
@@ -220,21 +279,14 @@ class Animation:
         matrices : (n, 4, 4) float
           Parent-to-node transforms in `nodes` order.
         """
-        times = np.asarray(self.times)
-        if self.interpolation == "cubic" and len(times) > 1:
-            # the cubic Hermite segment around `time` as a Bezier curve
-            upper = np.clip(np.searchsorted(times, time), 1, len(times) - 1)
-            width = times[upper] - times[upper - 1]
-            fraction = np.clip((time - times[upper - 1]) / max(width, tol.zero), 0, 1)
-            trs, tangents = self.trs[upper - 1 : upper + 1], self.tangents
-            reach = tangents[upper - 1 : upper + 1] * width / 3.0
-            controls = np.stack((trs[0], trs[0] + reach[0], trs[1] - reach[1], trs[1]))
-            sampled = evaluate_bezier(controls.transpose((1, 0, 2)), fraction)
+        times, trs = self.times, self.trs
+        if self.interpolation == "cubic":
+            sampled = interpolate_keyframes(times, trs, time, tangents=self.tangents)
         else:
             step = self.interpolation == "step"
-            sampled = interpolate_keyframes(times, self.trs, time, step)
+            sampled = interpolate_keyframes(times, trs, time, step)
             sampled[:, 3:7] = interpolate_keyframes(
-                times, self.trs[..., 3:7], time, step, rotation=True
+                times, trs[..., 3:7], time, step, rotation=True
             )
         # `trs_matrix` normalizes quaternions as glTF specifies
         return trs_matrix(sampled[:, :3], sampled[:, 3:7], sampled[:, 7:])

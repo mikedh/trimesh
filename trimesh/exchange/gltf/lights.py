@@ -6,7 +6,6 @@ Read and write `KHR_lights_punctual` and `EXT_lights_image_based`.
 Lights are named after their node.
 """
 
-from collections import deque
 from collections.abc import Callable
 
 import numpy as np
@@ -26,19 +25,60 @@ CLASSES = {
     "spot": lighting.SpotLight,
 }
 TYPES = {value: key for key, value in CLASSES.items()}
-# {glTF key : `Light` attribute}, spot cone angles are named the same
-KEYS = {"color": "color", "intensity": "intensity", "range": "radius"}
 SPOT = ("innerConeAngle", "outerConeAngle")
 ENVIRONMENT = "EXT_lights_image_based"
 # Babylon.js `LinearEncodePowerApprox`
 RGBD_GAMMA = 2.2
 
 
-def parse_lights(
-    header: dict, names: dict, scene_index: Integer, images: list | None, graph: deque
-) -> list:
+def parse_lights(header: dict, names: dict) -> list:
     """
-    Load the punctual lights of every node and the scene environment.
+    Load the punctual lights of the loaded nodes.
+
+    Parameters
+    ------------
+    header : dict
+      Parsed GLTF header.
+    names : dict
+      {node index : node name}
+
+    Returns
+    ----------
+    lights : list
+      `trimesh.scene.lighting.Light` objects.
+    """
+    # {node name : its `KHR_lights_punctual`}
+    nodes = {
+        names[index]: node["extensions"][NAME]
+        for index, node in enumerate(header.get("nodes", []))
+        if index in names and NAME in node.get("extensions", {})
+    }
+    try:
+        stored = header.get("extensions", {}).get(NAME, {}).get("lights", [])
+        entries = {name: stored[node["light"]] for name, node in nodes.items()}
+        return [
+            CLASSES[entry["type"]](
+                name=name,
+                # a light without a color is white
+                color=entry.get("color", [1.0] * 3),
+                intensity=entry.get("intensity"),
+                radius=entry.get("range"),
+                **entry.get("spot", {}),
+            )
+            for name, entry in entries.items()
+        ]
+    except (KeyError, IndexError, TypeError, ValueError):
+        if tol.strict:
+            raise
+        log.warning("unable to load lights", exc_info=True)
+        return []
+
+
+def parse_environment(
+    header: dict, names: dict, scene_index: Integer, parse_images: Callable
+) -> tuple[list, list]:
+    """
+    Load the `EXT_lights_image_based` light of the loaded scene.
 
     Parameters
     ------------
@@ -48,70 +88,44 @@ def parse_lights(
       {node index : node name}
     scene_index : int
       Index of the loaded scene.
-    images : list or None
-      `PIL.Image.Image` by index into `header["images"]`.
-    graph : collections.deque
-      `SceneGraph.update` kwargs, appended to in place.
+    parse_images : function
+      Returns `PIL.Image.Image` by index into `header["images"]`.
 
     Returns
     ----------
     lights : list
-      `trimesh.scene.lighting.Light` objects.
+      The `EnvironmentLight` if the scene has one.
+    edges : list
+      `SceneGraph.update` kwargs placing it, unless a node of its name does.
     """
-    extensions = header.get("extensions", {})
-    stored = extensions.get(NAME, {}).get("lights", [])
-    # {node name : index of its light}
-    references = {
-        names[index]: node["extensions"][NAME]["light"]
-        for index, node in enumerate(header.get("nodes", []))
-        if index in names and "light" in node.get("extensions", {}).get(NAME, {})
-    }
-    lights = []
+    scene = header.get("scenes", [{}])[scene_index].get("extensions", {})
+    if ENVIRONMENT not in scene:
+        return [], []
     try:
-        # a light without a color is white
-        entries = {
-            name: {"color": [1.0] * 3, **stored[i]} for name, i in references.items()
-        }
-        lights = [
-            CLASSES[entry["type"]](
-                name=name,
-                **{KEYS[key]: value for key, value in entry.items() if key in KEYS},
-                **entry.get("spot", {}),
-            )
-            for name, entry in entries.items()
-        ]
-    except (KeyError, IndexError, TypeError, ValueError):
-        if tol.strict:
-            raise
-        log.warning("unable to load lights", exc_info=True)
-
-    scene = header.get("scenes", [{}])[scene_index].get("extensions", {}).get(ENVIRONMENT)
-    if scene is None:
-        return lights
-    try:
-        entry = extensions[ENVIRONMENT]["lights"][scene["light"]]
+        entry = header["extensions"][ENVIRONMENT]["lights"][scene[ENVIRONMENT]["light"]]
+        images = parse_images()
         faces = [images[index].convert("RGBA") for index in entry["specularImages"][0]]
-        environment = lighting.EnvironmentLight(
+        light = lighting.EnvironmentLight(
             name=entry.get("name"),
             intensity=entry.get("intensity"),
             # the spec flips each face horizontally
             cubemap=rgbd_unpack([np.asarray(face)[:, ::-1] for face in faces]),
         )
-        if environment.name not in names.values():
-            rotation = np.array(entry.get("rotation", [0.0, 0.0, 0.0, 1.0]))
-            graph.append(
-                {
-                    "frame_from": DEFAULT_BASE_FRAME,
-                    "frame_to": environment.name,
-                    "matrix": quaternion_matrix(rotation[WXYZ_FROM_XYZW]),
-                }
-            )
-        lights.append(environment)
+        rotation = np.array(entry.get("rotation", [0.0, 0.0, 0.0, 1.0]))
+        edge = {
+            "frame_from": DEFAULT_BASE_FRAME,
+            "frame_to": light.name,
+            "matrix": quaternion_matrix(rotation[WXYZ_FROM_XYZW]),
+        }
     except (KeyError, IndexError, TypeError, AttributeError, ValueError):
         if tol.strict:
             raise
         log.warning("unable to load environment light", exc_info=True)
-    return lights
+        return [], []
+    if light.name in names.values():
+        # a node of the same name already places it
+        return [light], []
+    return [light], [edge]
 
 
 def append_lights(scene, tree: dict, node_index: dict, append_image: Callable) -> None:
@@ -129,15 +143,30 @@ def append_lights(scene, tree: dict, node_index: dict, append_image: Callable) -
     append_image : function
       Stores a `PIL.Image.Image` and returns its index.
     """
-    placed = [light for light in scene.lights if light.name in node_index]
-    environments = [i for i in placed if isinstance(i, lighting.EnvironmentLight)]
-    punctual = [light for light in placed if type(light) in TYPES]
-    skipped = {i.name for i in scene.lights} - {
-        i.name for i in (*environments, *punctual)
-    }
+    # lights on an exported node of a type glTF has
+    kinds = (*TYPES, lighting.EnvironmentLight)
+    placed = [i for i in scene.lights if i.name in node_index and type(i) in kinds]
+    skipped = [i.name for i in scene.lights if i not in placed]
     if len(skipped) > 0:
         log.warning(f"can't export lights {skipped}: no node or glTF light type")
-    stored = [light_entry(light) for light in punctual]
+    environments = [i for i in placed if isinstance(i, lighting.EnvironmentLight)]
+    punctual = [light for light in placed if type(light) in TYPES]
+    # `KHR_lights_punctual` entries without the fields a light doesn't have
+    stored = [
+        {
+            key: value
+            for key, value in {
+                "name": light.name,
+                "type": TYPES[type(light)],
+                "color": color.to_float(light.color)[:3].tolist(),
+                "intensity": float(light.intensity),
+                "range": light.radius,
+                "spot": {k: float(getattr(light, k)) for k in SPOT if hasattr(light, k)},
+            }.items()
+            if value is not None and value != {}
+        }
+        for light in punctual
+    ]
     for index, light in enumerate(punctual):
         # copy so the source extensions aren't mutated
         node = tree["nodes"][node_index[light.name]]
@@ -150,51 +179,22 @@ def append_lights(scene, tree: dict, node_index: dict, append_image: Callable) -
 
     if len(environments) > 1:
         log.warning("exporting the first of several environment lights")
-    light, levels = environments[0], lighting.prefilter(environments[0].cubemap)
+    light = environments[0]
     rotation = quaternion_from_matrix(scene.graph[light.name][0])[XYZW_FROM_WXYZ]
     entry = {
         "name": light.name,
         "intensity": float(light.intensity),
         "rotation": rotation.tolist(),
-        "irradianceCoefficients": lighting.spherical_harmonics(light.cubemap).tolist(),
-        "specularImageSize": len(levels[0][0]),
+        "irradianceCoefficients": light.irradiance.tolist(),
+        "specularImageSize": len(light.levels[0][0]),
         # the spec flips each face horizontally
         "specularImages": [
             [append_image(Image.fromarray(rgbd_pack(face)[:, ::-1])) for face in level]
-            for level in levels
+            for level in light.levels
         ],
     }
     tree.setdefault("extensions", {})[ENVIRONMENT] = {"lights": [entry]}
     tree["scenes"][0]["extensions"] = {ENVIRONMENT: {"light": 0}}
-
-
-def light_entry(light: lighting.Light) -> dict:
-    """
-    The `KHR_lights_punctual` entry of a light.
-
-    Parameters
-    ------------
-    light : trimesh.scene.lighting.Light
-      Directional, point or spot light.
-
-    Returns
-    ------------
-    entry : dict
-      glTF light.
-    """
-    entry = {
-        "name": light.name,
-        "type": TYPES[type(light)],
-        "color": color.to_float(light.color)[:3].tolist(),
-        **{
-            key: float(getattr(light, attribute))
-            for key, attribute in KEYS.items()
-            if key != "color" and getattr(light, attribute) is not None
-        },
-    }
-    if isinstance(light, lighting.SpotLight):
-        entry["spot"] = {key: float(getattr(light, key)) for key in SPOT}
-    return entry
 
 
 def rgbd_pack(radiance: ArrayLike) -> NDArray:

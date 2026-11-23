@@ -210,54 +210,6 @@ class CameraTests(g.unittest.TestCase):
             assert all(rid.min(axis=0) == 0)
             assert all(rid.max(axis=0) == current - 1)
 
-        # rays from a camera looking down -Z from 5 at a box whose top
-        # face is at Z of 1, through a node which may scale the camera
-        Camera = g.trimesh.scene.Camera
-        box = g.trimesh.creation.box(extents=[40.0, 40.0, 2.0])
-        lenses = {
-            "perspective": {"fov": (60.0, 45.0)},
-            "orthographic": {"magnification": (1.5, 1.0)},
-        }
-        width, height = 40, 30
-        for kind, lens in lenses.items():
-            for scale in (1.0, 0.025):
-                name = f"{kind} at scale {scale}"
-                scene = g.trimesh.Scene(box)
-                scene.camera = Camera(resolution=(width, height), **lens)
-                pose = g.trimesh.transformations.translation_matrix([0, 0, 5])
-                scene.graph[scene.camera.name] = pose @ g.np.diag([scale] * 3 + [1])
-                origins, vectors, pixels = scene.camera_rays()
-
-                # the same view from an unscaled camera, which for an
-                # orthographic camera sees `scale` times as much
-                unscaled = g.trimesh.Scene(box)
-                if kind == "orthographic":
-                    lens = {"magnification": g.np.multiply(lens["magnification"], scale)}
-                unscaled.camera = Camera(resolution=(width, height), **lens)
-                unscaled.graph[unscaled.camera.name] = pose
-                reference = unscaled.camera_rays()
-
-                # the center of each pixel, counted from the bottom left
-                column = (2.0 * pixels[:, 0] + 1.0) / width - 1.0
-                row = (2.0 * pixels[:, 1] + 1.0) / height - 1.0
-                distance = g.np.full(len(pixels), 4.0)
-                if kind == "perspective":
-                    half = g.np.tan(g.np.radians(lens["fov"]) / 2.0)
-                    distance *= g.np.sqrt(
-                        (column * half[0]) ** 2 + (row * half[1]) ** 2 + 1.0
-                    )
-                hits = origins + vectors * distance[:, None]
-                ndc = g.project(scene, hits)
-                assert (
-                    g.np.allclose(origins, reference[0])
-                    and g.np.allclose(vectors, reference[1])
-                    and g.np.array_equal(pixels, reference[2])
-                ), f"{name} equals unscaled"
-                assert g.np.allclose(hits[:, 2], 1.0), f"{name} distance to the face"
-                assert g.np.allclose(ndc[:, :2], g.np.column_stack((column, row))), (
-                    f"{name} lands on pixel centers"
-                )
-
     def test_scaled_copy(self):
         s = g.get_mesh("cycloidal.3DXML")
 

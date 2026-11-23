@@ -96,7 +96,7 @@ def test_sample():
         assert np.allclose(sampled[1 : keys + 1], matrices, atol=1e-12), interpolation
         assert np.allclose(sampled, expected[interpolation]), f"{interpolation} samples"
         # editing the keyframes in place moves what is sampled
-        animation.matrices[..., :3, 3] += [1.0, 2.0, 3.0]
+        animation.trs[..., :3] += [1.0, 2.0, 3.0]
         moved = np.array([animation.interpolate(time) for time in queries])
         assert np.allclose(moved[..., :3, 3], sampled[..., :3, 3] + [1, 2, 3])
 
@@ -129,10 +129,18 @@ def assert_operations(scene, times, label):
     vertex at every time, and copies share nothing with the original.
     """
     truth = {time: posed_dump(scene, time) for time in times}
+    stretch = g.np.diag([2.5, 2.5, 2.5, 1.0])
     for factor in [2.5, [2.5] * 3]:
         scaled = scene.scaled(factor)
         # not rebuilt flat, which would drop the nodes animations drive
         assert scaled.graph.transforms.parents == scene.graph.transforms.parents, label
+        # every world transform is conjugated by the scale, rotations untouched
+        assert all(
+            g.np.allclose(
+                scaled.graph[n][0], stretch @ scene.graph[n][0] @ g.np.linalg.inv(stretch)
+            )
+            for n in scene.graph.nodes
+        ), f"{label} scaled {factor} conjugates"
         for time in times:
             assert all(
                 g.np.allclose(vertices, truth[time][node] * 2.5, atol=1e-9)
@@ -145,7 +153,7 @@ def assert_operations(scene, times, label):
         assert g.np.allclose(both, twice, atol=1e-12), f"{label} appended at {time}"
     copied = scene.copy()
     for animation in copied.animations:
-        animation.matrices[...] = 99.0
+        animation.trs[...] = 99.0
     for skin in copied.skins.values():
         skin.inverse_bind_matrices[...] = 99.0
     assert all(

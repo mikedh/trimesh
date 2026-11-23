@@ -65,6 +65,7 @@ SAMPLERS = (
     *(sampler for inputs, _, _ in PASSES.values() for sampler in inputs),
 )  # fmt: skip
 TEXTURE_UNITS = {name: unit for unit, name in enumerate(dict.fromkeys(SAMPLERS))}
+PASS_INDEX = {name: index for index, name in enumerate(PASSES)}
 
 # one row per mesh vertex, with color read as 0.0-1.0
 VERTEX = np.dtype(
@@ -92,7 +93,7 @@ SEGMENT = np.dtype(
 )
 
 # vertex shader inputs of each program, numbered in order
-INPUTS = {"mesh": (VERTEX, SKIN, INSTANCE), "line": (SEGMENT,)}
+INPUTS = {"mesh.vert": (VERTEX, SKIN, INSTANCE), "line.vert": (SEGMENT,)}
 
 # one `KHR_lights_punctual` light, where a point light is a spot without a cone
 LIGHT = np.dtype(
@@ -233,7 +234,7 @@ def shader_source(name: str) -> str:
     """
     # enumerations as int constants, i.e. `ALPHA_BLEND`
     enumerations = {"ALPHA": ALPHA_MODES, "OUTPUT": OUTPUT_MODES}
-    enumerations["PASS"] = dict(zip(PASSES, range(len(PASSES))))
+    enumerations["PASS"] = PASS_INDEX
     luminance = ", ".join(str(value) for value in LUMINANCE.tolist())
     lines = ["#version 330 core", f"const vec3 LUMINANCE = vec3({luminance});"]
     lines.extend(
@@ -241,10 +242,7 @@ def shader_source(name: str) -> str:
         for prefix, values in enumerations.items()
         for key, value in values.items()
     )
-    program, stage = name.split(".")
-    dtypes = ()
-    if stage == "vert":
-        dtypes = INPUTS.get(program, ())
+    dtypes = INPUTS.get(name, ())
     locations = attribute_locations(*dtypes)
     for dtype in dtypes:
         for field in dtype.names:

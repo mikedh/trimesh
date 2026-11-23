@@ -12,7 +12,7 @@ import numpy as np
 
 from .. import caching, util, visual
 from ..geometry import align_vectors
-from ..typed import ArrayLike, Floating, Integer, NDArray, float64
+from ..typed import ArrayLike, Floating, Integer, NDArray, NDArray2D, NDArray4D, float64
 from .cameras import current_view
 
 # default light color
@@ -36,13 +36,17 @@ CUBE_FACES = np.array(
 # `[1, y, z, x, xy, yz, 3z^2 - 1, xz, x^2 - y^2]`, Ramamoorthi 2001 eq. 3
 HARMONICS = np.sqrt(np.array([1, 3, 3, 3, 15, 15, 5 / 4, 15, 15 / 4]) / (4.0 * np.pi))
 HARMONICS *= [1, -1, 1, -1, 1, -1, 1, -1, 1]
+# the clamped cosine convolved with each band, which makes radiance
+# harmonics irradiance ones, Ramamoorthi 2001 eq. 8
+BANDS = np.pi * np.array([1, *[2 / 3] * 3, *[1 / 4] * 5])
 
 # spherical Gaussian sharpness matching a GGX lobe, fit within 1.1%:
 # `exp(polyval(SPECULAR_SHARPNESS, log(roughness)))`
 SPECULAR_SHARPNESS = (0.131, 1.0381, -0.7256, 1.0728)
 
-# results of `prefilter` and `spherical_harmonics` by content
-_ENVIRONMENT_DERIVED = {}
+# {cube map content hash : mip levels}, as renders copy their scene and
+# every copy of an environment, like the default studio, is the same work
+_PREFILTERED = {}
 
 
 class Light(util.ABC):
@@ -274,7 +278,101 @@ class EnvironmentLight(Light):
         super().__init__(name=name, color=[255, 255, 255, 255], intensity=intensity)
         if cubemap is None:
             cubemap = np.zeros((6, 1, 1, 3))
-        self.cubemap = np.asarray(cubemap, dtype=np.float64)
+        self._data = caching.DataStore()
+        self._cache = caching.Cache(id_function=self._data.__hash__)
+        self.cubemap = cubemap
+
+    @property
+    def cubemap(self) -> NDArray4D[float64]:
+        """
+        Radiance from every direction.
+
+        Returns
+        ------------
+        cubemap : (6, n, n, 3) float
+          Linear RGB radiance.
+        """
+        return self._data["cubemap"]
+
+    @cubemap.setter
+    def cubemap(self, values: ArrayLike) -> None:
+        """
+        Set the radiance from every direction.
+
+        Parameters
+        ------------
+        values : (6, n, n, 3) float
+          Linear RGB radiance.
+        """
+        self._data["cubemap"] = np.asarray(values, dtype=np.float64)
+
+    @property
+    def levels(self) -> list[NDArray]:
+        """
+        Specular mip levels of `cubemap` for `EXT_lights_image_based`.
+
+        Returns
+        ------------
+        levels : list of (6, m, m, 3) float32
+          Mip levels, level `k` blurred to roughness `k / (count - 1)`.
+        """
+        key = hash(self._data)
+        try:
+            return _PREFILTERED[key]
+        except KeyError:
+            pass
+        # blurring is a dense texel-by-texel matrix, which bounds the mirror size
+        mirror = 64
+        roughest = 2 ** int(np.ceil(np.log2(4.0 * np.exp(SPECULAR_SHARPNESS[-1] / 2.0))))
+        count = 1 + int(np.log2(mirror // roughest))
+        repeat = max(mirror // len(self.cubemap[0]), 1)
+        cubemap = self.cubemap.repeat(repeat, axis=1).repeat(repeat, axis=2)
+        cubemap = cubemap.astype(np.float32)
+        levels = []
+        for level in range(count):
+            width = mirror >> level
+            step = cubemap.shape[1] // width
+            blurred = cubemap.reshape((6, width, step, width, step, 3)).mean(axis=(2, 4))
+            if level > 0:
+                curve = np.polyval(SPECULAR_SHARPNESS, np.log(level / (count - 1)))
+                sharpness = np.float32(np.exp(curve))
+                directions, solid_angle = cubemap_directions(width)
+                directions = directions.reshape((-1, 3)).astype(np.float32)
+                # BLAS is much faster with a contiguous transpose
+                weights = directions @ np.ascontiguousarray(directions.T)
+                # in place to stay float32 and hold one texel-by-texel matrix
+                weights -= 1.0
+                weights *= sharpness
+                np.exp(weights, out=weights)
+                weights *= solid_angle.reshape(-1)
+                blurred = weights @ blurred.reshape((-1, 3))
+                blurred /= weights.sum(axis=1)[:, None]
+            levels.append(blurred.reshape((6, width, width, 3)))
+        if len(_PREFILTERED) > 16:
+            # a few environments in use at once, each a few hundred kilobytes
+            _PREFILTERED.clear()
+        _PREFILTERED[key] = levels
+        return levels
+
+    @caching.cache_decorator
+    def irradiance(self) -> NDArray2D[float64]:
+        """
+        Irradiance of `cubemap` as `harmonics` coefficients, fit by least
+        squares over every texel weighted by its solid angle.
+
+        Returns
+        ------------
+        irradiance : (9, 3) float
+          Coefficient of each harmonic per channel.
+        """
+        directions, solid_angle = cubemap_directions(self.cubemap.shape[1])
+        weights = np.sqrt(solid_angle).reshape((-1, 1))
+        radiance = np.linalg.lstsq(
+            harmonics(directions).reshape((-1, 9)) * weights,
+            self.cubemap.reshape((-1, 3)) * weights,
+            rcond=None,
+        )[0]
+        return radiance * BANDS[:, None]
 
 
 def cubemap_directions(size: Integer) -> tuple[NDArray[float64], NDArray[float64]]:
@@ -306,87 +404,23 @@ def cubemap_directions(size: Integer) -> tuple[NDArray[float64], NDArray[float64
     return directions, np.broadcast_to(solid_angle, (6, size, size))
 
 
-def prefilter(cubemap: ArrayLike) -> list[NDArray]:
+def harmonics(directions: ArrayLike) -> NDArray[float64]:
     """
-    Specular mip levels of a cube map for `EXT_lights_image_based`.
+    Real spherical harmonics to l=2 as `EXT_lights_image_based` orders them.
 
     Parameters
     ------------
-    cubemap : (6, n, n, 3) float
-      Radiance, `n` a power of two.
+    directions : (..., 3) float
+      Unit vectors.
 
     Returns
     ------------
-    levels : list of (6, m, m, 3) float32
-      Mip levels, level `k` blurred to roughness `k / (n - 1)`.
+    basis : (..., 9) float
+      Each harmonic at each direction.
     """
-    cubemap = np.asarray(cubemap, dtype=np.float64)
-    key = ("prefilter", caching.hash_fast(cubemap.tobytes()), cubemap.shape)
-    try:
-        return _ENVIRONMENT_DERIVED[key]
-    except KeyError:
-        pass
-    # blurring is a dense texel-by-texel matrix, which bounds the mirror size
-    mirror = 64
-    roughest = 2 ** int(np.ceil(np.log2(4.0 * np.exp(SPECULAR_SHARPNESS[-1] / 2.0))))
-    count = 1 + int(np.log2(mirror // roughest))
-    repeat = max(mirror // cubemap.shape[1], 1)
-    cubemap = cubemap.repeat(repeat, axis=1).repeat(repeat, axis=2).astype(np.float32)
-    levels = []
-    for level in range(count):
-        width = mirror >> level
-        step = cubemap.shape[1] // width
-        blurred = cubemap.reshape((6, width, step, width, step, 3)).mean(axis=(2, 4))
-        if level > 0:
-            log_roughness = np.log(level / (count - 1))
-            sharpness = np.float32(np.exp(np.polyval(SPECULAR_SHARPNESS, log_roughness)))
-            directions, solid_angle = cubemap_directions(width)
-            directions = directions.reshape((-1, 3)).astype(np.float32)
-            # BLAS is much faster with a contiguous transpose
-            weights = directions @ np.ascontiguousarray(directions.T)
-            # in place to stay float32 and hold one texel-by-texel matrix
-            weights -= 1.0
-            weights *= sharpness
-            np.exp(weights, out=weights)
-            weights *= solid_angle.reshape(-1)
-            blurred = (weights @ blurred.reshape((-1, 3))) / weights.sum(axis=1)[:, None]
-        levels.append(blurred.reshape((6, width, width, 3)))
-    _ENVIRONMENT_DERIVED[key] = levels
-    return levels
-
-
-def spherical_harmonics(cubemap: ArrayLike) -> NDArray[float64]:
-    """
-    Irradiance coefficients of a cube map, Ramamoorthi 2001 eq. 8.
-
-    Parameters
-    ------------
-    cubemap : (6, n, n, c) float
-      Radiance.
-
-    Returns
-    ------------
-    irradiance : (9, c) float
-      Coefficient of each harmonic per channel.
-    """
-    cubemap = np.asarray(cubemap, dtype=np.float64)
-    key = ("harmonics", caching.hash_fast(cubemap.tobytes()), cubemap.shape)
-    try:
-        return _ENVIRONMENT_DERIVED[key]
-    except KeyError:
-        pass
-    directions, solid_angle = cubemap_directions(cubemap.shape[1])
-    x, y, z = directions.reshape((-1, 3)).T
-    weights = np.sqrt(solid_angle).reshape((-1, 1))
-    basis = (np.ones_like(x), y, z, x, x * y, y * z, 3 * z**2 - 1, x * z, x**2 - y**2)
-    radiance = np.linalg.lstsq(
-        np.column_stack(basis) * HARMONICS * weights,
-        cubemap.reshape((-1, cubemap.shape[-1])) * weights,
-        rcond=None,
-    )[0]
-    bands = np.pi * np.array([1, *[2 / 3] * 3, *[1 / 4] * 5])
-    _ENVIRONMENT_DERIVED[key] = radiance * bands[:, None]
-    return _ENVIRONMENT_DERIVED[key]
+    x, y, z = np.moveaxis(np.asarray(directions, dtype=np.float64), -1, 0)
+    terms = (np.ones_like(x), y, z, x, x * y, y * z, 3 * z**2 - 1, x * z, x**2 - y**2)
+    return np.stack(terms, axis=-1) * HARMONICS
 
 
 def autolight(

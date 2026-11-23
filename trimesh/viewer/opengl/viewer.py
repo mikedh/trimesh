@@ -11,7 +11,7 @@ import os
 import sys
 import time
 import warnings
-from dataclasses import dataclass, field, fields, replace
+from dataclasses import dataclass, field, replace
 from types import SimpleNamespace
 from typing import NamedTuple
 
@@ -22,13 +22,7 @@ from ... import util
 from ...bounds import corners
 from ...scene import Scene
 from ...scene.cameras import DEFAULT_FOV, current_view, projection_matrices
-from ...scene.lighting import (
-    HARMONICS,
-    DirectionalLight,
-    SpotLight,
-    prefilter,
-    spherical_harmonics,
-)
+from ...scene.lighting import HARMONICS, DirectionalLight, SpotLight, harmonics
 from ...typed import ArrayLike, Integer, Iterable, NDArray, Sequence
 from ...visual import to_rgba
 from ..conversion import (
@@ -374,7 +368,7 @@ def upload_geometry(arrays: GeometryArrays) -> GeometryBuffers:
     names = {}
     vertex_array = generate(names, "vertex_arrays")
     gl.glBindVertexArray(vertex_array)
-    rows, count, instance_buffer = arrays.rows, len(arrays.rows), 0
+    rows, count, buffers = arrays.rows, len(arrays.rows), {}
     # an instance per segment, or per node drawing a mesh
     program, inputs = "line", [(rows, 1)]
     if arrays.kind == "mesh":
@@ -383,16 +377,13 @@ def upload_geometry(arrays: GeometryArrays) -> GeometryBuffers:
         upload(gl.GL_ELEMENT_ARRAY_BUFFER, generate(names, "buffers"), arrays.faces)
     else:
         points = np.concatenate((rows["segment_start"], rows["segment_end"]))
-    locations = shaders.attribute_locations(*shaders.INPUTS[program])
+    locations = shaders.attribute_locations(*shaders.INPUTS[f"{program}.vert"])
     for data, divisor in inputs:
         if data is None:
             continue
-        buffer = upload(gl.GL_ARRAY_BUFFER, generate(names, "buffers"), data)
-        if data.dtype == shaders.INSTANCE:
-            instance_buffer = buffer
+        buffers[data.dtype] = upload(gl.GL_ARRAY_BUFFER, generate(names, "buffers"), data)
         # one input per field or matrix column, with bytes normalized
-        for name in data.dtype.names:
-            item, offset = data.dtype.fields[name][:2]
+        for name, (item, offset, *_) in data.dtype.fields.items():
             columns, width = (1, 1, *item.shape)[-2:]
             normalized = item.base.itemsize == 1
             for column in range(columns):
@@ -432,7 +423,7 @@ def upload_geometry(arrays: GeometryArrays) -> GeometryBuffers:
             for name, image in arrays.textures.items()
         },
         face_colors=face_colors,
-        instance_buffer=instance_buffer,
+        instance_buffer=buffers.get(shaders.INSTANCE, 0),
         origin=arrays.origin,
         centroid=points.mean(axis=0),
         corners=corners([points.min(axis=0), points.max(axis=0)]),
@@ -498,12 +489,9 @@ def create_context(visible: bool, config=None, **options) -> RenderContext:
                 ("frag", gl.GL_FRAGMENT_SHADER),
             ):
                 source = shaders.shader_source(f"{name}.{stage}").encode("utf-8")
-                pointer = ctypes.cast(
-                    (ctypes.c_char_p * 1)(source),
-                    ctypes.POINTER(ctypes.POINTER(gl.GLchar)),
-                )
+                text = ctypes.cast(ctypes.c_char_p(source), ctypes.POINTER(gl.GLchar))
                 shader = gl.glCreateShader(kind)
-                gl.glShaderSource(shader, 1, pointer, None)
+                gl.glShaderSource(shader, 1, ctypes.byref(text), None)
                 gl.glCompileShader(shader)
                 gl.glGetShaderInfoLog(shader, len(log), None, log)
                 logs.append(f"{name}.{stage}: {log.value.decode('utf-8', 'replace')}")
@@ -622,14 +610,12 @@ class SceneViewer:
         settings : dict
           `RenderSettings` or `ViewerState` values, i.e. `exposure=2.0`.
         """
-        legacy = [key for key in LEGACY_KEYWORDS if key in settings]
+        legacy = {key: settings.pop(key) for key in LEGACY_KEYWORDS if key in settings}
         if len(legacy) > 0:
-            message = f"`SceneViewer` keywords {legacy} will raise after April 2028"
+            message = f"`SceneViewer` keywords {list(legacy)} will raise after April 2028"
             warnings.warn(message, category=DeprecationWarning, stacklevel=2)
-            config = settings.pop("window_conf", config)
-            settings.update(settings.pop("line_settings", None) or {})
-            for key in legacy:
-                settings.pop(key, None)
+            config = legacy.get("window_conf", config)
+            settings.update(legacy.get("line_settings") or {})
         if not isinstance(scene, Scene):
             scene = Scene(scene)
         self.scene, self.callback = scene, callback
@@ -708,19 +694,19 @@ class SceneViewer:
         # by `HARMONICS` so the shader only multiplies the polynomials
         transforms = np.asarray(transforms)
         light, rotation = lights[-1], util.unitize(transforms[-1, :3, :3].T)
-        tint, irradiance = light.intensity, spherical_harmonics(light.cubemap)
+        tint, irradiance = light.intensity, light.irradiance
         frame["environment_rotation"][0, :3, :3] = rotation
         frame["environment_color"][0] = (
             tint,
             tint,
             tint,
-            len(prefilter(light.cubemap)) - 1,
+            len(light.levels) - 1,
         )
         frame["irradiance"][0, :, :3] = irradiance * HARMONICS[:, None] * tint / np.pi
         # unshadowed brightness of a white floor facing +Y: environment at +Y
         # plus `C * I / pi` from each directional light
         facing = util.unitize(transforms[: len(placed), :3, 2]) @ rotation[1]
-        received = (HARMONICS * [1, 1, 0, 0, 0, 0, -1, 0, -1]) @ irradiance * tint
+        received = harmonics([0, 1, 0]) @ irradiance * tint
         received += (np.clip(facing, 0.0, None) * directional * intensity) @ colors
         frame["ground_light"][0, 0] = received @ shaders.LUMINANCE / np.pi
         frame["exposure"][0, 0] = self.render_settings.exposure
@@ -930,7 +916,7 @@ class SceneViewer:
         # environment cube map with mip levels prefiltered per roughness
         self.textures["environment"] = generate(self.lasting, "textures")
         gl.glBindTexture(gl.GL_TEXTURE_CUBE_MAP, self.textures["environment"])
-        levels = prefilter(self.environment.cubemap)
+        levels = self.environment.levels
         for level, faces in enumerate(levels):
             size = faces.shape[1]
             for face, pixels in enumerate(faces):
@@ -1051,11 +1037,11 @@ class SceneViewer:
         shown = dict(zip(DECORATIONS, (state.axis, state.grid, len(self.ground) > 0)))
         keys.update((name, name) for name, show in shown.items() if show)
         changed = keys != self.geometry_keys
-        for name, key in keys.items():
-            if self.geometry_keys.get(name) == key:
-                continue
-            if name in self.geometry_buffers:
-                delete(self.geometry_buffers.pop(name).names)
+        # buffers whose key is unchanged are kept, the rest freed or uploaded
+        kept = dict(keys.items() & self.geometry_keys.items())
+        for name in set(self.geometry_buffers).difference(kept):
+            delete(self.geometry_buffers.pop(name).names)
+        for name in [name for name in keys if name not in kept]:
             if name == ("axis",):
                 # built at unit size as tiny cylinders collapse when merged
                 marker = axis(origin_size=1.0)
@@ -1082,8 +1068,6 @@ class SceneViewer:
                 arrays = geometry_to_arrays(scene.geometry[name])
             if arrays is not None:
                 self.geometry_buffers[name] = upload_geometry(arrays)
-        for name in set(self.geometry_buffers).difference(keys):
-            delete(self.geometry_buffers.pop(name).names)
         self.geometry_keys = keys
 
         # matrices are read every frame, so only structure and visibility matter
@@ -1111,27 +1095,22 @@ class SceneViewer:
         names.extend(name for name in self.geometry_buffers if name in DECORATIONS)
         table.buffers = buffers = [self.geometry_buffers[name] for name in names]
         table.count = count = len(nodes)
-        # rows sharing buffers, or material and textures
-        first = {}
-        table.geometry_index = np.array(
-            [first.setdefault(name, len(first)) for name in names], dtype=np.int64
-        )
-        # numbered in order of first use, so the order coincident faces are
-        # drawn in never depends on GL names or the process's hash seed
-        materials = {}
-        table.material_index = np.array(
-            [
-                materials.setdefault(
-                    (item.material.tobytes(), *item.textures.values()), len(materials)
-                )
-                for item in buffers
-            ],
-            dtype=np.int64,
-        )
+        # rows sharing buffers, or material and textures, numbered in order of
+        # first use so the order coincident faces are drawn in never depends
+        # on GL names or the process's hash seed
+        first = {name: index for index, name in enumerate(dict.fromkeys(names))}
+        table.geometry_index = np.array([first[name] for name in names], dtype=np.int64)
+        materials = [
+            (item.material.tobytes(), *item.textures.values()) for item in buffers
+        ]
+        seen = {key: index for index, key in enumerate(dict.fromkeys(materials))}
+        table.material_index = np.array([seen[key] for key in materials], dtype=np.int64)
         # meshes, translucent meshes, and rows fixed to the camera
         table.mesh = np.array([item.kind == "mesh" for item in buffers], dtype=bool)
         flags = np.reshape([item.material["flags"] for item in buffers], (-1, 4))
         table.blended = table.mesh & (flags[:, 0] == shaders.ALPHA_MODES["BLEND"])
+        # the fourth flag is double sided
+        table.double_sided = flags[:, 3] != 0
         table.fixed = np.array([name in state.fixed for name in names], dtype=bool)
         # index into `scene.graph.nodes_geometry` or -1, centroid, box corners
         position = {node: index for index, node in enumerate(drawn)}
@@ -1153,11 +1132,9 @@ class SceneViewer:
             [np.zeros((0, 4, 4)), *(skin.inverse_bind_matrices for skin in skins)]
         )
         table.bound_rows = np.repeat(skinned, counts)
-        lookup = {}
         joints = [joint for skin in skins for joint in skin.joints]
-        table.joint_index = np.array(
-            [lookup.setdefault(joint, len(lookup)) for joint in joints], dtype=np.int64
-        )
+        lookup = {joint: index for index, joint in enumerate(dict.fromkeys(joints))}
+        table.joint_index = np.array([lookup[joint] for joint in joints], dtype=np.int64)
         # scene lights and a followed camera move with the graph
         lights, cameras = [], []
         if scene.has_lights:
@@ -1212,9 +1189,7 @@ class SceneViewer:
             # animated edges without posing the scene, looping shorter ones
             if self.animation_time is not None:
                 for animation in self.scene.animations:
-                    seconds = self.animation_time
-                    if animation.duration > 0.0:
-                        seconds = seconds % animation.duration
+                    seconds = self.animation_time % (animation.duration or np.inf)
                     # chain row of each animated node, or -1
                     rows = [table.node_rows.get(node, -1) for node in animation.nodes]
                     rows = np.array(rows, dtype=np.int64)
@@ -1466,48 +1441,45 @@ class SceneViewer:
         starts = np.flatnonzero(changes | (blended | ~table.mesh)[order])
         ends = np.append(starts[1:], len(order))
 
-        # each draw uploads a slice of `instances`
+        # per draw: a program switch which resets the material, a material
+        # change, translucent meshes which write no depth, and back face culling
         size, pointer = instances.itemsize, instances.ctypes.data
-        translucent = (blended[order[starts]] & (mode == "color")).tolist()
-        program, material = None, None
-        draws = zip(starts.tolist(), ends.tolist(), order[starts].tolist(), translucent)
-        for start, end, row, hide in draws:
+        first = order[starts]
+        meshes = table.mesh[first]
+        switches = np.append(True, meshes[1:] != meshes[:-1])
+        rebinds = switches | (np.diff(table.material_index[first], prepend=-1) != 0)
+        hides = blended[first] & (mode == "color")
+        culls = state.cull & (mode != "depth") & ~table.double_sided[first]
+        polygons = (gl.GL_FILL, gl.GL_LINE)[state.wireframe and mode != "depth"]
+        uniforms = self.context.uniforms["line"]
+        columns = (starts, ends, first, meshes, switches, rebinds, hides, culls)
+        for start, end, row, mesh, switch, rebind, hide, cull in zip(
+            *(column.tolist() for column in columns)
+        ):
             item = table.buffers[row]
-            name = "line"
-            if item.kind == "mesh":
-                name = "mesh"
-            uniforms = self.context.uniforms[name]
-            if name != program:
-                program, material = name, None
-                gl.glUseProgram(programs[name])
-                polygons = gl.GL_FILL
-                if name == "mesh" and state.wireframe and mode != "depth":
-                    polygons = gl.GL_LINE
-                gl.glPolygonMode(gl.GL_FRONT_AND_BACK, polygons)
-                SWITCHES[name == "mesh"](gl.GL_POLYGON_OFFSET_FILL)
+            if switch:
+                gl.glUseProgram(programs[("line", "mesh")[mesh]])
+                gl.glPolygonMode(gl.GL_FRONT_AND_BACK, (gl.GL_FILL, polygons)[mesh])
+                SWITCHES[mesh](gl.GL_POLYGON_OFFSET_FILL)
                 gl.glDisable(gl.GL_CULL_FACE)
             if hide:
-                # translucent meshes don't write depth
                 gl.glDepthMask(gl.GL_FALSE)
             gl.glBindVertexArray(item.vertex_array)
-            if name == "line":
+            if not mesh:
                 gl.glUniform1i(uniforms["points"], item.kind == "points")
                 gl.glUniform1f(uniforms["node_index"], table.node_index[row])
                 matrix = (gl.GLfloat * 16)(*model_view[row].ravel())
                 gl.glUniformMatrix4fv(uniforms["model_view"], 1, gl.GL_TRUE, matrix)
                 gl.glDrawArraysInstanced(gl.GL_TRIANGLES, 0, 6, item.count)
                 continue
-            if table.material_index[row] != material:
-                material = table.material_index[row]
+            if rebind:
                 for texture in shaders.MATERIAL_TEXTURES:
                     gl.glActiveTexture(gl.GL_TEXTURE0 + shaders.TEXTURE_UNITS[texture])
                     image = item.textures.get(texture, self.context.white_texture)
                     gl.glBindTexture(gl.GL_TEXTURE_2D, image)
                 binding = BLOCK_BINDINGS["Material"]
                 gl.glBindBufferBase(gl.GL_UNIFORM_BUFFER, binding, item.material_buffer)
-                # the fourth flag is double sided
-                culled = state.cull and mode != "depth" and item.material["flags"][3] == 0
-                SWITCHES[bool(culled)](gl.GL_CULL_FACE)
+                SWITCHES[cull](gl.GL_CULL_FACE)
             gl.glActiveTexture(gl.GL_TEXTURE0 + shaders.TEXTURE_UNITS["face_colors"])
             gl.glBindTexture(gl.GL_TEXTURE_BUFFER, item.face_colors)
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, item.instance_buffer)
@@ -1537,7 +1509,7 @@ class SceneViewer:
             gl.glBindTexture(gl.GL_TEXTURE_2D, self.textures[source])
         gl.glUseProgram(self.context.programs["fullscreen"])
         location = self.context.uniforms["fullscreen"]["pass_index"]
-        gl.glUniform1i(location, list(shaders.PASSES).index(name))
+        gl.glUniform1i(location, shaders.PASS_INDEX[name])
         gl.glBindVertexArray(self.context.empty_vertex_array)
         gl.glDrawArrays(gl.GL_TRIANGLES, 0, 3)
 
@@ -1738,12 +1710,11 @@ class SceneViewer:
             key.DOWN: (0, -10),
             key.UP: (0, 10),
         }
-        if name in {item.name for item in fields(ViewerState)}:
+        if name in ViewerState.__dataclass_fields__:
             self.toggle(name)
-        elif name is not None and hasattr(type(self), name):
-            getattr(self, name)()
         elif name is not None:
-            getattr(self.window, name)()
+            # a method of the viewer, or else of the window
+            (getattr(self, name, None) or getattr(self.window, name))()
         elif symbol in nudge:
             self.state.trackball.down([0, 0])
             self.on_mouse_drag(*nudge[symbol], 0, 0, 0, 0)

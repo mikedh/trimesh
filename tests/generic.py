@@ -685,26 +685,6 @@ def require_rendering():
         raise unittest.SkipTest(f"unable to create an OpenGL context: {E}")
 
 
-def gradient_environment(sky, ground, softboxes=(), size=64):
-    """
-    An `EnvironmentLight` named "environment" of a gradient from `ground`
-    straight down to `sky` straight up plus softboxes, which are
-    `color * exp(sharpness * (dot(d, towards) - 1))` for each
-    `(towards, sharpness, color)` in every direction `d`.
-    """
-    from trimesh.scene.lighting import EnvironmentLight, cubemap_directions
-
-    directions = cubemap_directions(size)[0]
-    ground = np.asarray(ground, dtype=np.float64)
-    cubemap = ground + np.multiply.outer(
-        0.5 + 0.5 * directions[..., 1], np.subtract(sky, ground)
-    )
-    for towards, sharpness, color in softboxes:
-        lobe = np.exp(sharpness * (directions @ trimesh.util.unitize(towards) - 1.0))
-        cubemap += np.multiply.outer(lobe, color)
-    return EnvironmentLight(name="environment", cubemap=cubemap)
-
-
 def set_environment(scene, environment, pose=None):
     """
     Light `scene` with an `EnvironmentLight` on a node at `pose` and the
@@ -769,16 +749,10 @@ def png(data):
     return np.array(Image.open(trimesh.util.wrap_as_stream(data)))
 
 
-def iou(a, b):
-    """Intersection over union of two boolean masks."""
-    return (a & b).sum() / max((a | b).sum(), 1)
-
-
-def camera_hits(scene, meshes=None, corner=(0.0, 0.0)):
+def camera_hits(scene, meshes=None):
     """
-    Where every pixel's camera ray first hits `meshes`, which default to
-    each mesh of `scene.dump()`, i.e. as posed and skinned. `corner` moves
-    every ray across its pixel, in pixels: (0.5, 0.5) is a pixel's corner.
+    Where every pixel's center camera ray first hits `meshes`, which
+    default to each mesh of `scene.dump()`, i.e. as posed and skinned.
     """
     if meshes is None:
         # bare triangles are all a ray needs, and `node` is `nodes_geometry` order
@@ -790,22 +764,6 @@ def camera_hits(scene, meshes=None, corner=(0.0, 0.0)):
         node = np.arange(len(meshes))
     combined = trimesh.util.concatenate(meshes)
     origins, vectors, pixels = scene.camera_rays()
-    if any(corner):
-        # the same rays through another point of each pixel, with
-        # perspective from the origin and orthographic from the plane
-        camera, to_world = scene.camera, scene.camera_transform
-        xy = trimesh.scene.cameras.ray_pixel_coords(camera)[0]
-        xy = xy + np.multiply(
-            corner, np.ptp(xy, axis=0) / np.subtract(camera.resolution, 1)
-        )
-        local = np.column_stack((xy, -np.ones(len(xy))))
-        start = np.zeros_like(local)
-        if camera.magnification is not None:
-            local[:, :2], start[:, :2] = 0.0, xy
-        origins = trimesh.transformations.transform_points(start, to_world)
-        vectors = trimesh.util.unitize(
-            trimesh.transformations.transform_points(local, to_world, translate=False)
-        )
     points, ray, face = combined.ray.intersects_location(
         origins, vectors, multiple_hits=False
     )
@@ -828,39 +786,6 @@ def camera_hits(scene, meshes=None, corner=(0.0, 0.0)):
     )
 
 
-def ray_reference(scene):
-    """
-    What the camera sees by casting rays: the `node` index (-1 for nothing)
-    and view `depth` (0 for nothing) of each pixel's center ray, and `agreed`
-    where the center ray and the 4 rays through the corners of the pixel
-    all hit the same node, i.e. no silhouette or node edge crosses the pixel.
-    """
-    width, height = scene.camera.resolution
-    forward = trimesh.util.unitize(-scene.camera_transform[:3, 2])
-    nodes, depths = [], []
-    for corner in [(0, 0), (-0.5, -0.5), (-0.5, 0.5), (0.5, -0.5), (0.5, 0.5)]:
-        hits = camera_hits(scene, corner=corner)
-        node = np.full((height, width), -1)
-        node[hits.rows, hits.columns] = hits.node
-        nodes.append(node)
-        # perspective depth is from the camera and orthographic from its plane
-        depth = np.zeros((height, width))
-        depth[hits.rows, hits.columns] = (hits.points - hits.origins[hits.ray]) @ forward
-        depths.append(depth)
-    nodes, depths = np.array(nodes), np.array(depths)
-    agreed = (nodes == nodes[0]).all(axis=0)
-    return types.SimpleNamespace(
-        node=nodes[0],
-        depth=depths[0],
-        # how far the depth changes across each pixel, and its range
-        span=np.ptp(depths, axis=0),
-        low=depths.min(axis=0),
-        high=depths.max(axis=0),
-        agreed=agreed,
-        covered=agreed & (nodes[0] >= 0),
-    )
-
-
 def assert_images(a, b, name, atol=1):
     """
     Assert two renders agree within `atol` levels at every pixel: GPUs
@@ -880,36 +805,33 @@ def assert_images(a, b, name, atol=1):
 
 def assert_rays(scene, arrays, prefix: str = "", depth: bool = True):
     """
-    Assert a render's `segmentation`, and `depth` along the view axis,
-    are what its camera rays hit away from node edges.
+    Assert a render's `segmentation`, and `depth` along the view axis, are
+    what each pixel's center camera ray hits wherever its neighbors' agree.
     """
     from scipy import ndimage
 
-    reference = ray_reference(scene)
-    node, agreed = reference.node, reference.agreed
-    covered = reference.covered
+    width, height = scene.camera.resolution
+    hits = camera_hits(scene)
+    node, distance = np.full((height, width), -1), np.zeros((height, width))
+    node[hits.rows, hits.columns] = hits.node
+    # perspective depth is from the camera and orthographic from its plane
+    forward = trimesh.util.unitize(-scene.camera_transform[:3, 2])
+    distance[hits.rows, hits.columns] = (hits.points - hits.origins[hits.ray]) @ forward
+    # no edge crosses a pixel whose neighbors all see its node, and nothing
+    # is known past the border
+    agreed = ndimage.maximum_filter(node, 3) == ndimage.minimum_filter(node, 3)
+    agreed[[0, -1], :], agreed[:, [0, -1]] = False, False
     # depth is float32 so it is rounded to half an epsilon of its own size,
-    # which is at most the farthest hit: allow 4 times that. The viewport
-    # transform is float32 too so a sample can sit a sliver of a pixel from
-    # its center, which moves depth by that fraction of the depth across the
-    # pixel: allow 1% where the worst case measured on these scenes is 0.25%
-    tolerance = 4.0 * np.finfo(np.float32).eps * reference.depth.max()
-    tolerance = tolerance + 0.01 * reference.span
-    # an edge is any pixel whose neighbors' center rays hit something else
-    edge = ndimage.maximum_filter(node, 3) != ndimage.minimum_filter(node, 3)
-    edge = ndimage.binary_dilation(edge, structure=np.ones((3, 3)))
-    # nothing is known past the border so a boundary can hide just outside it
-    edge[[0, -1], :] = True
-    edge[:, [0, -1]] = True
-    # and one agreeing pixel next to a disagreeing one can be sampled on the
-    # wrong side of a steep surface, so only the deep interior is exact
-    deep = ndimage.binary_erosion(agreed, structure=np.ones((3, 3)))
-    assert covered.any(), f"{prefix}rays hit the scene"
-    assert not (~agreed & ~edge).any(), f"{prefix}ambiguity only on edges"
+    # and the float32 viewport moves a sample a sliver of a pixel, which
+    # moves depth by a fraction of how much it changes across neighbors
+    span = ndimage.maximum_filter(distance, 3) - ndimage.minimum_filter(distance, 3)
+    tolerance = 4.0 * np.finfo(np.float32).eps * distance.max() + 0.005 * span
+    assert (agreed & (node >= 0)).any(), f"{prefix}rays hit the scene"
+    assert np.allclose(np.linalg.norm(hits.vectors, axis=1), 1.0), f"{prefix}unit rays"
     assert (arrays.segmentation == node)[agreed].all(), f"{prefix}segmentation is rays"
     if depth:
-        close = np.abs(arrays.depth - reference.depth) <= tolerance
-        assert close[deep].all(), f"{prefix}depth is rays"
+        close = np.abs(arrays.depth - distance) <= tolerance
+        assert close[agreed].all(), f"{prefix}depth is rays"
 
 
 def dolly_scene(node, duration=1.0):
@@ -934,14 +856,6 @@ def dolly_scene(node, duration=1.0):
         Animation(name="slide", nodes=[node], times=times, matrices=slide)
     )
     return scene
-
-
-# `PBRMaterial` keys of render case meshes which don't set them
-CASE_MATERIAL = {
-    "baseColorFactor": [200, 120, 60, 255],
-    "metallicFactor": 0.0,
-    "roughnessFactor": 0.5,
-}
 
 
 def case_geometry(item):
@@ -983,7 +897,9 @@ def case_geometry(item):
     mesh.apply_translation(item.get("translation", [0.0] * 3))
     if uv is None:
         uv = np.zeros((len(mesh.vertices), 2))
-    material = {**CASE_MATERIAL, **item.get("material", {})}
+    # what render case meshes which don't set them are
+    material = {"baseColorFactor": [200, 120, 60, 255], "metallicFactor": 0.0}
+    material.update({"roughnessFactor": 0.5, **item.get("material", {})})
     material.update(
         {
             key: Image.fromarray(np.full((4, 4, 3), value, dtype=np.uint8))
@@ -1111,9 +1027,11 @@ def assert_glb_roundtrip(source, name):
     assert once == again, f"{name} fixed point"
     nodes = sorted(set(source.graph.nodes) - {source.graph.base_frame})
     assert set(nodes) <= set(loaded.graph.nodes), f"{name} keeps every node"
-    assert [(c.name, c.fov[1]) for c in source.cameras] == [
-        (c.name, c.fov[1]) for c in loaded.cameras
-    ], f"{name} keeps every camera"
+    lenses = [
+        [(c.name, c.fov[1], c.magnification, c.z_near, c.z_far) for c in s.cameras]
+        for s in (source, loaded)
+    ]
+    assert str(lenses[0]) == str(lenses[1]), f"{name} keeps every camera"
     keys = [animation.times for animation in source.animations] or [[0.0]]
     keys = np.unique(np.concatenate(keys))
     between = np.diff(keys)[:, None] * np.linspace(0.0, 1.0, 4, endpoint=False)

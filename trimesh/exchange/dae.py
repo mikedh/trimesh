@@ -287,6 +287,8 @@ def _load_texture(file_name, resolver):
 
     file_data = resolver.get(file_name)
     image = Image.open(util.wrap_as_stream(file_data))
+    # the bytes so exports needn't encode it again
+    image.info["source_bytes"] = bytes(file_data)
     return image
 
 

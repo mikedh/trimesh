@@ -317,7 +317,7 @@ class Scene(Geometry3D):
         hashable = [hex(self.graph.transforms.__hash__())]
         # take the re-hex string of the hash
         hashable.extend(hex(geometry[k].__hash__()) for k in geometry.keys())
-        hashable.extend(hex(hash(skin)) for skin in self.skins.values())
+        hashable.extend(hex(hash(pair)) for pair in self.skins.items())
         return caching.hash_fast("".join(hashable).encode("utf-8"))
 
     @property
@@ -1294,7 +1294,8 @@ class Scene(Geometry3D):
             return result
 
         for animation in result.animations:
-            animation.matrices[..., :3, 3] *= scale
+            animation.trs[..., :3] *= scale
+            animation.tangents[..., :3] *= scale
 
         # convert 2D geometries to 3D for 3D scaling factors
         scale_is_3D = isinstance(scale, (list, tuple, np.ndarray)) and len(scale) == 3
@@ -1549,8 +1550,9 @@ def copy_attachments(
                         rename.get(animation.nodes[i], animation.nodes[i]) for i in kept
                     ],
                     times=animation.times.copy(),
-                    matrices=animation.matrices[:, kept],
                     interpolation=animation.interpolation,
+                    trs=animation.trs[:, kept],
+                    tangents=animation.tangents[:, :, kept],
                 )
             )
     # a skin needs its node and every joint

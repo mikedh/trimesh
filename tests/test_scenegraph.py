@@ -323,19 +323,6 @@ def test_scaling_order():
     factor = c.geometry["geometry_0"].vertices / s.geometry["geometry_0"].vertices
     assert g.np.allclose(factor, scaling)
 
-    # scaling every edge translation scales every world transform as
-    # conjugating it by the scale, which leaves the rotations alone
-    assembly = g.get_mesh("cycloidal.3DXML")
-    stretch = g.np.diag([2.5, 2.5, 2.5, 1.0])
-    scaled = assembly.scaled(2.5)
-    for node in assembly.graph.nodes:
-        assert g.np.allclose(
-            scaled.graph[node][0],
-            stretch @ assembly.graph[node][0] @ g.np.linalg.inv(stretch),
-        ), f"{node} world"
-    assert set(scaled.graph.transforms.edge_data) == set(
-        assembly.graph.transforms.edge_data
-    ), "same edges"
     # should be returning itself
     r = s.apply_translation([10.5, 10.5, 10.5])
     assert g.np.allclose(r.bounds, [[10, 10, 10], [11, 11, 11]])

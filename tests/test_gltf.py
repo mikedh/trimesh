@@ -1445,7 +1445,9 @@ def test_scene_table():
     )
     textured.add_geometry(bare, geom_name="bare")
     ortho = g.dolly_scene("box")
-    ortho.camera = g.trimesh.scene.Camera(name="lens", magnification=[2.0, 1.5])
+    ortho.camera = g.trimesh.scene.Camera(
+        name="lens", magnification=[2.0, 1.5], z_near=0.5, z_far=20.0
+    )
     sources = {
         "rig": rig,
         "box": g.dolly_scene("box"),
@@ -1490,24 +1492,26 @@ def test_scene_table():
     assert "baseColorTexture" not in tree["materials"][-1]["pbrMetallicRoughness"]
     assert bare.visual.material.baseColorTexture is shared, "no uv source untouched"
 
-    # a node rotating in STEP beside a LINEAR slide is one glTF animation
-    # whose steps hold between keyframes on import
+    # a node rotating in STEP or CUBICSPLINE beside a LINEAR slide is one
+    # glTF animation, whose steps hold and whose slide stays a line on import
     keys = g.np.linspace(0.0, 2.0, 5)
     turn = tf.rotation_matrix(keys, [0, 0, 1])[:, None]
     slide = g.np.tile(tf.translation_matrix([0, 0, 0]), (5, 1, 1, 1))
     slide[:, 0, :3, 3] = rng.normal(size=(5, 3))
-    walk = g.dolly_scene("box")
-    walk.animations = [
-        Animation("walk", ["box"], keys, turn, interpolation="step"),
-        Animation("walk", ["box"], keys, slide),
-    ]
-    loaded = capture(walk)[0]
-    for time in g.np.linspace(-0.5, 2.5, 31):
-        expected = walk.animations[1].interpolate(time) @ walk.animations[0].interpolate(
-            time
-        )
-        loaded.animate(time)
-        assert g.np.allclose(loaded.graph["box"][0], expected[0], atol=1e-6), time
+    for kind in ("step", "cubic"):
+        walk = g.dolly_scene("box")
+        walk.animations = [
+            Animation("walk", ["box"], keys, turn, interpolation=kind),
+            Animation("walk", ["box"], keys, slide),
+        ]
+        loaded = capture(walk)[0]
+        for time in g.np.linspace(-0.5, 2.5, 31):
+            turned, slid = (a.interpolate(time)[0] for a in walk.animations)
+            loaded.animate(time)
+            assert g.np.allclose(loaded.graph["box"][0], slid @ turned, atol=1e-6), (
+                kind,
+                time,
+            )
 
     def strip(tree):
         """Drop optional fields: a light's color, a camera's aspect and far."""
@@ -1546,6 +1550,33 @@ def test_scene_table():
     mesh.vertex_attributes["weights"] = g.np.ones((len(mesh.vertices), 3))
     with g.pytest.raises(ValueError):
         mesh.export(file_type="glb")
+
+
+def test_keyframes_exact():
+    """
+    Hundreds of random rotations and authored cubic tangents load back
+    exactly: export is a byte fixed point and plays as the source between keys.
+    """
+    from trimesh.scene.animation import Animation
+
+    rng = g.np.random.default_rng(7)
+    # times float32 stores exactly, as random keys amplify rounding of them
+    times = g.np.arange(400) / 64.0
+    trs = g.np.concatenate(
+        (
+            rng.normal(size=(400, 1, 3)),
+            g.trimesh.util.unitize(rng.normal(size=(400, 4)))[:, None],
+            rng.uniform(0.5, 2.0, (400, 1, 3)),
+        ),
+        axis=2,
+    )
+    for interpolation in ("linear", "cubic"):
+        scene = g.dolly_scene("box")
+        tangents = rng.normal(size=(400, 2, 1, 10))
+        scene.animations = [
+            Animation("spin", ["box"], times, None, interpolation, trs, tangents)
+        ]
+        g.assert_glb_roundtrip(scene, interpolation)
 
 
 @g.pytest.mark.parametrize(

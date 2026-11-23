@@ -4,17 +4,6 @@ except BaseException:
     import generic as g
 
 
-def harmonics(directions):
-    """
-    The real spherical harmonics up to l=2 of unit vectors as Babylon.js
-    reads `EXT_lights_image_based`, with the Condon-Shortley phase.
-    """
-    x, y, z = g.np.moveaxis(directions, -1, 0)
-    terms = [g.np.ones_like(x), y, z, x, x * y, y * z, 3 * z**2 - 1, x * z, x**2 - y**2]
-    scale = g.np.sqrt(g.np.array([1, 3, 3, 3, 15, 15, 5 / 4, 15, 15 / 4]) / (4 * g.np.pi))
-    return g.np.stack(terms, axis=-1) * scale * [1, -1, 1, -1, 1, -1, 1, -1, 1]
-
-
 class LightTests(g.unittest.TestCase):
     def test_basic(self):
         for light_class in [
@@ -78,13 +67,13 @@ def test_environment():
         rgbd_unpack,
     )
     from trimesh.scene.lighting import (
+        BANDS,
         SPECULAR_SHARPNESS,
         EnvironmentLight,
         SpotLight,
         autolight,
         cubemap_directions,
-        prefilter,
-        spherical_harmonics,
+        harmonics,
     )
     from trimesh.viewer.opengl.shaders import LUMINANCE
 
@@ -99,21 +88,22 @@ def test_environment():
     # times the clamped cosine's pi, 2 pi / 3 and pi / 4 for each band as
     # irradiance, which is what Babylon.js stores for `irradianceCoefficients`
     coefficients = rng.normal(size=(9, 3))
-    exact = (harmonics(directions) @ coefficients).reshape(shape)
-    bands = np.pi * np.array([1, *[2 / 3] * 3, *[1 / 4] * 5])
-    assert np.allclose(
-        spherical_harmonics(exact), coefficients * bands[:, None], atol=1e-10
-    ), "harmonics are exact"
+    exact = EnvironmentLight(
+        cubemap=(harmonics(directions) @ coefficients).reshape(shape)
+    )
+    assert np.allclose(exact.irradiance, coefficients * BANDS[:, None], atol=1e-10), (
+        "harmonics are exact"
+    )
     normals = g.trimesh.util.unitize(rng.normal(size=(500, 3)))
     cosine = np.clip(normals @ directions.T, 0.0, None) * solid_angle
     assert np.allclose(
-        harmonics(normals) @ spherical_harmonics(exact),
-        cosine @ exact.reshape((-1, 3)),
+        harmonics(normals) @ exact.irradiance,
+        cosine @ exact.cubemap.reshape((-1, 3)),
         atol=1e-3,
     ), "exact irradiance"
     # every mip level is the cube map blurred by the spherical Gaussian of
     # its roughness, brute forced for a sample of each level's texels
-    levels = prefilter(studio.cubemap)
+    levels = studio.levels
     count = len(levels)
     assert [len(level[0]) for level in levels] == [shape[1] >> i for i in range(count)]
     for index, level in enumerate(levels[1:], 1):
@@ -146,13 +136,13 @@ def test_environment():
     assert (np.abs(unpacked - radiance) <= bound(radiance)).all(), "rgbd within bound"
     assert np.array_equal(rgbd_pack(unpacked.astype(np.float32)), rgbd_pack(radiance))
 
-    sky = g.gradient_environment(
-        sky=[0.5, 0.6, 0.7],
-        ground=[0.0, 0.0, 0.0],
-        # off every axis, so a face flipped the wrong way changes it
-        softboxes=[([0.5, 1, 0.2], 4.0, [9.0, 4.0, 1.0])],
-    )
-    environment = EnvironmentLight(name="sky", intensity=2.5, cubemap=sky.cubemap)
+    # a sky over black ground with a softbox off every axis, so a face
+    # flipped the wrong way changes it
+    up = cubemap_directions(64)[0]
+    lobe = np.exp(4.0 * (up @ g.trimesh.util.unitize([0.5, 1, 0.2]) - 1.0))
+    cubemap = np.multiply.outer(0.5 + 0.5 * up[..., 1], [0.5, 0.6, 0.7])
+    cubemap += np.multiply.outer(lobe, [9.0, 4.0, 1.0])
+    environment = EnvironmentLight(name="sky", intensity=2.5, cubemap=cubemap)
     scene = g.trimesh.Scene(g.trimesh.creation.box())
     scene.graph["sky"] = g.trimesh.transformations.random_rotation_matrix(seed=0)
     scene.graph["spot"] = np.eye(4)
@@ -164,15 +154,15 @@ def test_environment():
     reloaded = g.roundtrip(exported, "glb")
     # the light as the viewer and the file see it, a float32 mirror level,
     # whose faces are flipped about their vertical axis as the spec says
-    mirror = prefilter(environment.cubemap)[0]
+    mirror = environment.levels[0]
     found = reloaded.lights[-1].cubemap
     assert (np.abs(found - mirror) <= bound(mirror)).all(), "cube map within RGBD"
-    assert np.allclose(
-        entry["irradianceCoefficients"], spherical_harmonics(environment.cubemap)
-    ), "harmonics stored"
+    assert np.allclose(entry["irradianceCoefficients"], environment.irradiance), (
+        "harmonics stored"
+    )
     assert entry["specularImageSize"] == len(mirror[0]), "image size"
     assert [len(level) for level in entry["specularImages"]] == [6] * len(
-        prefilter(mirror)
+        environment.levels
     ), "every mip level"
     assert "gltf_extensions" not in reloaded.metadata, "not in metadata"
 

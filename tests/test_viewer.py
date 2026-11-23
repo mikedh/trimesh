@@ -40,11 +40,13 @@ def hit_mask(scene, hits=None):
     return mask
 
 
-def shade_reference(scene, normal=None):
+def shade_reference(scene, normal=None, shadows=False):
     """
     The sRGB 0-255 image of opaque `PBRMaterial` meshes lit by punctual
     lights and a constant environment, NaN where no ray hits, from camera
-    rays and the glTF specs, with an optional constant tangent space `normal`.
+    rays and the glTF specs, with an optional constant tangent space `normal`
+    and, if `shadows`, directional and spot lights blocked by the scene,
+    NaN beside where a light's visibility changes.
     """
     unitize = g.trimesh.util.unitize
     lights, transforms = render_lights(scene, scene.camera_transform)
@@ -92,6 +94,13 @@ def shade_reference(scene, normal=None):
     normal_dot_view = np.maximum((surface * view).sum(axis=1, keepdims=True), 1e-4)
 
     color = np.zeros_like(points)
+    # antialiased silhouettes of meshes over each other, and creases
+    drawn = np.full((height, width, 4), -1.0)
+    drawn[hits.rows, hits.columns] = np.column_stack((hits.mesh, surface))
+    spread = ndimage.maximum_filter(drawn, (3, 3, 1)) - ndimage.minimum_filter(
+        drawn, (3, 3, 1)
+    )
+    changes = (spread > 0.3).any(axis=-1)
     for light, pose in zip(lights[:-1], transforms[:-1]):
         # lights shine down their -Z, and only directional lights have
         # no position, falloff or range
@@ -112,6 +121,15 @@ def shade_reference(scene, normal=None):
             cone = np.clip((cosine - outer) / max(inner - outer, 1e-3), 0.0, 1.0)
         radiance = light.color[:3] / 255.0 * light.intensity * (window * cone) ** 2
         radiance = radiance / distance_squared
+        if shadows and isinstance(light, (DirectionalLight, SpotLight)):
+            # from the side of the surface facing the light
+            side = np.sign((surface * direction).sum(axis=1, keepdims=True))
+            lifted = points + surface * side * 1e-4 * scene.scale
+            blocked = hits.combined.ray.intersects_any(lifted, direction)
+            radiance[blocked] = 0.0
+            seen = np.zeros((height, width))
+            seen[hits.rows, hits.columns] = blocked + 1.0
+            changes |= ndimage.maximum_filter(seen, 5) != ndimage.minimum_filter(seen, 5)
 
         half = unitize(direction + view)
         cosine_light = (surface * direction).sum(1, keepdims=True)
@@ -167,6 +185,7 @@ def shade_reference(scene, normal=None):
 
     image = np.full((height, width, 3), np.nan)
     image[hits.rows, hits.columns] = srgb * 255.0
+    image[changes] = np.nan
     return image
 
 
@@ -193,15 +212,13 @@ def floor_shadow(scene, pose, axis, height=0.0):
 
 
 def assert_reference(row):
-    """Opaque PBR meshes are what the glTF specs and camera rays compute."""
-    if row.quality:
-        return
+    """Opaque PBR meshes are what the glTF specs and camera rays compute, shadowed."""
     texture = row.case["geometry"][0].get("material", {}).get("normalTexture")
     normal = None
     if texture is not None:
         # as the shader decodes the bytes of its texture
         normal = np.array(texture) / 255.0 * 2.0 - 1.0
-    reference = shade_reference(row.scene, normal=normal)
+    reference = shade_reference(row.scene, normal=normal, shadows=row.quality)
     interior = ndimage.binary_erosion(~np.isnan(reference[..., 0]), iterations=2)
     assert interior.any(), row.label
     assert np.abs(row.image - reference)[interior].max() <= 2.0, row.label
@@ -225,39 +242,6 @@ def assert_exposure(row):
 
     exposed = rgb(brighter(1.0), exposure=2.0, **row.options)
     g.assert_images(exposed, rgb(brighter(2.0), **row.options), row.label)
-
-
-def assert_shadow(row):
-    """
-    The first light of a plane under something shadows exactly where rays
-    to it are blocked, leaving only the environment there.
-    """
-    if not row.quality:
-        return
-    scene, image, casts = row.scene, row.image, row.case["casts"]
-    unshadowed = shade_reference(scene)
-    light, pose = scene.lights[0], scene.graph[scene.lights[0].name][0]
-    # directional lights are at infinity along +Z, the rest at their origin
-    axis = 3
-    if isinstance(light, DirectionalLight):
-        axis = 2
-    ambient_scene = scene.copy()
-    ambient_scene.lights = ambient_scene.lights[-1:]
-    ambient_only = rgb(ambient_scene, resolution=scene.camera.resolution)
-    floor, blocked = floor_shadow(scene, pose, axis)
-    # away from the antialiased edges where the floor meets something
-    floor = ndimage.binary_erosion(floor)
-    # only where the light visibly lights the plane can it be shadowed
-    dark, bright = ambient_only.sum(axis=-1), unshadowed.sum(axis=-1)
-    lights_plane = floor & (bright > dark + 30)
-    rendered = lights_plane & (image.sum(axis=-1) < 0.5 * (bright + dark))
-    blocked &= lights_plane & casts
-    umbra = ndimage.binary_erosion(blocked, iterations=2)
-    lit = ndimage.binary_erosion(lights_plane & ~blocked, iterations=2)
-    assert lit.any() and umbra.any() == casts, row.label
-    assert not (rendered | blocked).any() or g.iou(rendered, blocked) > 0.98, row.label
-    assert not umbra.any() or np.abs(image - ambient_only)[umbra].max() <= 2, row.label
-    assert np.abs(image - unshadowed)[lit].max() <= 2, row.label
 
 
 def assert_unlit(row):
@@ -306,9 +290,10 @@ def assert_rays(row):
     for orthographic, scale in g.itertools.product([False, True], [1.0, 1e-3, 1e4]):
         scene = row.scene.scaled(scale)
         scene.camera.fit_resolution((97, 61))
+        # through a camera node scaled as 3ds Max writes them
         scene.camera_transform = scene.camera.look_at(
             scene.bounds, rotation=tf.euler_matrix(0.4, 0.3, 0.0)
-        )
+        ) @ tf.scale_matrix(2.0)
         if orthographic:
             scene.camera.magnification = (scene.scale * 0.8, scene.scale * 0.6)
         label = f"{row.label} orthographic {orthographic} at {scale} "
@@ -360,7 +345,8 @@ def assert_ground(row):
     # the sun's intensity `I` times the cosine of its angle from up
     umbra_value = 255.0 * 0.3 / (0.3 + 2.0 * sun[2, 2] / np.pi)
     assert umbra.sum() > 300, "has a shadow"
-    assert g.iou(shaded, blocked) > 0.95, "shadow where rays are blocked"
+    overlap = (shaded & blocked).sum() / (shaded | blocked).sum()
+    assert overlap > 0.95, "shadow where rays are blocked"
     assert np.abs(image[umbra].mean(axis=-1) - umbra_value).max() <= 3, "umbra"
     assert np.abs(image[lit] - 255.0).max() <= 1, "lit floor invisible"
     assert np.allclose(scene.bounds, [[-1, -1, 0], [1, 1, 1]]), "not in bounds"
@@ -460,7 +446,6 @@ def assert_background(row):
 CHECKS = {
     "reference": assert_reference,
     "exposure": assert_exposure,
-    "shadow": assert_shadow,
     "unlit": assert_unlit,
     "round_trip": assert_round_trip,
     "rays": assert_rays,
