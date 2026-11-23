@@ -24,5 +24,21 @@ def test_quadric_simplification():
     assert len(a.faces) > 0
 
 
+def test_scene_quadric_simplification_respects_face_count():
+    if not g.trimesh.util.has_module("fast_simplification"):
+        return
+
+    small = g.trimesh.creation.box()
+    exact = g.trimesh.creation.icosphere(subdivisions=0)
+    large = g.trimesh.creation.icosphere(subdivisions=1)
+    scene = g.trimesh.Scene({"small": small, "exact": exact, "large": large})
+
+    scene.simplify_quadric_decimation(face_count=len(exact.faces))
+
+    assert scene.geometry["small"] is small
+    assert scene.geometry["exact"] is exact
+    assert len(scene.geometry["large"].faces) == len(exact.faces)
+
+
 if __name__ == "__main__":
     test_quadric_simplification()
