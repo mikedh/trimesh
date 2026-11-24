@@ -9,6 +9,19 @@ from .. import graph, util
 from ..constants import log
 from ..util import unique_name
 
+# standard 3MF core specification metadata names and expected types
+_METADATA_TYPES = {
+    "Title": str,
+    "Designer": str,
+    "Description": str,
+    "Copyright": str,
+    "LicenseTerms": str,
+    "Rating": str,
+    "CreationDate": str,
+    "ModificationDate": str,
+    "Application": str,
+}
+
 
 def _read_mesh(mesh):
     """
@@ -110,8 +123,22 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
     # loaded elements are cleared to avoid ballooning memory
     model.seek(0)
     for _, obj in etree.iterparse(
-        model, tag=("{*}object", "{*}build"), events=("end",), **XML_PARSER_OPTIONS
+        model,
+        tag=("{*}metadata", "{*}object", "{*}build"),
+        events=("end",),
+        **XML_PARSER_OPTIONS,
     ):
+        # parse model-level metadata elements
+        if obj.tag.endswith("}metadata") or obj.tag == "metadata":
+            parent = obj.getparent()
+            if parent is not None and (
+                parent.tag.endswith("}model") or parent.tag == "model"
+            ):
+                name = obj.attrib.get("name")
+                if name in _METADATA_TYPES and len(obj) == 0:
+                    metadata[name] = obj.text or ""
+            continue
+
         # parse objects
         if "object" in obj.tag:
             # id is mandatory
@@ -308,7 +335,7 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
     from ..scene.scene import Scene
 
     if not isinstance(mesh, Scene):
-        mesh = Scene(mesh)
+        mesh = Scene(mesh, metadata=getattr(mesh, "metadata", None))
 
     geometry = mesh.geometry
     graph = mesh.graph.to_networkx()
@@ -357,6 +384,12 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
 
             # stream elements
             with xf.element("model", {"unit": "millimeter"}, nsmap=model_nsmap):
+                # write valid 3MF core metadata from scene.metadata
+                for key, value in (mesh.metadata or {}).items():
+                    if value is not None and type(value) is _METADATA_TYPES.get(key):
+                        with xf.element("metadata", {"name": key}):
+                            xf.write(value)
+
                 # objects with mesh data and/or references to other objects
                 with xf.element("resources"):
                     # stream objects with actual mesh data
