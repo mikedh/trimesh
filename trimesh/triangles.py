@@ -636,7 +636,7 @@ def closest_point(triangles, points):
     d2 = np.dot(ac * ap, ones)
 
     # is the point at A
-    is_a = np.logical_and(d1 < tol.zero, d2 < tol.zero)
+    is_a = np.logical_and(d1 <= 0.0, d2 <= 0.0)
     if any(is_a):
         result[is_a] = a[is_a]
         remain[is_a] = False
@@ -663,14 +663,14 @@ def closest_point(triangles, points):
     d4 = np.dot(ac * bp, ones)
 
     # do the logic check
-    is_b = (d3 > -tol.zero) & (d4 <= d3) & remain
+    is_b = (d3 >= 0.0) & (d4 <= d3) & remain
     if any(is_b):
         result[is_b] = b[is_b]
         remain[is_b] = False
 
     # check if P in edge region of AB, if so return projection of P onto A
     vc = (d1 * d4) - (d3 * d2)
-    is_ab = (vc < tol.zero) & (d1 > -tol.zero) & (d3 < tol.zero) & remain
+    is_ab = (vc <= 0.0) & (d1 >= 0.0) & (d3 <= 0.0) & remain
     if any(is_ab):
         v = (d1[is_ab] / (d1[is_ab] - d3[is_ab])).reshape((-1, 1))
         result[is_ab] = a[is_ab] + (v * ab[is_ab])
@@ -680,14 +680,14 @@ def closest_point(triangles, points):
     cp = points - c
     d5 = np.dot(ab * cp, ones)
     d6 = np.dot(ac * cp, ones)
-    is_c = (d6 > -tol.zero) & (d5 <= d6) & remain
+    is_c = (d6 >= 0.0) & (d5 <= d6) & remain
     if any(is_c):
         result[is_c] = c[is_c]
         remain[is_c] = False
 
     # check if P in edge region of AC, if so return projection of P onto AC
     vb = (d5 * d2) - (d1 * d6)
-    is_ac = (vb < tol.zero) & (d2 > -tol.zero) & (d6 < tol.zero) & remain
+    is_ac = (vb <= 0.0) & (d2 >= 0.0) & (d6 <= 0.0) & remain
     if any(is_ac):
         w = (d2[is_ac] / (d2[is_ac] - d6[is_ac])).reshape((-1, 1))
         result[is_ac] = a[is_ac] + w * ac[is_ac]
@@ -695,7 +695,7 @@ def closest_point(triangles, points):
 
     # check if P in edge region of BC, if so return projection of P onto BC
     va = (d3 * d6) - (d5 * d4)
-    is_bc = (va < tol.zero) & ((d4 - d3) > -tol.zero) & ((d5 - d6) > -tol.zero) & remain
+    is_bc = (va <= 0.0) & ((d4 - d3) >= 0.0) & ((d5 - d6) >= 0.0) & remain
     if any(is_bc):
         d43 = d4[is_bc] - d3[is_bc]
         w = (d43 / (d43 + (d5[is_bc] - d6[is_bc]))).reshape((-1, 1))

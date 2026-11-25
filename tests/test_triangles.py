@@ -110,6 +110,14 @@ class TrianglesTest(g.unittest.TestCase):
 
         assert g.np.dot(diff_dists, diff_dists) < g.tol.merge
 
+    def test_closest_small_triangle(self):
+        triangles = g.np.array([[[0.0, 0.0, 0.0], [1e-4, 0.0, 0.0], [0.0, 1e-4, 0.0]]])
+        points = g.np.array([[3e-5, 3e-5, 0.0]])
+
+        closest = g.trimesh.triangles.closest_point(triangles, points)
+
+        g.np.testing.assert_allclose(closest, points, atol=1e-15)
+
     def test_closest_degenerate(self):
         # Degenerate faces reduce to a segment or a single point.
         triangles = g.np.array(
