@@ -399,14 +399,19 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
         name = _decode(attrib.get(_ns + "name"))
 
         if kind == "circle":
+            # SVG spec: omitted center coordinates default to zero
             points = to_threepoint(
-                [float(attrib["cx"]), float(attrib["cy"])], float(attrib["r"])
+                [float(attrib.get("cx", 0.0)), float(attrib.get("cy", 0.0))],
+                float(attrib["r"]),
             )
             entity = Arc(points=np.arange(3) + counts[name], closed=True)
 
         elif kind == "rect":
             # todo : support rounded rectangle
-            origin = np.array([attrib["x"], attrib["y"]], dtype=np.float64)
+            # SVG spec: omitted x and y default to zero
+            origin = np.array(
+                [attrib.get("x", 0.0), attrib.get("y", 0.0)], dtype=np.float64
+            )
             w, h = np.array([attrib["width"], attrib["height"]], dtype=np.float64)
 
             points = np.array(
@@ -437,8 +442,9 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
             entity = Line(points=index)
 
         elif kind == "line":
+            # SVG spec: omitted line coordinates default to zero
             points = np.array(
-                [attrib["x1"], attrib["y1"], attrib["x2"], attrib["y2"]], dtype=np.float64
+                [attrib.get(k, 0.0) for k in ("x1", "y1", "x2", "y2")], dtype=np.float64
             ).reshape((2, 2))
             entity = Line(points=np.arange(len(points)) + counts[name])
         else:

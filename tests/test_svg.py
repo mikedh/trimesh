@@ -27,6 +27,23 @@ def test_svg():
             assert len(path_str) > 0
 
 
+def test_shape_default_attributes():
+    # per the SVG spec omitted x, y, cx, cy, x1, y1, x2 and y2 default to zero
+    template = '<svg xmlns="http://www.w3.org/2000/svg">{}</svg>'
+    for body, bounds in [
+        ('<rect width="20" height="30"/>', [[0, 0], [20, 30]]),
+        ('<rect y="5" width="20" height="30"/>', [[0, 5], [20, 35]]),
+        ('<circle r="10"/>', [[-10, -10], [10, 10]]),
+        ('<circle cx="5" r="10"/>', [[-5, -10], [15, 10]]),
+        ('<line x2="10" y2="20"/>', [[0, 0], [10, 20]]),
+        ('<line x1="1" x2="10" y2="20"/>', [[1, 0], [10, 20]]),
+    ]:
+        loaded = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(template.format(body)), file_type="svg"
+        )
+        assert g.np.allclose(loaded.bounds, bounds), body
+
+
 def test_layer():
     from shapely.geometry import Point
 
