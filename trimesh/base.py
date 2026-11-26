@@ -2338,13 +2338,16 @@ class Trimesh(Geometry3D):
         ---------
         intersections
           Curve of intersection or None if it was not hit by plane.
+          Its metadata["face_index"] has one source face per segment, in
+          entity order and then pairwise point order within each entity.
+          Coincident segments use the first intersected face.
         """
         # turn line segments into Path2D/Path3D objects
         from .path.exchange.misc import lines_to_path
         from .path.path import Path3D
 
         # return a single cross section in 3D
-        lines, _face_index = intersections.mesh_plane(
+        lines, face_index = intersections.mesh_plane(
             mesh=self,
             plane_normal=plane_normal,
             plane_origin=plane_origin,
@@ -2358,10 +2361,8 @@ class Trimesh(Geometry3D):
 
         # otherwise load the line segments into the keyword arguments
         # for a Path3D object.
-        path = lines_to_path(lines)
-
-        # add the face index info into metadata
-        # path.metadata["face_index"] = face_index
+        path = lines_to_path(lines, index=face_index)
+        path["metadata"]["face_index"] = path["metadata"].pop("edge_index")
 
         return Path3D(**path)
 

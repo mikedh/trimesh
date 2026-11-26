@@ -49,7 +49,8 @@ def lines_to_path(lines: ArrayLike, index: NDArray[np.int64] | None = None) -> d
     lines : (n, 2, dimension) or (n, dimension) float
       Line segments or connected polyline curve in 2D or 3D
     index : (n,) int64
-      If passed save an index for each line segment.
+      Source index for each segment. Stored in path traversal order as
+      metadata["edge_index"], using the first index for coincident segments.
 
     Returns
     -----------
@@ -65,7 +66,6 @@ def lines_to_path(lines: ArrayLike, index: NDArray[np.int64] | None = None) -> d
         # the case where we have a list of points
         # we are going to assume they are connected
         result = {"entities": np.array([Line(np.arange(len(lines)))]), "vertices": lines}
-        return result
     elif util.is_shape(lines, (-1, 2, (2, 3))):
         # case where we have line segments in 2D or 3D
         dimension = lines.shape[-1]
@@ -76,9 +76,13 @@ def lines_to_path(lines: ArrayLike, index: NDArray[np.int64] | None = None) -> d
         # use scipy edges_to_path to skip creating
         # a bajillion individual line entities which
         # will be super slow vs. fewer polyline entities
-        return edges_to_path(edges=inverse.reshape((-1, 2)), vertices=lines[unique])
+        return edges_to_path(
+            edges=inverse.reshape((-1, 2)), vertices=lines[unique], index=index
+        )
     else:
         raise ValueError("Lines must be (n,(2|3)) or (n,2,(2|3))")
+    if index is not None:
+        result["metadata"] = {"edge_index": index}
     return result
 
 
@@ -191,7 +195,12 @@ def faces_to_path(mesh, face_ids=None, **kwargs):
     return kwargs
 
 
-def edges_to_path(edges: ArrayLike, vertices: ArrayLike, **kwargs) -> dict:
+def edges_to_path(
+    edges: ArrayLike,
+    vertices: ArrayLike,
+    index: NDArray[np.int64] | None = None,
+    **kwargs,
+) -> dict:
     """
     Given an edge list of indices and associated vertices
     representing lines, generate kwargs for a Path object.
@@ -202,6 +211,8 @@ def edges_to_path(edges: ArrayLike, vertices: ArrayLike, **kwargs) -> dict:
       Vertex indices of line segments
     vertices : (m, dimension) float
       Vertex positions where dimension is 2 or 3
+    index : (n,) int64 or None
+      Source indices saved in metadata["edge_index"] in traversal order.
 
     Returns
     ----------
@@ -216,6 +227,16 @@ def edges_to_path(edges: ArrayLike, vertices: ArrayLike, **kwargs) -> dict:
     # kwargs for Path constructor
     # turn traversals into Line objects
     lines = [Line(d) for d in dfs_connected]
+
+    if index is not None:
+        # Edges are undirected, and a traversal may reverse or reorder them.
+        source = grouping.hashable_rows(np.sort(edges, axis=1), allow_int=False)
+        keys, first = np.unique(source, return_index=True)
+        pairs = np.vstack([np.column_stack((d[:-1], d[1:])) for d in dfs_connected])
+        ordered = grouping.hashable_rows(np.sort(pairs, axis=1), allow_int=False)
+        kwargs.setdefault("metadata", {})["edge_index"] = index[
+            first[keys.searchsorted(ordered)]
+        ]
 
     kwargs.update({"entities": lines, "vertices": vertices, "process": False})
     return kwargs
