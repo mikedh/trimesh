@@ -110,6 +110,57 @@ class TrianglesTest(g.unittest.TestCase):
 
         assert g.np.dot(diff_dists, diff_dists) < g.tol.merge
 
+    def test_closest_scale(self):
+        # the closest point must not depend on the units of the triangles
+        rng = g.np.random.default_rng(0)
+        triangles = rng.random((500, 3, 3))
+        # points on each triangle: random ones and a dense grid of samples
+        inside = g.np.einsum("ij,ijk->ik", rng.dirichlet([1, 1, 1], 500), triangles)
+        weights = rng.dirichlet([1, 1, 1], 200)
+        samples = g.np.einsum("sj,ijk->isk", weights, triangles)
+        outside = rng.random((500, 3)) * 3 - 1
+
+        for scale in 10.0 ** g.np.arange(-8, 9, 2):
+            # a point on a triangle is its own closest point
+            closest = g.trimesh.triangles.closest_point(triangles * scale, inside * scale)
+            assert g.np.abs(closest / scale - inside).max() < 1e-10
+
+            closest = (
+                g.trimesh.triangles.closest_point(triangles * scale, outside * scale)
+                / scale
+            )
+            # the result has to be on the triangle
+            barycentric = g.trimesh.triangles.points_to_barycentric(triangles, closest)
+            assert barycentric.min() > -1e-10
+            assert g.np.abs(barycentric.sum(axis=1) - 1).max() < 1e-10
+            on_plane = g.np.einsum("ij,ijk->ik", barycentric, triangles)
+            assert g.np.abs(on_plane - closest).max() < 1e-10
+            # and no other point of the triangle can be closer
+            distance = g.np.linalg.norm(closest - outside, axis=1)
+            sampled = g.np.linalg.norm(samples - outside[:, None, :], axis=2)
+            assert (distance <= sampled.min(axis=1) + 1e-10).all()
+
+    def test_closest_collinear(self):
+        # collinear triangles in general position carry rounding noise
+        rng = g.np.random.default_rng(1)
+        a, b = rng.random((2, 20000, 3))
+        factor = rng.random((len(a), 1)) * 3 - 1
+        triangles = g.np.stack([a, b, a + factor * (b - a)], axis=1)
+        points = rng.random((len(a), 3)) * 3 - 1
+
+        # the truth is the closest point on the longest of the three segments
+        truth = g.np.full(len(a), g.np.inf)
+        for i, j in ((0, 1), (0, 2), (1, 2)):
+            origin, vector = triangles[:, i], triangles[:, j] - triangles[:, i]
+            weight = ((points - origin) * vector).sum(axis=1) / (vector**2).sum(axis=1)
+            on_segment = origin + g.np.clip(weight, 0, 1)[:, None] * vector
+            truth = g.np.minimum(truth, g.np.linalg.norm(on_segment - points, axis=1))
+
+        for scale in (1e-4, 1.0, 1e4):
+            closest = g.trimesh.triangles.closest_point(triangles * scale, points * scale)
+            distance = g.np.linalg.norm(closest / scale - points, axis=1)
+            assert g.np.abs(distance - truth).max() < 1e-9
+
     def test_closest_degenerate(self):
         # Degenerate faces reduce to a segment or a single point.
         triangles = g.np.array(
