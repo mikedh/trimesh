@@ -126,7 +126,7 @@ def element_transform(element, max_depth=10):
 
     Parameters
     --------------
-    e : lxml.etree.Element
+    element : lxml.etree.Element
       Element to search upwards from.
     max_depth : int
       Maximum depth to search for transforms.

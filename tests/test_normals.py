@@ -153,6 +153,55 @@ class NormalsTest(g.unittest.TestCase):
         assert g.np.isclose(m.volume, 8.0, atol=1e-4)
 
 
+@g.pytest.mark.parametrize("use_loop", [False, True])
+def test_weighted_vertex_normals_thin(use_loop):
+    # a thin face from #2680 with a valid normal but every corner
+    # angle zeroed as degenerate, sharing an edge with a regular face
+    m = g.trimesh.Trimesh(
+        vertices=[[0, 0, 0], [0.4938927, 11.2826791, 0], [0, 0.000002861, 0], [-1, 5, 1]],
+        faces=[[0, 1, 2], [0, 3, 1]],
+        process=False,
+    )
+    assert m.face_angles.any(axis=1).tolist() == [False, True]
+    angles = m.face_angles.copy()
+    normals = g.trimesh.geometry.weighted_vertex_normals(
+        vertex_count=len(m.vertices),
+        faces=m.faces,
+        face_normals=m.face_normals,
+        face_angles=m.face_angles,
+        use_loop=use_loop,
+    )
+    # shared vertices keep the angle weighted normal and the
+    # vertex only on the thin face gets the thin face normal
+    assert g.np.allclose(normals[[0, 1, 3]], m.face_normals[1])
+    assert g.np.allclose(normals[2], m.face_normals[0])
+    # the input angles must not be modified in place
+    assert g.np.array_equal(m.face_angles, angles)
+
+
+def test_weighted_vertex_normals_ab():
+    # A/B the old always-copying implementation against the current one
+    mesh = g.trimesh.creation.icosphere(subdivisions=6)
+    vertex_count = len(mesh.vertices)
+    faces, face_normals, face_angles = mesh.faces, mesh.face_normals, mesh.face_angles
+
+    tic = [g.time.time()]
+    face_ok = (face_normals**2).sum(axis=1) > 0.5
+    a = g.trimesh.util.unitize(
+        g.trimesh.geometry.index_sparse(
+            vertex_count, faces[face_ok], data=face_angles[face_ok].ravel()
+        ).dot(face_normals[face_ok])
+    )
+    tic.append(g.time.time())
+    b = g.trimesh.geometry.weighted_vertex_normals(
+        vertex_count, faces, face_normals, face_angles
+    )
+    tic.append(g.time.time())
+
+    assert g.np.allclose(a, b)
+    g.log.info("weighted_vertex_normals old, new: %s seconds", g.np.diff(tic))
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

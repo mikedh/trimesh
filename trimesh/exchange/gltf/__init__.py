@@ -101,7 +101,7 @@ def export_gltf(
       want to include non-unit normals for shading reasons.
     resolver : trimesh.resolvers.Resolver
       If passed will use to write each file.
-    tree_postprocesser : None or callable
+    tree_postprocessor : None or callable
       Run this on the header tree before exiting.
     embed_buffers : bool
       Embed the buffer into JSON file as a base64 string in the URI
@@ -1000,9 +1000,8 @@ def _append_mesh(
         if not key.startswith("_"):
             key = "_" + key
 
-        # GLTF has no floating point type larger than 32 bits so clip
-        # any float64 or larger to float32
-        if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
+        # cast anything GLTF has no component type for to float32
+        if attrib.dtype.str[1:] not in _dtypes_lookup:
             data = attrib.astype(float32)
         else:
             # force little-endian to match GLTF binary format
@@ -1248,9 +1247,8 @@ def _append_path(path, name, tree, buffer_items):
         if not key.startswith("_"):
             key = "_" + key
 
-        # GLTF has no floating point type larger than 32 bits so clip
-        # any float64 or larger to float32
-        if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
+        # cast anything GLTF has no component type for to float32
+        if attrib.dtype.str[1:] not in _dtypes_lookup:
             data = attrib.astype(float32)
         else:
             # force little-endian to match GLTF binary format

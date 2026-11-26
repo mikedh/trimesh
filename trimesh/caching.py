@@ -29,6 +29,7 @@ from hashlib import sha256 as _sha256
 import numpy as np
 
 from .constants import log
+from .typed import Any, Callable, Hashable
 from .util import is_sequence
 
 try:
@@ -327,14 +328,14 @@ class Cache:
     result of an ID function changes.
     """
 
-    def __init__(self, id_function, force_immutable=False):
+    def __init__(self, id_function: Callable[[], Hashable], force_immutable=False):
         """
         Create a cache object.
 
         Parameters
         ------------
-        id_function : function
-          Returns hashable value
+        id_function : Callable[[], Hashable]
+          Returns a value that changes when the data changes
         force_immutable : bool
           If set will make all numpy arrays read-only
         """
@@ -416,15 +417,15 @@ class Cache:
         """
         self.id_current = self._id_function()
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Hashable):
         """
         Get an item from the cache. If the item
         is not in the cache, it will return None
 
         Parameters
         -------------
-        key : hashable
-               Key in dict
+        key : Hashable
+          Key in dict
 
         Returns
         -------------
@@ -436,13 +437,13 @@ class Cache:
             return self.cache[key]
         return None
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: Hashable, value: Any):
         """
         Add an item to the cache.
 
         Parameters
         ------------
-        key : hashable
+        key : Hashable
           Key to reference value
         value : any
           Value to store in cache
@@ -621,15 +622,15 @@ class DataStore(Mapping):
     def __getitem__(self, key):
         return self.data[key]
 
-    def __setitem__(self, key, data):
+    def __setitem__(self, key: Hashable, data: Any):
         """
         Store an item in the DataStore.
 
         Parameters
         -------------
-        key
-          A hashable key to store under
-        data
+        key : Hashable
+          Key to store under
+        data : Any
           Usually a numpy array which will be subclassed
           but anything hashable should be able to be stored.
         """

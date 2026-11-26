@@ -417,6 +417,23 @@ class VoxelGridTest(g.unittest.TestCase):
         assert hash_ori != hash(vg._data)
         assert g.np.allclose(vg.scale, scale)
 
+    def test_revoxelized(self):
+        np = g.np
+        # off-origin and non-cubic so a swapped axis or offset shows
+        box = g.trimesh.creation.box().apply_translation([0.3, 0, 0])
+        voxel = box.voxelized(0.1).fill()
+        for shape in ((7, 4, 9), [7, 4, 9], np.array([7, 4, 9]), (1, 1, 1)):
+            new = voxel.revoxelized(shape)
+            assert new.shape == tuple(shape)
+            # the new grid covers exactly the same volume
+            assert np.allclose(new.bounds, voxel.bounds)
+            # every cell is filled iff the old grid is filled at its center
+            indices = np.indices(new.shape).reshape(3, -1).T
+            filled = voxel.is_filled(new.indices_to_points(indices))
+            assert np.array_equal(filled, new.encoding.dense.ravel())
+        with self.assertRaises(ValueError):
+            voxel.revoxelized(7)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

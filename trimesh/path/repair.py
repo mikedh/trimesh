@@ -19,7 +19,7 @@ def fill_gaps(path, distance=0.025):
 
     Parameters
     ------------
-    segments : trimesh.path.Path2D
+    path : trimesh.path.Path2D
        Line segments defined by start and end points
     """
 

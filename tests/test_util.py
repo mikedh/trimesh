@@ -84,6 +84,13 @@ def test_array_encoding_dtype(encoding, dtype, layout):
     np.testing.assert_array_equal(array, original)
 
 
+def test_decode_keys():
+    # decoding mutates the dict so it can't iterate a live keys view
+    store = {1020: "nah", b"hi": "stuff", b"a": 1, b"b": 2}
+    assert trimesh.util.decode_keys(store) is store
+    assert list(store.items()) == [(1020, "nah"), ("hi", "stuff"), ("a", 1), ("b", 2)]
+
+
 def test_align():
     log.info("Testing vector alignment")
     target = np.array([0, 0, 1])
