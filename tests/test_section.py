@@ -155,6 +155,30 @@ class SectionTest(g.unittest.TestCase):
         # make sure all indexes are set correctly
         assert all(set(m.metadata["face_index"] == idx) for m in multi)
 
+    def test_section_face_index_follows_the_path_segments(self):
+        left = g.trimesh.creation.box()
+        right = left.copy().apply_translation([3, 0, 0])
+        mesh = g.trimesh.util.concatenate([left, right])
+        order = g.np.arange(len(mesh.faces)).reshape(2, -1).T.ravel()
+        mesh.faces = mesh.faces[order]
+        plane = {"plane_origin": [0, 0, 0], "plane_normal": [0, 0, 1]}
+        lines, faces = g.trimesh.intersections.mesh_plane(
+            mesh, return_faces=True, **plane
+        )
+        section = mesh.section(**plane)
+        assert len(section.entities) == 2
+        edges = g.np.vstack(
+            [g.np.column_stack((e.points[:-1], e.points[1:])) for e in section.entities]
+        )
+        expected = {
+            tuple(sorted(tuple(point) for point in segment)): face
+            for segment, face in zip(lines, faces)
+        }
+        assert section.metadata["face_index"].tolist() == [
+            expected[tuple(sorted(tuple(point) for point in segment))]
+            for segment in section.vertices[edges]
+        ]
+
 
 class PlaneLine(g.unittest.TestCase):
     def test_planes(self):
