@@ -67,6 +67,21 @@ class DXMLTest(g.unittest.TestCase):
         # a tiled texture cannot share an atlas: keep the face colors
         assert load(b">2 2,0 2,2 0,0 0<") == "face"
 
+    def test_face_color_keeps_alpha(self):
+        # a 20 mm cube exported from SolidWorks 2024 with its +Z face given
+        # 75% transparency: that face's Color has alpha="0.2470588"
+        m = g.get_mesh("solidworks_alpha_face.3dxml").geometry["Part1"]
+        assert len(m.faces) == 12
+        top = m.face_normals[:, 2] > 0.99
+        assert top.sum() == 2
+        alpha = m.visual.face_colors[:, 3]
+        assert (alpha[top] == 62).all()
+        # the other five faces stay opaque
+        assert (alpha[~top] == 255).all()
+        # the opaque file stays opaque
+        v = g.get_mesh("blocks.3dxml").geometry["Abaqus_Geometry"].visual
+        assert (v.face_colors[:, 3] == 255).all()
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
