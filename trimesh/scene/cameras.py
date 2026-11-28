@@ -21,7 +21,7 @@ class Camera:
         name : str or None
           Name for camera to be used as node name
         resolution : (2,) int
-          Pixel size in (height, width)
+          Image size in pixels as (width, height)
         focal : (2,) float
           Focal length in pixels. Either pass this OR FOV
           but not both.  focal = (K[0][0], K[1][1])
@@ -85,8 +85,8 @@ class Camera:
 
         Returns
         ------------
-        resolution (2,) float
-          Camera resolution in pixels
+        resolution : (2,) int
+          Image size in pixels as (width, height)
         """
         return self._resolution
 
@@ -97,8 +97,8 @@ class Camera:
 
         Parameters
         ------------
-        resolution (2,) float
-          Camera resolution in pixels
+        values : (2,) int
+          Image size in pixels as (width, height)
         """
         values = np.asanyarray(values, dtype=np.int64)
         if values.shape != (2,):
@@ -374,18 +374,20 @@ def ray_pixel_coords(camera):
     Get the x-y coordinates of rays in camera coordinates at
     z == -1.
 
-    One coordinate pair will be given for each pixel as defined in
-    camera.resolution. If reshaped, the returned array corresponds
-    to pixels of the rendered image.
+    The grid runs from top to bottom within each column, starting at
+    the leftmost column.
 
     Examples
     ------------
-    ```python
-    xy = ray_pixel_coords(camera).reshape(
-      tuple(camera.coordinates) + (2,))
-    top_left == xy[0, 0]
-    bottom_right == xy[-1, -1]
-    ```
+    >>> from trimesh.scene.cameras import Camera, ray_pixel_coords
+    >>> camera = Camera(resolution=(4, 3), fov=(60, 45))
+    >>> xy, pixels = ray_pixel_coords(camera)
+    >>> width, height = camera.resolution
+    >>> image_xy = xy.reshape(width, height, 2).swapaxes(0, 1)
+    >>> image_xy.shape
+    (3, 4, 2)
+    >>> pixels[[0, -1]].tolist()
+    [[0, 2], [3, 0]]
 
     Parameters
     --------------
@@ -397,6 +399,8 @@ def ray_pixel_coords(camera):
     xy : (n, 2) float
       x-y coordinates of intersection of each camera ray
       with the z == -1 frame
+    pixels : (n, 2) int
+      Pixel indices (x, y), measured from the bottom left.
     """
     # shorthand
     res = camera.resolution
