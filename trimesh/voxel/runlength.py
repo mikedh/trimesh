@@ -370,7 +370,7 @@ def sorted_rle_gather_1d(rle_data, ordered_indices):
 
     Parameters
     ----------
-    brle_data: iterable of run-length-encoded data.
+    rle_data: iterable of run-length-encoded data.
     ordered_indices: iterable of ints in ascending order.
 
     Returns
@@ -513,7 +513,7 @@ def sorted_brle_gather_1d(brle_data, ordered_indices):
 
     Parameters
     ----------
-    raw_data: iterable of run-length-encoded data.
+    brle_data: iterable of run-length-encoded data.
     ordered_indices: iterable of ints in ascending order.
 
     Returns
@@ -583,7 +583,7 @@ def brle_gather_1d(brle_data, indices):
 
     Parameters
     ----------
-    rle_data: run length encoded data
+    brle_data: run length encoded data
     indices: dense indices
 
     Returns
